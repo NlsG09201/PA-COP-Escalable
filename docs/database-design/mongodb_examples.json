@@ -1,0 +1,211 @@
+{
+  "clinical_records": [
+    {
+      "_id": "clinical_9ef6d270-2eb8-4a40-8a45-5f4d3e44d101",
+      "schemaVersion": 1,
+      "organizationId": "8af86d9b-1f50-48c5-a5b2-7d9bfb0c1101",
+      "siteId": "43d6286e-a6da-4a5a-aad5-b3240e70a301",
+      "patientId": "dbf7f8db-561b-45c8-84f9-6d87d1112201",
+      "patientSnapshot": {
+        "documentType": "CC",
+        "documentNumber": "1023456789",
+        "fullName": "Laura Fernanda Ramirez Gomez",
+        "birthDate": "1994-07-11"
+      },
+      "allergies": [
+        "Penicilina"
+      ],
+      "chronicConditions": [
+        "Bruxismo"
+      ],
+      "entries": [
+        {
+          "entryId": "entry-001",
+          "recordedAt": "2026-03-18T14:05:00Z",
+          "authorUserId": "1cb9ab30-60f1-4c25-8d84-a7da2f4f7701",
+          "authorUsername": "dr.suarez@cop.local",
+          "specialtyCode": "PSICOLOGIA_CLINICA",
+          "entryType": "PSYCHOLOGY_INITIAL_ASSESSMENT",
+          "subjective": "Paciente refiere ansiedad anticipatoria y trastornos del sueno en las ultimas 6 semanas.",
+          "objective": "Afecto ansioso, orientada en las tres esferas, juicio conservado.",
+          "assessment": "Sintomatologia compatible con trastorno de ansiedad leve a moderado.",
+          "plan": "Aplicar GAD-7, psicoeducacion inicial, seguimiento en 7 dias.",
+          "attachments": []
+        },
+        {
+          "entryId": "entry-002",
+          "recordedAt": "2026-03-19T15:10:00Z",
+          "authorUserId": "3aa6fc91-b68b-4dc7-bc0a-9c6375e91411",
+          "authorUsername": "dra.ramirez@cop.local",
+          "specialtyCode": "ODONTOLOGIA_GENERAL",
+          "entryType": "DENTAL_EVOLUTION_NOTE",
+          "subjective": "Dolor localizado en molar superior derecho al frio.",
+          "objective": "Lesion cariosa ocluso-palatina en pieza 16. Sensibilidad positiva al estimulo frio.",
+          "assessment": "Caries activa en dentina, requiere operatoria.",
+          "plan": "Radiografia bite-wing y restauracion resina compuesta.",
+          "attachments": [
+            {
+              "type": "IMAGE",
+              "uri": "s3://cop-clinic/clinical/entry-002/rx-bite-wing-16.png"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-03-18T14:00:00Z",
+      "updatedAt": "2026-03-19T15:10:00Z"
+    }
+  ],
+  "odontograms": [
+    {
+      "_id": "odontogram_3f4b78e3-7c8b-4a4d-b0f4-7a8fd3a7c201",
+      "schemaVersion": 1,
+      "organizationId": "8af86d9b-1f50-48c5-a5b2-7d9bfb0c1101",
+      "siteId": "43d6286e-a6da-4a5a-aad5-b3240e70a301",
+      "patientId": "dbf7f8db-561b-45c8-84f9-6d87d1112201",
+      "teeth": [
+        {
+          "toothCode": "16",
+          "dentition": "PERMANENT",
+          "summaryStatus": "ACTIVE_CARIES",
+          "surfaces": {
+            "O": "CARIES",
+            "P": "CARIES",
+            "M": "HEALTHY",
+            "D": "HEALTHY",
+            "B": "HEALTHY"
+          },
+          "mobilityGrade": 0,
+          "periodontal": {
+            "bleedingOnProbing": false,
+            "probingDepthMm": {
+              "MB": 2,
+              "B": 2,
+              "DB": 2,
+              "MP": 2,
+              "P": 2,
+              "DP": 2
+            }
+          },
+          "treatments": [
+            {
+              "treatmentId": "tx-16-001",
+              "type": "RESIN_RESTORATION_PLANNED",
+              "status": "PLANNED",
+              "plannedAt": "2026-03-19T15:20:00Z",
+              "plannedByUserId": "3aa6fc91-b68b-4dc7-bc0a-9c6375e91411"
+            }
+          ]
+        },
+        {
+          "toothCode": "11",
+          "dentition": "PERMANENT",
+          "summaryStatus": "HEALTHY",
+          "surfaces": {
+            "L": "HEALTHY",
+            "M": "HEALTHY",
+            "D": "HEALTHY",
+            "V": "HEALTHY",
+            "I": "HEALTHY"
+          },
+          "mobilityGrade": 0,
+          "periodontal": {
+            "bleedingOnProbing": false,
+            "probingDepthMm": {
+              "MV": 1,
+              "V": 1,
+              "DV": 1,
+              "ML": 1,
+              "L": 1,
+              "DL": 1
+            }
+          },
+          "treatments": []
+        }
+      ],
+      "lastUpdatedBy": {
+        "userId": "3aa6fc91-b68b-4dc7-bc0a-9c6375e91411",
+        "username": "dra.ramirez@cop.local"
+      },
+      "createdAt": "2026-03-19T15:00:00Z",
+      "updatedAt": "2026-03-19T15:20:00Z"
+    }
+  ],
+  "psych_test_templates": [
+    {
+      "_id": "template_gad7_v1",
+      "schemaVersion": 1,
+      "organizationId": "8af86d9b-1f50-48c5-a5b2-7d9bfb0c1101",
+      "code": "GAD7",
+      "name": "GAD-7 Ansiedad Generalizada",
+      "version": 1,
+      "active": true,
+      "instructions": "Seleccione la frecuencia con la que ha experimentado cada sintoma durante las ultimas dos semanas.",
+      "questions": [
+        {
+          "questionId": "gad7_q1",
+          "order": 1,
+          "type": "SINGLE_CHOICE",
+          "text": "Sentirse nerviosa, ansiosa o al limite",
+          "options": [
+            { "optionId": "0", "label": "Nunca", "score": 0 },
+            { "optionId": "1", "label": "Varios dias", "score": 1 },
+            { "optionId": "2", "label": "Mas de la mitad de los dias", "score": 2 },
+            { "optionId": "3", "label": "Casi todos los dias", "score": 3 }
+          ]
+        },
+        {
+          "questionId": "gad7_q2",
+          "order": 2,
+          "type": "SINGLE_CHOICE",
+          "text": "No poder dejar de preocuparse o controlar la preocupacion",
+          "options": [
+            { "optionId": "0", "label": "Nunca", "score": 0 },
+            { "optionId": "1", "label": "Varios dias", "score": 1 },
+            { "optionId": "2", "label": "Mas de la mitad de los dias", "score": 2 },
+            { "optionId": "3", "label": "Casi todos los dias", "score": 3 }
+          ]
+        }
+      ],
+      "createdAt": "2026-03-10T12:00:00Z",
+      "updatedAt": "2026-03-10T12:00:00Z"
+    }
+  ],
+  "psych_test_results": [
+    {
+      "_id": "result_1e5cb340-3445-4d78-b639-9ef620931001",
+      "schemaVersion": 1,
+      "organizationId": "8af86d9b-1f50-48c5-a5b2-7d9bfb0c1101",
+      "siteId": "43d6286e-a6da-4a5a-aad5-b3240e70a301",
+      "patientId": "dbf7f8db-561b-45c8-84f9-6d87d1112201",
+      "appointmentId": "e4e8d784-a3cb-4ec0-b684-42f53fa33101",
+      "templateId": "template_gad7_v1",
+      "templateCode": "GAD7",
+      "appliedBy": {
+        "userId": "1cb9ab30-60f1-4c25-8d84-a7da2f4f7701",
+        "username": "dr.suarez@cop.local",
+        "professionalId": "f4d7a644-ded1-42b5-a8ab-3924fbe77101"
+      },
+      "responses": [
+        {
+          "questionId": "gad7_q1",
+          "selectedOptionId": "2",
+          "selectedLabel": "Mas de la mitad de los dias",
+          "score": 2
+        },
+        {
+          "questionId": "gad7_q2",
+          "selectedOptionId": "3",
+          "selectedLabel": "Casi todos los dias",
+          "score": 3
+        }
+      ],
+      "totalScore": 5,
+      "interpretation": {
+        "severity": "MILD",
+        "summary": "Sintomatologia ansiosa leve; se recomienda seguimiento clinico y reevaluacion."
+      },
+      "completedAt": "2026-03-18T14:25:00Z",
+      "createdAt": "2026-03-18T14:20:00Z"
+    }
+  ]
+}
