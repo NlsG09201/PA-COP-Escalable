@@ -6,3 +6,8 @@ export const selectPatientsState = createFeatureSelector<PatientsState>('patient
 export const selectPatients = createSelector(selectPatientsState, (state) => state.items);
 export const selectPatientsLoading = createSelector(selectPatientsState, (state) => state.loading);
 export const selectSelectedPatientId = createSelector(selectPatientsState, (state) => state.selectedPatientId);
+export const selectSelectedPatient = createSelector(
+  selectPatients,
+  selectSelectedPatientId,
+  (patients, selectedPatientId) => patients.find((patient) => patient.id === selectedPatientId) ?? null
+);

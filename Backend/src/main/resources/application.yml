@@ -36,7 +36,8 @@ spring:
     locations: classpath:db/migration
 
   mongodb:
-    uri: ${MONGODB_URI:mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin}
+    uri: ${MONGODB_URI:mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin&uuidRepresentation=standard}
+    uuid-representation: standard
 
   jackson:
     time-zone: UTC
@@ -69,5 +70,17 @@ app:
       # For local/dev only. In prod, inject via secrets/keystore.
       rsa-private-key-pem: ${SEC_JWT_RSA_PRIVATE_PEM:}
       rsa-public-key-pem: ${SEC_JWT_RSA_PUBLIC_PEM:}
+  public-booking:
+    payments:
+      default-provider: ${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:SANDBOX}
+      sandbox:
+        checkout-base-url: ${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:http://localhost:4200}
+    notifications:
+      email:
+        enabled: ${PUBLIC_BOOKING_EMAIL_NOTIFICATIONS_ENABLED:true}
+        template-code: ${PUBLIC_BOOKING_EMAIL_TEMPLATE_CODE:booking-confirmation-email}
+      whatsapp:
+        enabled: ${PUBLIC_BOOKING_WHATSAPP_NOTIFICATIONS_ENABLED:true}
+        template-code: ${PUBLIC_BOOKING_WHATSAPP_TEMPLATE_CODE:booking-confirmation-whatsapp}
   tenancy:
     mode: shared-schema

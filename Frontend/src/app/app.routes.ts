@@ -5,9 +5,13 @@ import { AppShellComponent } from './core/layout/app-shell.component';
 import { LoginComponent } from './features/auth/login.component';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
   {
     path: '',
+    loadChildren: () => import('./features/public-site/public-site.routes').then((m) => m.PUBLIC_SITE_ROUTES)
+  },
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'app',
     component: AppShellComponent,
     canActivate: [authGuard],
     children: [
@@ -56,5 +60,12 @@ export const routes: Routes = [
       }
     ]
   },
+  { path: 'dashboard', pathMatch: 'full', redirectTo: 'app/dashboard' },
+  { path: 'appointments', pathMatch: 'full', redirectTo: 'app/appointments' },
+  { path: 'patients', pathMatch: 'full', redirectTo: 'app/patients' },
+  { path: 'odontogram', pathMatch: 'full', redirectTo: 'app/odontogram' },
+  { path: 'clinical-history', pathMatch: 'full', redirectTo: 'app/clinical-history' },
+  { path: 'psychology', pathMatch: 'full', redirectTo: 'app/psychology' },
+  { path: 'psych-tests', pathMatch: 'full', redirectTo: 'app/psych-tests' },
   { path: '**', redirectTo: '' }
 ];

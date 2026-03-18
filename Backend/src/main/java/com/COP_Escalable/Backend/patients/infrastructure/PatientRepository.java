@@ -11,5 +11,7 @@ public interface PatientRepository extends JpaRepository<Patient, UUID> {
 	List<Patient> findAllByOrganizationIdAndSiteId(UUID organizationId, UUID siteId);
 	Optional<Patient> findByIdAndOrganizationId(UUID id, UUID organizationId);
 	Optional<Patient> findByIdAndOrganizationIdAndSiteId(UUID id, UUID organizationId, UUID siteId);
+	Optional<Patient> findFirstByOrganizationIdAndSiteIdAndEmailIgnoreCase(UUID organizationId, UUID siteId, String email);
+	Optional<Patient> findFirstByOrganizationIdAndSiteIdAndPhone(UUID organizationId, UUID siteId, String phone);
 }
 

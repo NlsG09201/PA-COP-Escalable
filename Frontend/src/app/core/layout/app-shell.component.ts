@@ -1,9 +1,11 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { AsyncPipe, CommonModule } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { UserRole } from '../models/user-role.model';
 import { AuthService } from '../services/auth.service';
 import { AuthApiService } from '../services/auth-api.service';
+import { selectSelectedPatient } from '../../store/patients.selectors';
 
 type NavItem = {
   label: string;
@@ -14,34 +16,52 @@ type NavItem = {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [AsyncPipe, CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   template: `
     <div class="shell-layout">
-      <aside class="shell-sidebar border-end bg-white">
-        <div class="p-3 border-bottom fw-semibold">COP Clinical Dashboard</div>
-        <nav class="nav flex-column gap-1 p-2">
+      <aside class="shell-sidebar">
+        <div class="brand-block">
+          <p class="brand-eyebrow mb-2">Centro Odontologico y Psicologico</p>
+          <div class="fw-semibold fs-5">COP Clinical Dashboard</div>
+          <p class="text-white-50 small mb-0">Operacion clinica, evaluacion psicologica y seguimiento por paciente.</p>
+        </div>
+
+        <nav class="nav-section">
+          <span class="nav-caption">Navegacion principal</span>
           @for (item of visibleItems(); track item.path) {
             <a
-              class="nav-link rounded-2"
+              class="nav-link rounded-3"
               [routerLink]="item.path"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: false }">
-              {{ item.label }}
+              <span class="nav-link-text">{{ item.label }}</span>
             </a>
           }
         </nav>
+
+        <div class="sidebar-footer">
+          <span class="footer-label">Rol activo</span>
+          <strong>{{ role() }}</strong>
+        </div>
       </aside>
 
       <div class="shell-main">
-        <header class="navbar navbar-expand navbar-light bg-white border-bottom px-3">
-          <span class="navbar-brand mb-0 h6">Panel Administrativo Clinico</span>
-          <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-muted small">Rol activo: {{ role() }}</span>
+        <header class="shell-header">
+          <div>
+            <span class="navbar-brand mb-0 h6 d-block">Panel Administrativo Clinico</span>
+            <span class="text-muted small">Interfaz operativa para atencion dental y psicologica.</span>
+          </div>
+
+          <div class="header-actions">
+            <div class="patient-chip">
+              <span class="footer-label">Paciente activo</span>
+              <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion' }}</strong>
+            </div>
             <button class="btn btn-outline-secondary btn-sm" (click)="logout()">Salir</button>
           </div>
         </header>
 
-        <main class="p-3 p-md-4">
+        <main class="shell-content p-3 p-md-4">
           <router-outlet />
         </main>
       </div>
@@ -50,8 +70,9 @@ type NavItem = {
   styles: `
     .shell-layout {
       display: grid;
-      grid-template-columns: 270px 1fr;
+      grid-template-columns: 300px 1fr;
       min-height: 100vh;
+      background: #f4f7fb;
     }
 
     .shell-sidebar {
@@ -59,16 +80,106 @@ type NavItem = {
       top: 0;
       height: 100vh;
       overflow-y: auto;
+      padding: 1.25rem 1rem;
+      background: linear-gradient(180deg, #0f172a 0%, #172554 100%);
+      color: #fff;
+    }
+
+    .brand-block {
+      border-radius: 24px;
+      padding: 1.25rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      margin-bottom: 1rem;
+      backdrop-filter: blur(8px);
+    }
+
+    .brand-eyebrow,
+    .nav-caption,
+    .footer-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .nav-section {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      color: rgba(255, 255, 255, 0.88);
+      border: 1px solid transparent;
+      transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateX(2px);
+    }
+
+    .nav-link.active {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(191, 219, 254, 0.35);
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      font-weight: 700;
     }
 
     .shell-main {
       min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
     }
 
-    .nav-link.active {
-      background-color: #f0f4ff;
-      color: #1f3bb3;
-      font-weight: 600;
+    .shell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom: 1px solid #eaeef5;
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .patient-chip,
+    .sidebar-footer {
+      display: grid;
+      gap: 0.15rem;
+      padding: 0.85rem 1rem;
+      border-radius: 18px;
+    }
+
+    .patient-chip {
+      background: #f8fafc;
+      border: 1px solid #e9eef5;
+      min-width: 210px;
+    }
+
+    .sidebar-footer {
+      margin-top: 1.5rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .shell-content {
+      min-width: 0;
     }
 
     @media (max-width: 1024px) {
@@ -80,21 +191,29 @@ type NavItem = {
         position: relative;
         height: auto;
       }
+
+      .shell-header,
+      .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
     }
   `
 })
 export class AppShellComponent {
+  private readonly store = inject(Store);
   private readonly allItems: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Gestion de Citas', path: '/appointments', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Pacientes', path: '/patients', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Odontograma', path: '/odontogram', roles: ['ADMIN', 'DENTIST'] },
-    { label: 'Historial Clinico', path: '/clinical-history', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Modulo Psicologico', path: '/psychology', roles: ['ADMIN', 'PSYCHOLOGIST'] },
-    { label: 'Tests Psicologicos', path: '/psych-tests', roles: ['ADMIN', 'PSYCHOLOGIST'] }
+    { label: 'Dashboard', path: '/app/dashboard', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
+    { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
+    { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
+    { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'DENTIST'] },
+    { label: 'Historial Clinico', path: '/app/clinical-history', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
+    { label: 'Modulo Psicologico', path: '/app/psychology', roles: ['ADMIN', 'PSYCHOLOGIST'] },
+    { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'PSYCHOLOGIST'] }
   ];
 
   protected readonly role = signal<UserRole>('ADMIN');
+  protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
   protected readonly visibleItems = computed(() =>
     this.allItems.filter((item) => item.roles.includes(this.role()))
   );

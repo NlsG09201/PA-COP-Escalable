@@ -103,7 +103,7 @@ export class LoginComponent {
     this.authApi.login$(username, password, siteId).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigateByUrl('/dashboard');
+        this.router.navigateByUrl('/app/dashboard');
       },
       error: (error: HttpErrorResponse) => {
         this.loading = false;
@@ -135,7 +135,7 @@ export class LoginComponent {
       return 'Solicitud invalida. Revisa los datos del formulario.';
     }
     if (error.status === 0) {
-      return 'No hay conexion con el API Gateway.';
+      return 'El gateway no esta disponible aun. Espera unos segundos e intenta nuevamente.';
     }
     return 'No fue posible iniciar sesion en este momento.';
   }

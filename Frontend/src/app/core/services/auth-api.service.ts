@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
@@ -20,7 +20,16 @@ export class AuthApiService {
 
   getSites$(): Observable<SiteVm[]> {
     return this.http.get<unknown>(`${API_BASE_URL}/public/sites`).pipe(
-      retry({ count: 6, delay: 1500 }),
+      retry({
+        count: 10,
+        delay: (error: { status?: number }, retryCount) => {
+          const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
+          if (!isTransient) {
+            throw error;
+          }
+          return timer(Math.min(1000 * retryCount, 4000));
+        }
+      }),
       map((raw) => this.toArray(raw).map((s) => ({
         id: String(s['id'] ?? ''),
         name: String(s['name'] ?? s['siteName'] ?? 'Sede')
@@ -32,6 +41,16 @@ export class AuthApiService {
     return this.http
       .post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, { username, password, siteId })
       .pipe(
+        retry({
+          count: 2,
+          delay: (error: { status?: number }, retryCount) => {
+            const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
+            if (!isTransient) {
+              throw error;
+            }
+            return timer(800 * retryCount);
+          }
+        }),
         map((res) => {
           this.tokenStorage.setTokens(res.accessToken, res.refreshToken);
         })

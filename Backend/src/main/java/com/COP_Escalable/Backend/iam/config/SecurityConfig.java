@@ -21,6 +21,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 
@@ -96,10 +98,21 @@ public class SecurityConfig {
 						.requestMatchers(new RegexRequestMatcher("^/public(/.*)?$", null)).permitAll()
 						.anyRequest().authenticated()
 				)
-				.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+				.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
 				.addFilterAfter(tenantFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
 
 		return http.build();
+	}
+
+	@Bean
+	JwtAuthenticationConverter jwtAuthenticationConverter() {
+		var authorities = new JwtGrantedAuthoritiesConverter();
+		authorities.setAuthoritiesClaimName("roles");
+		authorities.setAuthorityPrefix("ROLE_");
+
+		var converter = new JwtAuthenticationConverter();
+		converter.setJwtGrantedAuthoritiesConverter(authorities);
+		return converter;
 	}
 
 	@Bean

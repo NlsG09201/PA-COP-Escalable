@@ -23,4 +23,19 @@
 
 body {
   background-color: #f4f7fb;
+  color: #0f172a;
+  font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+a {
+  color: inherit;
 }

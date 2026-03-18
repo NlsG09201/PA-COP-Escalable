@@ -19,7 +19,9 @@ public class PublicTenancyController {
 
 	@GetMapping("/sites")
 	public List<SiteDto> listSites() {
-		return sites.findAll().stream().map(s -> new SiteDto(
+		return sites.findAll().stream()
+				.filter(site -> site.getStatus() == com.COP_Escalable.Backend.tenancy.domain.SiteStatus.ACTIVE)
+				.map(s -> new SiteDto(
 				s.getId(),
 				s.getOrganizationId(),
 				s.getName(),

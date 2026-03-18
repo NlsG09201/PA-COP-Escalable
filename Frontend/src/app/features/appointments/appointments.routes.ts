@@ -6,6 +6,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { CalendarOptions } from '@fullcalendar/core';
 import { Routes } from '@angular/router';
 import { AppointmentsApiService } from './data-access/appointments-api.service';
+import { catchError, of } from 'rxjs';
 
 @Component({
   standalone: true,
@@ -32,7 +33,10 @@ class AppointmentsPageComponent {
   };
 
   constructor(private readonly appointmentsApi: AppointmentsApiService) {
-    this.appointmentsApi.list$().subscribe((events) => {
+    this.appointmentsApi
+      .list$()
+      .pipe(catchError(() => of([])))
+      .subscribe((events) => {
       this.calendarOptions = { ...this.calendarOptions, events };
     });
   }

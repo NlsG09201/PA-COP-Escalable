@@ -28,7 +28,7 @@ public class LegacyPsychTestsProxyController {
 				.accept(MediaType.APPLICATION_JSON)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -42,7 +42,7 @@ public class LegacyPsychTestsProxyController {
 				.body(body)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -54,7 +54,7 @@ public class LegacyPsychTestsProxyController {
 				.accept(MediaType.APPLICATION_JSON)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -68,7 +68,7 @@ public class LegacyPsychTestsProxyController {
 				.body(body)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -80,6 +80,21 @@ public class LegacyPsychTestsProxyController {
 		if (StringUtils.hasText(ua)) headers.set("User-Agent", ua);
 		String xf = incoming.getHeader("X-Forwarded-For");
 		if (StringUtils.hasText(xf)) headers.set("X-Forwarded-For", xf);
+		return headers;
+	}
+
+	private static HttpHeaders copyResponseHeaders(HttpHeaders source) {
+		var headers = new HttpHeaders();
+		headers.putAll(source);
+		headers.remove(HttpHeaders.TRANSFER_ENCODING);
+		headers.remove(HttpHeaders.CONTENT_LENGTH);
+		headers.remove(HttpHeaders.CONNECTION);
+		headers.remove("Keep-Alive");
+		headers.remove(HttpHeaders.PROXY_AUTHENTICATE);
+		headers.remove(HttpHeaders.PROXY_AUTHORIZATION);
+		headers.remove(HttpHeaders.TE);
+		headers.remove(HttpHeaders.TRAILER);
+		headers.remove(HttpHeaders.UPGRADE);
 		return headers;
 	}
 }

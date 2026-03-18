@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -23,12 +26,12 @@ public class LegacyAppointmentsProxyController {
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<String> list(HttpServletRequest req) {
 		return rest.get()
-				.uri(legacyBaseUrl + "/api/appointments")
+				.uri(legacyAppointmentsUrl(req))
 				.headers(h -> h.addAll(forwardHeaders(req)))
 				.accept(MediaType.APPLICATION_JSON)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -42,7 +45,7 @@ public class LegacyAppointmentsProxyController {
 				.body(body)
 				.exchange((request, response) -> ResponseEntity
 						.status(response.getStatusCode())
-						.headers(response.getHeaders())
+						.headers(copyResponseHeaders(response.getHeaders()))
 						.body(response.bodyTo(String.class)));
 	}
 
@@ -54,6 +57,35 @@ public class LegacyAppointmentsProxyController {
 		if (StringUtils.hasText(ua)) headers.set("User-Agent", ua);
 		String xf = incoming.getHeader("X-Forwarded-For");
 		if (StringUtils.hasText(xf)) headers.set("X-Forwarded-For", xf);
+		return headers;
+	}
+
+	private URI legacyAppointmentsUrl(HttpServletRequest incoming) {
+		var builder = UriComponentsBuilder.fromUriString(legacyBaseUrl + "/api/appointments");
+		incoming.getParameterMap().forEach((name, values) -> {
+			if (values == null || values.length == 0) {
+				builder.queryParam(name);
+				return;
+			}
+			for (String value : values) {
+				builder.queryParam(name, value);
+			}
+		});
+		return builder.build().toUri();
+	}
+
+	private static HttpHeaders copyResponseHeaders(HttpHeaders source) {
+		var headers = new HttpHeaders();
+		headers.putAll(source);
+		headers.remove(HttpHeaders.TRANSFER_ENCODING);
+		headers.remove(HttpHeaders.CONTENT_LENGTH);
+		headers.remove(HttpHeaders.CONNECTION);
+		headers.remove("Keep-Alive");
+		headers.remove(HttpHeaders.PROXY_AUTHENTICATE);
+		headers.remove(HttpHeaders.PROXY_AUTHORIZATION);
+		headers.remove(HttpHeaders.TE);
+		headers.remove(HttpHeaders.TRAILER);
+		headers.remove(HttpHeaders.UPGRADE);
 		return headers;
 	}
 }
