@@ -63,6 +63,10 @@ export interface PublicPaymentVm {
   amount: number;
   currency: string;
   status: string;
+  providerStatus: string;
+  checkoutUrl: string | null;
+  clientSecret: string | null;
+  failureReason: string | null;
   expiresAt: string | null;
   confirmationPath: string;
 }
@@ -120,6 +124,16 @@ export interface CreatePublicBookingQuoteDto {
 }
 
 export interface CreatePublicPaymentIntentDto {
+  providerKey?: string;
+  idempotencyKey?: string;
+}
+
+export interface PublicPaymentWebhookDto {
+  bookingId?: string;
+  providerKey?: string;
+  providerReference?: string;
+  status: string;
+  eventId?: string;
   idempotencyKey?: string;
 }
 
@@ -190,6 +204,16 @@ export class PublicBookingService {
 
   completePayment$(bookingId: string): Observable<PublicBookingVm> {
     return this.http.post<unknown>(`${this.publicBaseUrl}/bookings/${bookingId}/payments/complete`, { status: 'PAID' }).pipe(
+      map((raw) => this.mapBooking(this.toObject(raw))),
+      map((booking) => {
+        this.rememberBookingId(booking.id);
+        return booking;
+      })
+    );
+  }
+
+  handlePaymentWebhook$(payload: PublicPaymentWebhookDto): Observable<PublicBookingVm> {
+    return this.http.post<unknown>(`${this.publicBaseUrl}/payments/webhook`, payload).pipe(
       map((raw) => this.mapBooking(this.toObject(raw))),
       map((booking) => {
         this.rememberBookingId(booking.id);
@@ -314,6 +338,10 @@ export class PublicBookingService {
       amount: Number(entry['amount'] ?? 0),
       currency: String(entry['currency'] ?? 'COP'),
       status: String(entry['status'] ?? 'PENDING'),
+      providerStatus: String(entry['providerStatus'] ?? entry['status'] ?? 'PENDING'),
+      checkoutUrl: entry['checkoutUrl'] ? String(entry['checkoutUrl']) : null,
+      clientSecret: entry['clientSecret'] ? String(entry['clientSecret']) : null,
+      failureReason: entry['failureReason'] ? String(entry['failureReason']) : null,
       expiresAt: entry['expiresAt'] ? String(entry['expiresAt']) : null,
       confirmationPath: String(entry['confirmationPath'] ?? '')
     };

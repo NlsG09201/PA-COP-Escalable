@@ -5,10 +5,7 @@ import { AppShellComponent } from './core/layout/app-shell.component';
 import { LoginComponent } from './features/auth/login.component';
 
 export const routes: Routes = [
-  {
-    path: '',
-    loadChildren: () => import('./features/public-site/public-site.routes').then((m) => m.PUBLIC_SITE_ROUTES)
-  },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: 'login', component: LoginComponent },
   {
     path: 'app',
@@ -67,5 +64,5 @@ export const routes: Routes = [
   { path: 'clinical-history', pathMatch: 'full', redirectTo: 'app/clinical-history' },
   { path: 'psychology', pathMatch: 'full', redirectTo: 'app/psychology' },
   { path: 'psych-tests', pathMatch: 'full', redirectTo: 'app/psych-tests' },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: 'login' }
 ];

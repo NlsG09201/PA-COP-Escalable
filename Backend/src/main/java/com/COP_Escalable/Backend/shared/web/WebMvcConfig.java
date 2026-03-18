@@ -15,7 +15,7 @@ public class WebMvcConfig {
 
 	@Bean
 	CorsConfigurationSource corsConfigurationSource(
-			@Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}") String allowedOrigins) {
+			@Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:3000}") String allowedOrigins) {
 		List<String> origins = Arrays.asList(allowedOrigins.split(",\\s*"));
 		var config = new CorsConfiguration();
 		config.setAllowedOrigins(origins);

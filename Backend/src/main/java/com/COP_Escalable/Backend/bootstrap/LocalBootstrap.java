@@ -6,8 +6,10 @@ import com.COP_Escalable.Backend.iam.domain.UserRoleAssignment;
 import com.COP_Escalable.Backend.iam.infrastructure.UserAccountRepository;
 import com.COP_Escalable.Backend.iam.infrastructure.UserRoleRepository;
 import com.COP_Escalable.Backend.tenancy.domain.Organization;
+import com.COP_Escalable.Backend.tenancy.domain.Professional;
 import com.COP_Escalable.Backend.tenancy.domain.Site;
 import com.COP_Escalable.Backend.tenancy.infrastructure.OrganizationRepository;
+import com.COP_Escalable.Backend.tenancy.infrastructure.ProfessionalRepository;
 import com.COP_Escalable.Backend.tenancy.infrastructure.SiteRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +27,7 @@ public class LocalBootstrap {
 	CommandLineRunner bootstrapLocal(
 			OrganizationRepository organizations,
 			SiteRepository sites,
+			ProfessionalRepository professionals,
 			UserAccountRepository users,
 			UserRoleRepository roles,
 			PasswordEncoder passwordEncoder
@@ -49,8 +52,17 @@ public class LocalBootstrap {
 			ensureRole(roles, admin.getId(), Role.ADMIN);
 			ensureRole(roles, admin.getId(), Role.ORG_ADMIN);
 			ensureRole(roles, admin.getId(), Role.SITE_ADMIN);
+			seedProfessionals(professionals, org, site);
 			// Site selection is handled at app layer; bootstrap creates one site for convenience.
 		};
+	}
+
+	private static void seedProfessionals(ProfessionalRepository professionals, Organization org, Site site) {
+		if (!professionals.findAllByOrganizationId(org.getId()).isEmpty()) {
+			return;
+		}
+		professionals.save(new Professional(org.getId(), site.getId(), "Dra. Paula Ramirez", "Odontologia general"));
+		professionals.save(new Professional(org.getId(), site.getId(), "Dr. Mateo Suarez", "Psicologia clinica"));
 	}
 
 	private static void ensureRole(UserRoleRepository repo, java.util.UUID userId, Role role) {

@@ -1,59 +1,79 @@
 # Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.2.
+Angular frontend for the internal clinical dashboard.
 
-## Development server
+## Local runtime
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+The most reliable local setup uses the root Docker stack:
 
 ```bash
-ng generate component component-name
+docker compose up -d
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+With the stack running:
+
+- dashboard UI: `http://localhost:5173`
+- API gateway: `http://localhost:8080`
+
+If you only want the Angular app in development mode, you can still run:
 
 ```bash
-ng generate --help
+npm start
 ```
 
-## Building
+## Build
 
-To build the project run:
+To create a production build:
 
 ```bash
-ng build
+npm run build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Unit tests
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Unit tests use Angular's test builder with Vitest globals:
 
 ```bash
-ng test
+npm test
 ```
 
-## Running end-to-end tests
+## End-to-end automation
 
-For end-to-end (e2e) testing, run:
+Browser automation is implemented with Playwright and targets the dashboard app at `http://localhost:5173` by default.
+
+Install browsers once:
 
 ```bash
-ng e2e
+npx playwright install chromium
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Run the full E2E suite:
 
-## Additional Resources
+```bash
+npm run e2e
+```
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Run the dashboard smoke:
+
+```bash
+npm run e2e -- e2e/dashboard/dashboard-smoke.spec.ts
+```
+
+Open the interactive Playwright UI:
+
+```bash
+npm run e2e:ui
+```
+
+## Optional environment variables
+
+You can override the defaults used by Playwright with:
+
+- `PLAYWRIGHT_BASE_URL` for a non-default dashboard URL
+- `PLAYWRIGHT_ADMIN_USERNAME` for dashboard login
+- `PLAYWRIGHT_ADMIN_PASSWORD` for dashboard login
+
+Default dashboard credentials in the local Docker stack:
+
+- username: `admin@cop.local`
+- password: `Admin123ChangeMe`

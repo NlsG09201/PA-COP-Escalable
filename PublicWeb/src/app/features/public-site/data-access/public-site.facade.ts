@@ -1,6 +1,7 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
+import { DOCUMENT } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
@@ -20,6 +21,7 @@ export class PublicSiteFacade {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly document = inject(DOCUMENT);
 
   readonly sites = signal<PublicSiteVm[]>([]);
   readonly services = signal<PublicServiceVm[]>([]);
@@ -136,6 +138,10 @@ export class PublicSiteFacade {
 
         this.reservationSuccess.set(booking);
         this.bookingQuote.set(null);
+        if (booking.payment?.checkoutUrl) {
+          this.openCheckoutUrl(booking.payment.checkoutUrl);
+          return;
+        }
         this.prepareCheckout(booking);
       });
   }
@@ -165,6 +171,9 @@ export class PublicSiteFacade {
         }
 
         this.patchReservationPayment(payment);
+        if (payment.checkoutUrl) {
+          this.openCheckoutUrl(payment.checkoutUrl);
+        }
       });
   }
 
@@ -174,27 +183,13 @@ export class PublicSiteFacade {
       return;
     }
 
-    this.processingPayment.set(true);
-    this.pageError.set('');
-    this.bookingService
-      .completePayment$(booking.id)
-      .pipe(
-        catchError((error) => {
-          this.processingPayment.set(false);
-          this.pageError.set(this.toUserMessage(error, 'No fue posible confirmar el pago sandbox.'));
-          return of(null);
-        }),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe((confirmed) => {
-        this.processingPayment.set(false);
-        if (!confirmed) {
-          return;
-        }
+    if (booking.payment?.checkoutUrl) {
+      this.processingPayment.set(true);
+      this.openCheckoutUrl(booking.payment.checkoutUrl);
+      return;
+    }
 
-        this.reservationSuccess.set(confirmed);
-        this.router.navigateByUrl(`/booking/confirmation/${confirmed.id}`);
-      });
+    this.pageError.set('Primero debes preparar el checkout de la reserva.');
   }
 
   private loadSites(): void {
@@ -342,6 +337,11 @@ export class PublicSiteFacade {
     this.bookingQuote.set(null);
     this.reservationSuccess.set(null);
     this.pageError.set('');
+  }
+
+  private openCheckoutUrl(checkoutUrl: string): void {
+    this.document.defaultView?.setTimeout(() => this.processingPayment.set(false), 1500);
+    this.document.defaultView?.location.assign(checkoutUrl);
   }
 
   private toUserMessage(error: unknown, fallback: string): string {

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, switchMap, takeWhile, timer } from 'rxjs';
+import { DASHBOARD_URL } from '../../core/config/dashboard.config';
 import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './data-access/public-booking.service';
 
 @Component({
@@ -10,14 +11,14 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
   imports: [CommonModule, CurrencyPipe, DatePipe, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="confirmation-shell">
+    <section class="confirmation-shell" data-testid="public-booking-confirmation">
       <div class="container py-5">
         <div class="confirmation-card mx-auto">
           <span class="section-eyebrow">Confirmacion publica</span>
           <h1 class="h3 mt-3 mb-2">Estado de tu reserva</h1>
           <p class="text-muted mb-4">Aqui puedes verificar si el horario quedo reservado y confirmado en el sistema.</p>
 
-          <div class="status-banner">
+          <div class="status-banner" data-testid="confirmation-auto-refresh">
             <div>
               <strong>Actualizacion automatica</strong>
               <p class="mb-0 text-muted small">
@@ -28,7 +29,16 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
           </div>
 
           @if (booking(); as booking) {
-            <div class="detail-grid">
+            <div
+              class="status-summary"
+              data-testid="confirmation-status-summary"
+              [class.status-summary-success]="statusSummary().tone === 'success'"
+              [class.status-summary-danger]="statusSummary().tone === 'danger'">
+              <strong>{{ statusSummary().title }}</strong>
+              <p class="mb-0">{{ statusSummary().detail }}</p>
+            </div>
+
+            <div class="detail-grid" data-testid="confirmation-detail-grid">
               <div class="detail-item">
                 <span>Paciente</span>
                 <strong>{{ booking.patientName }}</strong>
@@ -37,7 +47,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
                 <span>Servicio</span>
                 <strong>{{ booking.serviceName }}</strong>
               </div>
-              <div class="detail-item">
+              <div class="detail-item" data-testid="confirmation-booking-status">
                 <span>Estado</span>
                 <strong>{{ booking.status }}</strong>
               </div>
@@ -49,13 +59,25 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
                 <span>Fecha y hora</span>
                 <strong>{{ booking.appointmentStartAt | date: 'full' }}</strong>
               </div>
-              <div class="detail-item detail-item-wide">
+              <div class="detail-item detail-item-wide" data-testid="confirmation-payment-status">
                 <span>Pago</span>
                 <strong>{{ booking.payment?.status ?? 'SIN INTENCION' }}</strong>
+              </div>
+              <div class="detail-item detail-item-wide" data-testid="confirmation-provider-status">
+                <span>Estado proveedor</span>
+                <strong>{{ booking.payment?.providerStatus ?? 'Sin sincronizar' }}</strong>
               </div>
               <div class="detail-item detail-item-wide">
                 <span>Referencia de checkout</span>
                 <strong>{{ booking.payment?.providerReference ?? 'Pendiente de generar' }}</strong>
+              </div>
+              <div class="detail-item detail-item-wide">
+                <span>Checkout sandbox</span>
+                <strong>{{ booking.payment?.checkoutUrl ?? 'No disponible' }}</strong>
+              </div>
+              <div class="detail-item detail-item-wide">
+                <span>Motivo de falla</span>
+                <strong>{{ booking.payment?.failureReason ?? 'Sin errores reportados' }}</strong>
               </div>
               <div class="detail-item detail-item-wide">
                 <span>Vencimiento de pre-reserva</span>
@@ -134,9 +156,12 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
           }
 
           <div class="d-flex flex-wrap gap-3 mt-4">
-            <button type="button" class="btn btn-outline-primary" (click)="refreshNow()">Actualizar ahora</button>
+            <button type="button" class="btn btn-outline-primary" data-testid="confirmation-refresh" (click)="refreshNow()">Actualizar ahora</button>
+            @if (booking()?.payment?.checkoutUrl && booking()?.payment?.status !== 'PAID' && booking()?.status !== 'CONFIRMED') {
+              <a [href]="booking()?.payment?.checkoutUrl" class="btn btn-primary" data-testid="confirmation-continue-checkout">Continuar checkout sandbox</a>
+            }
             <a routerLink="/" class="btn btn-primary">Volver al inicio</a>
-            <a routerLink="/login" class="btn btn-outline-secondary">Ingreso profesional</a>
+            <a [href]="dashboardLoginUrl" class="btn btn-outline-secondary">Ingreso profesional</a>
           </div>
         </div>
       </div>
@@ -189,6 +214,29 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
+    }
+
+    .status-summary {
+      margin-bottom: 1.5rem;
+      border-radius: 1rem;
+      padding: 1rem;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .status-summary-success {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      color: #047857;
+    }
+
+    .status-summary-danger {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
     }
 
     .detail-item {
@@ -268,6 +316,7 @@ export class PublicBookingConfirmationComponent {
   private readonly bookingService = inject(PublicBookingService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly activeBookingId = signal('');
+  protected readonly dashboardLoginUrl = `${DASHBOARD_URL}/login`;
 
   protected readonly booking = signal<PublicBookingVm | null>(null);
   protected readonly notifications = signal<PublicNotificationVm[]>([]);
@@ -278,6 +327,54 @@ export class PublicBookingConfirmationComponent {
       return true;
     }
     return booking.status === 'PENDING_PAYMENT' || booking.status === 'DRAFT';
+  });
+  protected readonly statusSummary = computed(() => {
+    const booking = this.booking();
+    if (!booking) {
+      return {
+        tone: 'info',
+        title: 'Cargando estado de la reserva',
+        detail: 'Estamos consultando la informacion mas reciente.'
+      };
+    }
+
+    if (booking.status === 'CONFIRMED') {
+      return {
+        tone: 'success',
+        title: 'Reserva confirmada',
+        detail: 'Tu cita ya quedo registrada y el pago aparece como aplicado correctamente.'
+      };
+    }
+
+    if (booking.status === 'EXPIRED') {
+      return {
+        tone: 'danger',
+        title: 'Pre-reserva expirada',
+        detail: 'El horario ya no esta bloqueado. Debes volver al inicio y generar una nueva reserva.'
+      };
+    }
+
+    if (booking.payment?.status === 'FAILED' || booking.payment?.status === 'CANCELLED') {
+      return {
+        tone: 'danger',
+        title: 'Pago no completado',
+        detail: booking.payment.failureReason || 'Puedes volver al checkout sandbox o generar una nueva intencion de pago.'
+      };
+    }
+
+    if (booking.payment?.status === 'PROCESSING') {
+      return {
+        tone: 'info',
+        title: 'Pago en proceso',
+        detail: 'Estamos esperando la confirmacion final del proveedor. Esta pantalla se seguira actualizando.'
+      };
+    }
+
+    return {
+      tone: 'info',
+      title: 'Checkout pendiente',
+      detail: 'Tu horario sigue apartado temporalmente mientras completas el checkout sandbox.'
+    };
   });
   protected readonly timeline = computed(() => {
     const booking = this.booking();
@@ -298,8 +395,17 @@ export class PublicBookingConfirmationComponent {
     if (booking.payment) {
       events.push({
         id: `payment-${booking.payment.id}`,
-        title: 'Checkout preparado',
-        detail: `${booking.payment.providerKey} · ${booking.payment.providerReference}`,
+        title:
+          booking.payment.status === 'PAID'
+            ? 'Pago aplicado'
+            : booking.payment.status === 'FAILED' || booking.payment.status === 'CANCELLED'
+              ? 'Pago rechazado'
+              : booking.payment.status === 'PROCESSING'
+                ? 'Pago en revision'
+                : 'Checkout preparado',
+        detail:
+          booking.payment.failureReason ||
+          `${booking.payment.providerKey} · ${booking.payment.providerReference}`,
         status: booking.payment.status,
         at: booking.payment.expiresAt ?? booking.expiresAt
       });

@@ -1,6 +1,7 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   PublicAvailabilitySlotVm,
   PublicBookingQuoteVm,
@@ -12,7 +13,7 @@ import {
 @Component({
   selector: 'app-public-booking-flow',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule],
+  imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section id="booking" class="section-block">
@@ -26,10 +27,14 @@ import {
                 <p>Selecciona sede, servicio, horario y completa el checkout de confirmacion.</p>
               </div>
 
-              <form [formGroup]="bookingForm" (ngSubmit)="submitBooking.emit()" class="row g-3">
+              <form [formGroup]="bookingForm" (ngSubmit)="submitBooking.emit()" class="row g-3" data-testid="public-booking-form">
                 <div class="col-md-6">
                   <label class="form-label">Sede</label>
-                  <select class="form-select" formControlName="siteId" (change)="siteChange.emit($any($event.target).value)">
+                  <select
+                    class="form-select"
+                    formControlName="siteId"
+                    data-testid="public-site-select"
+                    (change)="siteChange.emit($any($event.target).value)">
                     @for (site of sites; track site.id) {
                       <option [value]="site.id">{{ site.name }}</option>
                     }
@@ -38,7 +43,11 @@ import {
 
                 <div class="col-md-6">
                   <label class="form-label">Servicio</label>
-                  <select class="form-select" formControlName="serviceId" (change)="serviceChange.emit($any($event.target).value)">
+                  <select
+                    class="form-select"
+                    formControlName="serviceId"
+                    data-testid="public-service-select"
+                    (change)="serviceChange.emit($any($event.target).value)">
                     @for (service of services; track service.id) {
                       <option [value]="service.id">{{ service.title }}</option>
                     }
@@ -50,11 +59,12 @@ import {
                   @if (loadingAvailability) {
                     <div class="empty-panel">Consultando agenda disponible...</div>
                   } @else {
-                    <div class="slot-grid">
+                    <div class="slot-grid" data-testid="public-slot-grid">
                       @for (slot of slots; track slot.startAt) {
                         <button
                           type="button"
                           class="slot-chip"
+                          data-testid="public-slot-option"
                           [class.slot-chip-active]="slot.startAt === selectedSlotStartAt"
                           (click)="slotSelected.emit(slot.startAt)">
                           <strong>{{ slot.startAt | date: 'EEE d MMM, h:mm a' }}</strong>
@@ -69,25 +79,33 @@ import {
 
                 <div class="col-md-6">
                   <label class="form-label">Nombre completo</label>
-                  <input class="form-control" formControlName="patientName" />
+                  <input class="form-control" formControlName="patientName" data-testid="public-patient-name" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Telefono</label>
-                  <input class="form-control" formControlName="phone" />
+                  <input class="form-control" formControlName="phone" data-testid="public-patient-phone" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Correo electronico</label>
-                  <input class="form-control" formControlName="email" />
+                  <input class="form-control" formControlName="email" data-testid="public-patient-email" />
                 </div>
                 <div class="col-12">
                   <label class="form-label">Observaciones</label>
-                  <textarea class="form-control" rows="4" formControlName="notes" placeholder="Motivo de consulta o comentarios"></textarea>
+                  <textarea
+                    class="form-control"
+                    rows="4"
+                    formControlName="notes"
+                    data-testid="public-patient-notes"
+                    placeholder="Motivo de consulta o comentarios"></textarea>
                 </div>
                 <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
                   <p class="mb-0 text-muted small">
                     La pre-reserva bloquea el horario por {{ bookingQuote?.holdMinutes ?? 15 }} minutos y deja la cita en estado {{ bookingQuote?.nextStatus ?? 'PENDING_PAYMENT' }}.
                   </p>
-                  <button class="btn btn-primary px-4" [disabled]="bookingForm.invalid || submitting || loadingQuote || !selectedSlotStartAt || !bookingQuote">
+                  <button
+                    class="btn btn-primary px-4"
+                    data-testid="public-create-booking"
+                    [disabled]="bookingForm.invalid || submitting || loadingQuote || !selectedSlotStartAt || !bookingQuote">
                     {{ submitting ? 'Generando reserva...' : 'Crear reserva' }}
                   </button>
                 </div>
@@ -127,35 +145,83 @@ import {
               </div>
 
               @if (reservationSuccess) {
-                <div class="success-box">
+                <div class="success-box" data-testid="public-booking-success">
                   <strong>Reserva creada</strong>
                   <p class="mb-1">{{ reservationSuccess.patientName }} - {{ reservationSuccess.serviceName }}</p>
                   <p class="mb-2 text-muted">{{ reservationSuccess.appointmentStartAt | date: 'full' }}</p>
-                  <div class="checkout-box">
+                  @if (reservationSuccess.status === 'CONFIRMED') {
+                    <div class="flow-banner flow-banner-success">
+                      Tu cita ya fue confirmada. Puedes revisar el seguimiento completo cuando quieras.
+                    </div>
+                  } @else if (reservationSuccess.status === 'EXPIRED') {
+                    <div class="flow-banner flow-banner-danger">
+                      La pre-reserva expiro y el horario ya no esta bloqueado. Debes generar una nueva reserva.
+                    </div>
+                  } @else if (reservationSuccess.payment?.status === 'FAILED' || reservationSuccess.payment?.status === 'CANCELLED') {
+                    <div class="flow-banner flow-banner-danger">
+                      El intento de pago no se completo. Puedes actualizar el checkout y reintentar.
+                    </div>
+                  } @else {
+                    <div class="flow-banner">
+                      Tu horario esta apartado temporalmente. Abre el checkout sandbox para confirmar la reserva.
+                    </div>
+                  }
+                  <div class="checkout-box" data-testid="public-checkout-summary">
                     <div class="checkout-line">
                       <span>Estado del checkout</span>
                       <strong>{{ reservationSuccess.payment?.status ?? 'SIN PREPARAR' }}</strong>
+                    </div>
+                    <div class="checkout-line">
+                      <span>Estado proveedor</span>
+                      <strong>{{ reservationSuccess.payment?.providerStatus ?? 'Pendiente' }}</strong>
                     </div>
                     <div class="checkout-line">
                       <span>Referencia</span>
                       <strong>{{ reservationSuccess.payment?.providerReference ?? 'Pendiente' }}</strong>
                     </div>
                     <div class="checkout-line">
+                      <span>Checkout sandbox</span>
+                      <strong>{{ reservationSuccess.payment?.checkoutUrl ? 'Listo para abrir' : 'Pendiente' }}</strong>
+                    </div>
+                    <div class="checkout-line">
                       <span>Vence</span>
                       <strong>{{ reservationSuccess.expiresAt ? (reservationSuccess.expiresAt | date: 'short') : 'Sin vencimiento' }}</strong>
                     </div>
+                    @if (reservationSuccess.payment?.failureReason) {
+                      <p class="mb-0 small text-danger">{{ reservationSuccess.payment?.failureReason }}</p>
+                    }
                   </div>
                   <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-outline-primary btn-sm" type="button" [disabled]="preparingCheckout || reservationSuccess.status === 'EXPIRED'" (click)="prepareCheckout.emit()">
-                      {{ preparingCheckout ? 'Preparando checkout...' : 'Preparar checkout' }}
+                    <button
+                      class="btn btn-outline-primary btn-sm"
+                      type="button"
+                      data-testid="public-prepare-checkout"
+                      [disabled]="preparingCheckout || reservationSuccess.status === 'EXPIRED'"
+                      (click)="prepareCheckout.emit()">
+                      {{ preparingCheckout ? 'Preparando checkout...' : ((reservationSuccess.payment?.status === 'FAILED' || reservationSuccess.payment?.status === 'CANCELLED') ? 'Reintentar checkout' : 'Actualizar checkout') }}
                     </button>
                     <button
                       class="btn btn-primary btn-sm"
                       type="button"
-                      [disabled]="processingPayment || preparingCheckout || !reservationSuccess.payment || reservationSuccess.status === 'EXPIRED'"
+                      data-testid="public-open-checkout"
+                      [disabled]="processingPayment || preparingCheckout || !reservationSuccess.payment || reservationSuccess.status === 'EXPIRED' || reservationSuccess.status === 'CONFIRMED' || reservationSuccess.payment.status === 'PAID'"
                       (click)="payNow.emit()">
-                      {{ processingPayment ? 'Procesando pago...' : 'Pagar y confirmar (sandbox)' }}
+                      {{
+                        processingPayment
+                          ? 'Abriendo checkout...'
+                          : reservationSuccess.payment?.status === 'FAILED' || reservationSuccess.payment?.status === 'CANCELLED'
+                            ? 'Reabrir checkout sandbox'
+                            : reservationSuccess.payment?.status === 'PAID' || reservationSuccess.status === 'CONFIRMED'
+                              ? 'Pago confirmado'
+                              : 'Abrir checkout sandbox'
+                      }}
                     </button>
+                    <a
+                      [routerLink]="['/booking/confirmation', reservationSuccess.id]"
+                      class="btn btn-outline-secondary btn-sm"
+                      data-testid="public-view-booking-status">
+                      Ver seguimiento
+                    </a>
                   </div>
                 </div>
               }
@@ -170,7 +236,7 @@ import {
                 <span class="badge rounded-pill text-bg-light">{{ bookings.length }}</span>
               </div>
 
-              <div class="booking-list">
+              <div class="booking-list" data-testid="public-recent-bookings">
                 @for (booking of bookings; track booking.id) {
                   <article class="booking-item">
                     <div class="d-flex justify-content-between gap-2">
@@ -178,7 +244,11 @@ import {
                       <span class="badge rounded-pill text-bg-warning">{{ booking.status }}</span>
                     </div>
                     <p class="mb-1">{{ booking.patientName }} · {{ booking.quotedPrice | currency: 'COP':'symbol':'1.0-0' }}</p>
+                    <p class="mb-1 small text-muted">Pago: {{ booking.payment?.status ?? 'SIN INTENCION' }}</p>
                     <p class="mb-0 text-muted small">{{ booking.appointmentStartAt | date: 'short' }}</p>
+                    <a [routerLink]="['/booking/confirmation', booking.id]" class="stretched-link mt-2 small fw-semibold text-decoration-none">
+                      Ver estado
+                    </a>
                   </article>
                 } @empty {
                   <div class="empty-panel">Aun no hay reservas publicas registradas desde este navegador.</div>
@@ -282,6 +352,7 @@ import {
       padding: 0.9rem;
       background: #f8fafc;
       border: 1px solid rgba(148, 163, 184, 0.12);
+      position: relative;
     }
 
     .checkout-box {
@@ -292,6 +363,28 @@ import {
       border-radius: 1rem;
       background: rgba(255, 255, 255, 0.72);
       border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .flow-banner {
+      margin-bottom: 1rem;
+      border-radius: 1rem;
+      padding: 0.85rem 1rem;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 0.92rem;
+    }
+
+    .flow-banner-success {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      color: #047857;
+    }
+
+    .flow-banner-danger {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
     }
 
     .checkout-line {

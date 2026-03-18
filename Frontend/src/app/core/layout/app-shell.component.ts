@@ -18,19 +18,20 @@ type NavItem = {
   standalone: true,
   imports: [AsyncPipe, CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="shell-layout">
-      <aside class="shell-sidebar">
+    <div class="shell-layout" data-testid="app-shell">
+      <aside class="shell-sidebar" data-testid="app-shell-sidebar">
         <div class="brand-block">
           <p class="brand-eyebrow mb-2">Centro Odontologico y Psicologico</p>
           <div class="fw-semibold fs-5">COP Clinical Dashboard</div>
           <p class="text-white-50 small mb-0">Operacion clinica, evaluacion psicologica y seguimiento por paciente.</p>
         </div>
 
-        <nav class="nav-section">
+        <nav class="nav-section" data-testid="app-shell-nav">
           <span class="nav-caption">Navegacion principal</span>
           @for (item of visibleItems(); track item.path) {
             <a
               class="nav-link rounded-3"
+              [attr.data-testid]="'nav-link-' + item.path.replace('/app/', '')"
               [routerLink]="item.path"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: false }">
@@ -46,7 +47,7 @@ type NavItem = {
       </aside>
 
       <div class="shell-main">
-        <header class="shell-header">
+        <header class="shell-header" data-testid="app-shell-header">
           <div>
             <span class="navbar-brand mb-0 h6 d-block">Panel Administrativo Clinico</span>
             <span class="text-muted small">Interfaz operativa para atencion dental y psicologica.</span>
@@ -57,7 +58,7 @@ type NavItem = {
               <span class="footer-label">Paciente activo</span>
               <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion' }}</strong>
             </div>
-            <button class="btn btn-outline-secondary btn-sm" (click)="logout()">Salir</button>
+            <button class="btn btn-outline-secondary btn-sm" data-testid="logout-button" (click)="logout()">Salir</button>
           </div>
         </header>
 

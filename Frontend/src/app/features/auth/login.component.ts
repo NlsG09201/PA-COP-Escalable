@@ -11,7 +11,7 @@ import { AuthApiService } from '../../core/services/auth-api.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <div class="container py-5">
+    <div class="container py-5" data-testid="login-page">
       <div class="row justify-content-center">
         <div class="col-md-6 col-lg-5">
           <div class="card shadow-sm">
@@ -19,10 +19,10 @@ import { AuthApiService } from '../../core/services/auth-api.service';
               <h4 class="mb-3">Ingreso Clinico</h4>
               <p class="text-muted mb-4">Acceso para administradores, odontologos y psicologos.</p>
 
-              <form [formGroup]="form" (ngSubmit)="submit()">
+              <form [formGroup]="form" (ngSubmit)="submit()" data-testid="login-form">
                 <div class="mb-3">
                   <label class="form-label">Usuario</label>
-                  <input class="form-control" [class.is-invalid]="isInvalid('username')" formControlName="username" />
+                  <input class="form-control" [class.is-invalid]="isInvalid('username')" formControlName="username" data-testid="login-username" />
                   @if (isInvalid('username')) {
                     <div class="invalid-feedback">El usuario es obligatorio.</div>
                   }
@@ -33,14 +33,15 @@ import { AuthApiService } from '../../core/services/auth-api.service';
                     type="password"
                     class="form-control"
                     [class.is-invalid]="isInvalid('password')"
-                    formControlName="password" />
+                    formControlName="password"
+                    data-testid="login-password" />
                   @if (isInvalid('password')) {
                     <div class="invalid-feedback">La contrasena es obligatoria.</div>
                   }
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Sede</label>
-                  <select class="form-select" [class.is-invalid]="isInvalid('siteId')" formControlName="siteId">
+                  <select class="form-select" [class.is-invalid]="isInvalid('siteId')" formControlName="siteId" data-testid="login-site-select">
                     <option value="">Seleccione una sede</option>
                     @for (site of sites; track site.id) {
                       <option [value]="site.id">{{ site.name }}</option>
@@ -51,9 +52,9 @@ import { AuthApiService } from '../../core/services/auth-api.service';
                   }
                 </div>
                 @if (errorMessage) {
-                  <div class="alert alert-danger py-2">{{ errorMessage }}</div>
+                  <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
-                <button class="btn btn-primary w-100" [disabled]="form.invalid || loading">
+                <button class="btn btn-primary w-100" data-testid="login-submit" [disabled]="form.invalid || loading">
                   {{ loading ? 'Ingresando...' : 'Ingresar' }}
                 </button>
               </form>

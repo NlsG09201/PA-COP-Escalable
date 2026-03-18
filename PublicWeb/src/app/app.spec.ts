@@ -14,10 +14,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the global loader shell', async () => {
+  it('should render the router outlet shell', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-global-loader')).not.toBeNull();
+    expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
 });

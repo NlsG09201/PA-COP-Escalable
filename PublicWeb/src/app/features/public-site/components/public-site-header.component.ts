@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { DASHBOARD_URL } from '../../../core/config/dashboard.config';
 
 @Component({
   selector: 'app-public-site-header',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="landing-header">
@@ -22,7 +22,7 @@ import { RouterLink } from '@angular/router';
           <a href="#services">Servicios</a>
           <a href="#pricing">Precios</a>
           <a href="#booking">Agendar</a>
-          <a [routerLink]="'/login'" class="btn btn-outline-primary btn-sm px-3">Ingreso profesional</a>
+          <a [href]="dashboardLoginUrl" class="btn btn-outline-primary btn-sm px-3">Ingreso profesional</a>
         </nav>
       </div>
     </header>
@@ -69,4 +69,6 @@ import { RouterLink } from '@angular/router';
     }
   `
 })
-export class PublicSiteHeaderComponent {}
+export class PublicSiteHeaderComponent {
+  protected readonly dashboardLoginUrl = `${DASHBOARD_URL}/login`;
+}
