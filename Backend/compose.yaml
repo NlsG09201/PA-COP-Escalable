@@ -1,36 +1,46 @@
 services:
-  activemq:
-    image: 'apache/activemq-classic:latest'
+  backend:
+    build:
+      context: .
+    environment:
+      - SERVER_PORT=8080
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO:-validate}
+      - SPRING_FLYWAY_ENABLED=${SPRING_FLYWAY_ENABLED:-true}
+      - POSTGRES_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cop}
+      - POSTGRES_USER=${POSTGRES_USER:-cop}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cop_dev_password_change_me}
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - SEC_ISSUER=${SEC_ISSUER:-http://localhost:8080}
+      - APP_BOOTSTRAP_ADMIN_USERNAME=${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
+      - APP_BOOTSTRAP_ADMIN_PASSWORD=${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
     ports:
-      - '61616'
-  artemis:
-    image: 'apache/activemq-artemis:latest'
-    ports:
-      - '61616'
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - mongodb
+
   mongodb:
-    image: 'mongo:latest'
+    image: 'mongo:7'
     environment:
-      - 'MONGO_INITDB_DATABASE=mydatabase'
-      - 'MONGO_INITDB_ROOT_PASSWORD=secret'
-      - 'MONGO_INITDB_ROOT_USERNAME=root'
+      - 'MONGO_INITDB_DATABASE=cop'
+      - 'MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}'
+      - 'MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-cop}'
     ports:
-      - '27017'
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:16'
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      - 'POSTGRES_DB=${POSTGRES_DB:-cop}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cop_dev_password_change_me}'
+      - 'POSTGRES_USER=${POSTGRES_USER:-cop}'
     ports:
-      - '5432'
-  rabbitmq:
-    image: 'rabbitmq:latest'
-    environment:
-      - 'RABBITMQ_DEFAULT_PASS=secret'
-      - 'RABBITMQ_DEFAULT_USER=myuser'
-    ports:
-      - '5672'
-  redis:
-    image: 'redis:latest'
-    ports:
-      - '6379'
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  mongodb_data:

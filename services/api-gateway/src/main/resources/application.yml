@@ -1,0 +1,86 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: cop-api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 5000
+            response-timeout: 30s
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:5173"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                exposedHeaders:
+                  - Authorization
+                allowCredentials: false
+                maxAge: 3600
+          default-filters:
+            - AddRequestHeader=X-Request-Source, api-gateway
+          routes:
+            - id: iam
+              uri: http://iam-service:8080
+              predicates:
+                - Path=/api/auth/**
+
+            - id: public-tenancy
+              uri: http://tenancy-service:8080
+              predicates:
+                - Path=/public/**
+
+            - id: patients
+              uri: http://patients-service:8080
+              predicates:
+                - Path=/api/patients/**
+
+            - id: appointments
+              uri: http://appointments-service:8080
+              predicates:
+                - Path=/api/appointments/**
+
+            - id: clinical
+              uri: http://clinical-service:8080
+              predicates:
+                - Path=/api/clinical/**
+
+            - id: odontogram
+              uri: http://odontogram-service:8080
+              predicates:
+                - Path=/api/odontogram/**
+
+            - id: psych-tests
+              uri: http://psych-tests-service:8080
+              predicates:
+                - Path=/api/psych-tests/**
+
+            # Strangler: todo al legacy mientras se extrae por servicio
+            - id: legacy-all
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+

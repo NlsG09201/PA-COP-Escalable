@@ -1,0 +1,26 @@
+@use "@coreui/coreui/scss/functions";
+@use "@coreui/coreui/scss/variables";
+@use "@coreui/coreui/scss/variables-dark";
+@use "@coreui/coreui/scss/mixins";
+@use "@coreui/coreui/scss/root";
+@use "@coreui/coreui/scss/reboot";
+@use "@coreui/coreui/scss/type";
+@use "@coreui/coreui/scss/containers";
+@use "@coreui/coreui/scss/grid";
+@use "@coreui/coreui/scss/tables";
+@use "@coreui/coreui/scss/forms";
+@use "@coreui/coreui/scss/buttons";
+@use "@coreui/coreui/scss/nav";
+@use "@coreui/coreui/scss/navbar";
+@use "@coreui/coreui/scss/card";
+@use "@coreui/coreui/scss/badge";
+@use "@coreui/coreui/scss/list-group";
+@use "@coreui/coreui/scss/modal";
+@use "@coreui/coreui/scss/spinners";
+@use "@coreui/coreui/scss/sidebar";
+@use "@coreui/coreui/scss/helpers";
+@use "@coreui/coreui/scss/utilities/api";
+
+body {
+  background-color: #f4f7fb;
+}

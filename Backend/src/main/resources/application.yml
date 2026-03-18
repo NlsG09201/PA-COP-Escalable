@@ -1,0 +1,73 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: cop-backend
+  profiles:
+    default: local
+  autoconfigure:
+    exclude:
+      - org.springframework.modulith.events.mongodb.MongoDbTransactionAutoConfiguration
+      - org.springframework.modulith.events.mongodb.MongoDbEventPublicationAutoConfiguration
+      - org.springframework.modulith.events.config.EventPublicationAutoConfiguration
+
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/cop}
+    username: ${POSTGRES_USER:cop}
+    password: ${POSTGRES_PASSWORD:cop_dev_password_change_me}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 5000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin}
+
+  jackson:
+    time-zone: UTC
+
+management:
+  health:
+    mongo:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger
+
+app:
+  security:
+    issuer: ${SEC_ISSUER:http://localhost:8080}
+    jwt:
+      key-id: ${SEC_JWT_KID:local-dev-1}
+      # For local/dev only. In prod, inject via secrets/keystore.
+      rsa-private-key-pem: ${SEC_JWT_RSA_PRIVATE_PEM:}
+      rsa-public-key-pem: ${SEC_JWT_RSA_PUBLIC_PEM:}
+  tenancy:
+    mode: shared-schema
