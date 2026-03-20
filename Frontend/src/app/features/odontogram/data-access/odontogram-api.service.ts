@@ -23,6 +23,11 @@ export interface ToothStateVm {
   history: ToothHistoryVm[];
 }
 
+type OdontogramRaw = {
+  updatedAt?: unknown;
+  teeth?: unknown;
+};
+
 @Injectable({ providedIn: 'root' })
 export class OdontogramApiService {
   constructor(private readonly http: HttpClient) {}
@@ -37,8 +42,16 @@ export class OdontogramApiService {
     patientId: string,
     payload: Omit<ToothStateVm, 'history' | 'updatedAt'> & { history?: ToothHistoryVm[] }
   ): Observable<ToothStateVm> {
-    return this.http.patch<unknown>(`${API_BASE_URL}/api/odontogram/${patientId}`, payload).pipe(
-      map((raw) => this.mapState(this.toObject(raw)))
+    // Backend contrato actual: PatchRequest { teeth: { [toothCode]: status } }
+    const tooth = payload.tooth;
+    const body = {
+      teeth: {
+        [tooth]: payload.status
+      }
+    };
+
+    return this.http.patch<unknown>(`${API_BASE_URL}/api/odontogram/${patientId}`, body).pipe(
+      map((raw) => this.mapPatchedTooth(raw, tooth, payload))
     );
   }
 
@@ -54,12 +67,32 @@ export class OdontogramApiService {
     };
   }
 
+  private mapPatchedTooth(
+    raw: unknown,
+    tooth: string,
+    fallback: Omit<ToothStateVm, 'history' | 'updatedAt'> & { history?: ToothHistoryVm[] }
+  ): ToothStateVm {
+    const obj = this.toObject(raw) as OdontogramRaw & Record<string, unknown>;
+    const teethMap = (obj.teeth && typeof obj.teeth === 'object' ? (obj.teeth as Record<string, unknown>) : {}) ?? {};
+    const savedStatus = teethMap[tooth] ?? fallback.status;
+
+    return {
+      tooth,
+      status: this.normalizeStatus(savedStatus),
+      diagnosis: fallback.diagnosis,
+      treatment: fallback.treatment,
+      observations: fallback.observations,
+      updatedAt: String(obj.updatedAt ?? new Date().toISOString()),
+      history: fallback.history ?? []
+    };
+  }
+
   private toArray(raw: unknown): Record<string, unknown>[] {
     if (Array.isArray(raw)) {
       return raw.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
     }
     if (typeof raw === 'object' && raw !== null) {
-      const objectRaw = raw as { teeth?: unknown; entries?: unknown; items?: unknown };
+      const objectRaw = raw as { teeth?: unknown; entries?: unknown; items?: unknown; updatedAt?: unknown };
       if (Array.isArray(objectRaw.teeth)) {
         return objectRaw.teeth as Record<string, unknown>[];
       }
@@ -68,6 +101,16 @@ export class OdontogramApiService {
       }
       if (Array.isArray(objectRaw.items)) {
         return objectRaw.items as Record<string, unknown>[];
+      }
+      // Backend actual devuelve `teeth` como un mapa: { "11": "HEALTHY", ... }
+      // Convertimos eso al formato que el UI espera.
+      if (typeof objectRaw.teeth === 'object' && objectRaw.teeth !== null) {
+        const teethObj = objectRaw.teeth as Record<string, unknown>;
+        return Object.entries(teethObj).map(([tooth, status]) => ({
+          tooth,
+          status,
+          updatedAt: objectRaw.updatedAt
+        }));
       }
     }
     return [];

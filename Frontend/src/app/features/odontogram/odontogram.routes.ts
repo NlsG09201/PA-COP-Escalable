@@ -4,8 +4,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { catchError, of, switchMap } from 'rxjs';
+import { catchError, map, of, switchMap } from 'rxjs';
 import { OdontogramApiService, ToothHistoryVm, ToothStateVm, ToothStatus } from './data-access/odontogram-api.service';
+import { ClinicalHistoryApiService } from '../clinical-history/data-access/clinical-history-api.service';
 import { selectSelectedPatient, selectSelectedPatientId } from '../../store/patients.selectors';
 
 type ToothVisual = ToothStateVm & {
@@ -87,7 +88,7 @@ function buildDefaultRecords(): ToothStateVm[] {
                     class="tooth-group"
                     [class.active]="selectedTooth() === tooth.tooth"
                     [attr.transform]="'translate(' + tooth.x + ' ' + tooth.y + ')'"
-                    (click)="selectTooth(tooth.tooth)">
+                    >
                     <text x="30" y="-12" text-anchor="middle" class="tooth-number">{{ tooth.tooth }}</text>
                     <path
                       [attr.d]="toothPath"
@@ -110,6 +111,16 @@ function buildDefaultRecords(): ToothStateVm[] {
                         <circle cx="30" cy="50" r="11" fill="none" stroke="#099268" stroke-width="2"></circle>
                       }
                     }
+                    <!-- Sole hit target for reliable SVG clicks -->
+                    <rect
+                      x="6"
+                      y="-20"
+                      width="48"
+                      height="140"
+                      fill="#000"
+                      opacity="0"
+                      class="tooth-hitbox"
+                      (pointerdown)="$event.preventDefault(); $event.stopPropagation(); selectTooth(tooth.tooth)"></rect>
                   </g>
                 }
 
@@ -118,7 +129,7 @@ function buildDefaultRecords(): ToothStateVm[] {
                     class="tooth-group"
                     [class.active]="selectedTooth() === tooth.tooth"
                     [attr.transform]="'translate(' + tooth.x + ' ' + tooth.y + ')'"
-                    (click)="selectTooth(tooth.tooth)">
+                    >
                     <path
                       [attr.d]="toothPath"
                       [attr.fill]="statusStyles[tooth.status].fill"
@@ -141,6 +152,16 @@ function buildDefaultRecords(): ToothStateVm[] {
                       }
                     }
                     <text x="30" y="135" text-anchor="middle" class="tooth-number">{{ tooth.tooth }}</text>
+                    <!-- Sole hit target for reliable SVG clicks -->
+                    <rect
+                      x="6"
+                      y="-20"
+                      width="48"
+                      height="140"
+                      fill="#000"
+                      opacity="0"
+                      class="tooth-hitbox"
+                      (pointerdown)="$event.preventDefault(); $event.stopPropagation(); selectTooth(tooth.tooth)"></rect>
                   </g>
                 }
               </svg>
@@ -300,8 +321,31 @@ function buildDefaultRecords(): ToothStateVm[] {
 
     .tooth-group {
       cursor: pointer;
-      transition: transform 150ms ease, filter 150ms ease;
-      filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.08));
+      /* Fast rendering: drop-shadow is expensive when re-rendering selection. */
+      filter: none;
+    }
+
+    .tooth-group text {
+      pointer-events: none;
+    }
+
+    /* Decorative elements can intercept clicks; disable for reliability. */
+    .arc-line,
+    .arc-label {
+      pointer-events: none;
+    }
+
+    /* Make only the hitbox receive click events. */
+    .tooth-group * {
+      pointer-events: none;
+    }
+
+    .tooth-group .tooth-hitbox {
+      pointer-events: all;
+    }
+
+    .tooth-hitbox {
+      touch-action: manipulation;
     }
 
     .tooth-group:hover {
@@ -310,7 +354,8 @@ function buildDefaultRecords(): ToothStateVm[] {
 
     .tooth-group.active path:first-of-type {
       stroke-width: 5;
-      filter: drop-shadow(0 0 0.65rem rgba(25, 113, 194, 0.28));
+      /* Keep only the stroke width change for speed. */
+      filter: none;
     }
 
     .tooth-number {
@@ -356,6 +401,7 @@ function buildDefaultRecords(): ToothStateVm[] {
 })
 class OdontogramPageComponent {
   private readonly odontogramApi = inject(OdontogramApiService);
+  private readonly clinicalApi = inject(ClinicalHistoryApiService);
   private readonly store = inject(Store);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -371,7 +417,9 @@ class OdontogramPageComponent {
   protected readonly saving = signal(false);
 
   protected readonly selectedRecord = computed(
-    () => this.toothRecords().find((record) => record.tooth === this.selectedTooth()) ?? null
+    () =>
+      this.toothRecords().find((record: ToothStateVm) => record.tooth === this.selectedTooth()) ??
+      null
   );
 
   protected readonly upperTeeth = computed(() => this.buildVisuals(UPPER_TEETH, 'upper'));
@@ -389,18 +437,20 @@ class OdontogramPageComponent {
       .select(selectSelectedPatientId)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        switchMap((patientId) => {
+        switchMap((patientId: string | null) => {
           this.patientId.set(patientId);
           return patientId ? this.odontogramApi.getByPatient$(patientId).pipe(catchError(() => of([]))) : of([]);
         })
       )
-      .subscribe((records) => {
+      .subscribe((records: ToothStateVm[]) => {
         this.toothRecords.set(this.mergeWithDefaults(records));
         this.syncSelection();
       });
   }
 
   protected selectTooth(tooth: string): void {
+    // Avoid redundant signal updates (prevents extra change detection work).
+    if (this.selectedTooth() === tooth) return;
     this.selectedTooth.set(tooth);
     this.syncForm();
   }
@@ -449,8 +499,23 @@ class OdontogramPageComponent {
         observations: optimistic.observations,
         history: optimistic.history
       })
-      .pipe(catchError(() => of(optimistic)), takeUntilDestroyed(this.destroyRef))
-      .subscribe((saved) => {
+      .pipe(
+        switchMap((saved) =>
+          this.clinicalApi
+            .addEntry$(patientId, {
+              category: 'ODONTOLOGICAL',
+              type: `Odontograma diente ${optimistic.tooth}`,
+              note: this.buildClinicalNote(optimistic)
+            })
+            .pipe(
+              catchError(() => of(void 0)),
+              map(() => saved)
+            )
+        ),
+        catchError(() => of(optimistic)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((saved: ToothStateVm) => {
         this.applyToothUpdate({
           ...optimistic,
           ...saved,
@@ -461,14 +526,15 @@ class OdontogramPageComponent {
   }
 
   private buildVisuals(order: string[], row: 'upper' | 'lower'): ToothVisual[] {
-    const map = new Map(this.toothRecords().map((record) => [record.tooth, record]));
-    return order.map((tooth, index) => {
+    const map = new Map<string, ToothStateVm>(this.toothRecords().map((record: ToothStateVm) => [record.tooth, record]));
+    return order.map((tooth: string, index: number): ToothVisual => {
       const gap = index >= 8 ? 28 : 0;
       const baseX = 86 + index * 58 + gap;
       const x = row === 'upper' ? baseX : baseX;
       const y = row === 'upper' ? 74 : 214;
+      const base = map.get(tooth) ?? buildDefaultRecords().find((record: ToothStateVm) => record.tooth === tooth)!;
       return {
-        ...(map.get(tooth) ?? buildDefaultRecords().find((record) => record.tooth === tooth)!),
+        ...base,
         x,
         y,
         row
@@ -478,7 +544,7 @@ class OdontogramPageComponent {
 
   private mergeWithDefaults(records: ToothStateVm[]): ToothStateVm[] {
     const base = new Map(buildDefaultRecords().map((record) => [record.tooth, record]));
-    records.forEach((record) => {
+    records.forEach((record: ToothStateVm) => {
       base.set(record.tooth, {
         ...(base.get(record.tooth) ?? record),
         ...record,
@@ -489,14 +555,14 @@ class OdontogramPageComponent {
   }
 
   private applyToothUpdate(updated: ToothStateVm): void {
-    this.toothRecords.update((records) =>
-      records.map((record) => (record.tooth === updated.tooth ? updated : record))
+    this.toothRecords.update((records: ToothStateVm[]) =>
+      records.map((record: ToothStateVm) => (record.tooth === updated.tooth ? updated : record))
     );
     this.syncForm();
   }
 
   private syncSelection(): void {
-    if (!this.toothRecords().some((record) => record.tooth === this.selectedTooth())) {
+    if (!this.toothRecords().some((record: ToothStateVm) => record.tooth === this.selectedTooth())) {
       this.selectedTooth.set('11');
     }
     this.syncForm();
@@ -517,6 +583,25 @@ class OdontogramPageComponent {
       },
       { emitEvent: false }
     );
+  }
+
+  private buildClinicalNote(record: ToothStateVm): string {
+    const parts = [
+      `Pieza ${record.tooth}.`,
+      `Estado: ${this.statusStyles[record.status].label}.`
+    ];
+
+    if (record.diagnosis.trim()) {
+      parts.push(`Diagnostico: ${record.diagnosis.trim()}.`);
+    }
+    if (record.treatment.trim()) {
+      parts.push(`Tratamiento: ${record.treatment.trim()}.`);
+    }
+    if (record.observations.trim()) {
+      parts.push(`Observaciones: ${record.observations.trim()}.`);
+    }
+
+    return parts.join(' ');
   }
 }
 

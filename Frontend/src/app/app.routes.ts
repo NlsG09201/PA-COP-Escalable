@@ -17,43 +17,43 @@ export const routes: Routes = [
         path: 'dashboard',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
-        data: { roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'appointments',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/appointments/appointments.routes').then((m) => m.APPOINTMENTS_ROUTES),
-        data: { roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'patients',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/patients/patients.routes').then((m) => m.PATIENTS_ROUTES),
-        data: { roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'odontogram',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/odontogram/odontogram.routes').then((m) => m.ODONTOGRAM_ROUTES),
-        data: { roles: ['ADMIN', 'DENTIST'] }
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'clinical-history',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/clinical-history/clinical-history.routes').then((m) => m.CLINICAL_HISTORY_ROUTES),
-        data: { roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'psychology',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/psychology/psychology.routes').then((m) => m.PSYCHOLOGY_ROUTES),
-        data: { roles: ['ADMIN', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
         path: 'psych-tests',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/psych-tests/psych-tests.routes').then((m) => m.PSYCH_TESTS_ROUTES),
-        data: { roles: ['ADMIN', 'PSYCHOLOGIST'] }
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       }
     ]
   },

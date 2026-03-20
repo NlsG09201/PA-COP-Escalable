@@ -2,11 +2,11 @@ package com.COP_Escalable.Backend.clinical.api;
 
 import com.COP_Escalable.Backend.clinical.application.ClinicalRecordService;
 import com.COP_Escalable.Backend.clinical.domain.ClinicalRecord;
-import com.COP_Escalable.Backend.iam.service.CopUserPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -30,10 +30,20 @@ public class ClinicalRecordController {
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
 	public ClinicalRecord addEntry(
 			@PathVariable UUID patientId,
-			@AuthenticationPrincipal CopUserPrincipal principal,
+			@AuthenticationPrincipal Jwt jwt,
 			@Valid @RequestBody AddEntryRequest req
 	) {
-		return service.addEntry(patientId, principal, req.type(), req.note());
+		String userIdClaim = jwt != null ? jwt.getClaimAsString("user_id") : null;
+		if (userIdClaim == null || userIdClaim.isBlank()) {
+			throw new IllegalArgumentException("Missing user_id claim");
+		}
+
+		String username = jwt.getSubject();
+		if (username == null || username.isBlank()) {
+			throw new IllegalArgumentException("Missing subject claim");
+		}
+
+		return service.addEntry(patientId, UUID.fromString(userIdClaim), username, req.type(), req.note());
 	}
 
 	public record AddEntryRequest(

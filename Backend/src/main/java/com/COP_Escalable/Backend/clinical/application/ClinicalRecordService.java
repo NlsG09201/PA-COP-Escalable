@@ -2,7 +2,6 @@ package com.COP_Escalable.Backend.clinical.application;
 
 import com.COP_Escalable.Backend.clinical.domain.ClinicalRecord;
 import com.COP_Escalable.Backend.clinical.infrastructure.ClinicalRecordRepository;
-import com.COP_Escalable.Backend.iam.service.CopUserPrincipal;
 import com.COP_Escalable.Backend.patients.infrastructure.PatientRepository;
 import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,9 +34,9 @@ public class ClinicalRecordService {
 	}
 
 	@Transactional
-	public ClinicalRecord addEntry(UUID patientId, CopUserPrincipal author, String type, String note) {
+	public ClinicalRecord addEntry(UUID patientId, UUID authorUserId, String authorUsername, String type, String note) {
 		var record = getOrCreateFor(patientId);
-		record.addEntry(author.userId(), author.getUsername(), type, note);
+		record.addEntry(authorUserId, authorUsername, type, note);
 		return records.save(record);
 	}
 }

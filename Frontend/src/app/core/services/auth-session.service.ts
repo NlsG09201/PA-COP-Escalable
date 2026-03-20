@@ -53,53 +53,19 @@ export class AuthSessionService {
       throw new Error('No refresh token available');
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7856/ingest/a97b49cd-5e9b-40bc-bfab-edcab7819c6d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '264b51' },
-      body: JSON.stringify({
-        sessionId: '264b51',
-        runId: 'initial',
-        hypothesisId: 'H2',
-        location: 'auth-session.service.ts:refresh-start',
-        message: 'Refresh flow started',
-        data: {
-          refreshTokenPresent: !!refreshToken
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {});
-    // #endregion
-
     return this.http
       .post<RefreshResponse>(`${API_BASE_URL}/api/auth/refresh`, {
         refreshToken
       })
       .pipe(
-        map((response) => response.accessToken ?? response.token ?? ''),
-        tap((token) => {
+        tap((response) => {
+          const token = response.accessToken ?? response.token ?? '';
           if (!token) {
             throw new Error('Refresh endpoint returned empty token');
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7856/ingest/a97b49cd-5e9b-40bc-bfab-edcab7819c6d', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '264b51' },
-            body: JSON.stringify({
-              sessionId: '264b51',
-              runId: 'initial',
-              hypothesisId: 'H2',
-              location: 'auth-session.service.ts:refresh-success',
-              message: 'Refresh flow returned a new access token',
-              data: {
-                tokenSummary: summarizeJwt(token)
-              },
-              timestamp: Date.now()
-            })
-          }).catch(() => {});
-          // #endregion
-          this.tokenStorage.setTokens(token, refreshToken);
-        })
+          this.tokenStorage.setTokens(token, response.refreshToken ?? refreshToken);
+        }),
+        map((response) => response.accessToken ?? response.token ?? '')
       );
   }
 }

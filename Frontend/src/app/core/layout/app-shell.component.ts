@@ -204,19 +204,20 @@ type NavItem = {
 export class AppShellComponent {
   private readonly store = inject(Store);
   private readonly allItems: NavItem[] = [
-    { label: 'Dashboard', path: '/app/dashboard', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'DENTIST'] },
-    { label: 'Historial Clinico', path: '/app/clinical-history', roles: ['ADMIN', 'DENTIST', 'PSYCHOLOGIST'] },
-    { label: 'Modulo Psicologico', path: '/app/psychology', roles: ['ADMIN', 'PSYCHOLOGIST'] },
-    { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'PSYCHOLOGIST'] }
+    { label: 'Dashboard', path: '/app/dashboard', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Historial Clinico', path: '/app/clinical-history', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Modulo Psicologico', path: '/app/psychology', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
   ];
 
-  protected readonly role = signal<UserRole>('ADMIN');
+  protected readonly activeRoles = signal<UserRole[]>(['ADMIN']);
+  protected readonly role = computed(() => this.activeRoles()[0] ?? 'ADMIN');
   protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
   protected readonly visibleItems = computed(() =>
-    this.allItems.filter((item) => item.roles.includes(this.role()))
+    this.allItems.filter((item) => item.roles.some((role) => this.activeRoles().includes(role)))
   );
 
   constructor(
@@ -224,7 +225,7 @@ export class AppShellComponent {
     private readonly authApi: AuthApiService,
     private readonly router: Router
   ) {
-    this.role.set(authService.getRole());
+    this.activeRoles.set(authService.getRoles());
   }
 
   protected logout(): void {

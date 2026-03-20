@@ -1,0 +1,8 @@
+schema {
+  query: Query
+}
+
+type Query {
+  # Placeholder schema to satisfy graphqlcodegen-maven-plugin during Docker build.
+  _empty: String
+}

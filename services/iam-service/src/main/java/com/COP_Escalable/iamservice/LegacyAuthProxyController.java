@@ -59,8 +59,10 @@ public class LegacyAuthProxyController {
 				.contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.body(body)
-				.retrieve()
-				.toEntity(String.class);
+				.exchange((request, response) -> ResponseEntity
+						.status(response.getStatusCode())
+						.headers(response.getHeaders())
+						.body(response.bodyTo(String.class)));
 	}
 
 	public record LoginRequest(

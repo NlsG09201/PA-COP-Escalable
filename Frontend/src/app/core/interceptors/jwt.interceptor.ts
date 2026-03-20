@@ -1,5 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { AuthSessionService } from '../services/auth-session.service';
@@ -35,30 +36,8 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const sessionService = inject(AuthSessionService);
   const tokenStorage = inject(TokenStorageService);
+  const router = inject(Router);
   const token = authService.getToken();
-  const isAppointmentsRequest = req.url.includes('/api/appointments');
-
-  if (isAppointmentsRequest) {
-    // #region agent log
-    fetch('http://127.0.0.1:7856/ingest/a97b49cd-5e9b-40bc-bfab-edcab7819c6d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '264b51' },
-      body: JSON.stringify({
-        sessionId: '264b51',
-        runId: 'initial',
-        hypothesisId: 'H1',
-        location: 'jwt.interceptor.ts:appointments-entry',
-        message: 'Appointments request entered JWT interceptor',
-        data: {
-          url: req.url,
-          tokenPresent: !!token,
-          tokenSummary: summarizeJwt(token)
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {});
-    // #endregion
-  }
 
   if (!token) {
     return next(req);
@@ -74,35 +53,13 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
     catchError((error: { status?: number }) => {
       const isAuthEndpoint = req.url.includes('/api/auth/login') || req.url.includes('/api/auth/refresh');
 
-      if (isAppointmentsRequest) {
-        // #region agent log
-        fetch('http://127.0.0.1:7856/ingest/a97b49cd-5e9b-40bc-bfab-edcab7819c6d', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '264b51' },
-          body: JSON.stringify({
-            sessionId: '264b51',
-            runId: 'initial',
-            hypothesisId: error.status === 401 ? 'H2' : error.status === 500 ? 'H5' : 'H4',
-            location: 'jwt.interceptor.ts:appointments-error',
-            message: 'Appointments request returned an error',
-            data: {
-              url: req.url,
-              status: error.status ?? null,
-              refreshTokenPresent: !!tokenStorage.getRefreshToken(),
-              isAuthEndpoint
-            },
-            timestamp: Date.now()
-          })
-        }).catch(() => {});
-        // #endregion
-      }
-
       if (error.status !== 401 || isAuthEndpoint) {
         return throwError(() => error);
       }
 
       if (!tokenStorage.getRefreshToken()) {
         tokenStorage.clear();
+        void router.navigateByUrl('/login');
         return throwError(() => error);
       }
 
@@ -117,6 +74,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
         }),
         catchError((refreshError) => {
           tokenStorage.clear();
+          void router.navigateByUrl('/login');
           return throwError(() => refreshError);
         })
       );

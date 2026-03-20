@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { catchError, of } from 'rxjs';
+import { catchError, map, of, switchMap } from 'rxjs';
 import {
   PsychQuestionVm,
   PsychTestOptionVm,
@@ -12,6 +12,7 @@ import {
   PsychTestSubmissionVm,
   PsychTestTemplateVm
 } from './data-access/psych-tests-api.service';
+import { ClinicalHistoryApiService } from '../clinical-history/data-access/clinical-history-api.service';
 import { selectSelectedPatient, selectSelectedPatientId } from '../../store/patients.selectors';
 
 const LIKERT_OPTIONS: PsychTestOptionVm[] = [
@@ -416,6 +417,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
 })
 class PsychTestsPageComponent {
   private readonly testsApi = inject(PsychTestsApiService);
+  private readonly clinicalApi = inject(ClinicalHistoryApiService);
   private readonly store = inject(Store);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -511,7 +513,22 @@ class PsychTestsPageComponent {
         classification,
         answersByQuestionId: answers
       })
-      .pipe(catchError(() => of(optimistic)), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((saved) =>
+          this.clinicalApi
+            .addEntry$(patientId, {
+              category: 'PSYCHOLOGICAL',
+              type: `Test ${template.name}`,
+              note: this.buildClinicalNote(saved, template)
+            })
+            .pipe(
+              catchError(() => of(void 0)),
+              map(() => saved)
+            )
+        ),
+        catchError(() => of(optimistic)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe((saved) => {
         this.history.update((history) => [
           saved,
@@ -603,6 +620,21 @@ class PsychTestsPageComponent {
       return 'Seguimiento recomendado';
     }
     return 'Intervencion prioritaria';
+  }
+
+  private buildClinicalNote(submission: PsychTestSubmissionVm, template: PsychTestTemplateVm): string {
+    const answersSummary = template.questions
+      .map((question) => {
+        const answer = submission.answers[question.id];
+        if (!answer) {
+          return null;
+        }
+        return `${question.prompt}: ${answer}`;
+      })
+      .filter((entry): entry is string => entry !== null)
+      .join(' | ');
+
+    return `Resultado ${template.name}. Puntaje: ${submission.score}. Clasificacion: ${submission.classification}.${answersSummary ? ` Respuestas clave: ${answersSummary}` : ''}`;
   }
 }
 
