@@ -85,7 +85,7 @@ function buildBooking(options: {
   return {
     id: 'booking-123',
     siteId: 'site-1',
-    serviceId: 'general-dentistry',
+    serviceId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     serviceName: 'Valoracion dental integral',
     serviceCategory: 'Odontologia',
     patientName: 'Paciente Demo',
