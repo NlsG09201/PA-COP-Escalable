@@ -3,6 +3,7 @@ package com.COP_Escalable.Backend.patients.application;
 import com.COP_Escalable.Backend.patients.domain.Patient;
 import com.COP_Escalable.Backend.patients.infrastructure.PatientRepository;
 import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,11 @@ import java.util.UUID;
 @Service
 public class PatientService {
 	private final PatientRepository patients;
+	private final ApplicationEventPublisher eventPublisher;
 
-	public PatientService(PatientRepository patients) {
+	public PatientService(PatientRepository patients, ApplicationEventPublisher eventPublisher) {
 		this.patients = patients;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@Transactional(readOnly = true)
@@ -30,7 +33,14 @@ public class PatientService {
 		var ctx = TenantContextHolder.require();
 		if (ctx.siteId() == null) throw new IllegalArgumentException("site_id is required in tenant context");
 		var p = Patient.create(ctx.organizationId(), ctx.siteId(), externalCode, fullName, birthDate, phone, email);
-		return patients.save(p);
+		var saved = patients.save(p);
+		eventPublisher.publishEvent(new PatientRegisteredEvent(
+				saved.getOrganizationId(),
+				saved.getSiteId(),
+				saved.getId(),
+				saved.getCreatedAt()
+		));
+		return saved;
 	}
 
 	@Transactional(readOnly = true)

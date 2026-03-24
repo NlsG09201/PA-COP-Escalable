@@ -1,0 +1,15 @@
+Analiza el siguiente cuestionario (texto agregado por el sistema). El identificador del paciente no se incluye a propósito.
+
+Puntuación local (determinística en backend; puede estar vacía si no aplica):
+{{LOCAL_SCORING_BLOCK}}
+
+{{QUESTIONNAIRE_BLOCK}}
+
+Tarea:
+1) Resume señales clínicamente relevantes (sin diagnosticar).
+2) Propón hasta 5 hipótesis de exploración clínica (no diagnósticos finales), ordenadas por utilidad.
+3) Sugiere preguntas de aclaración para el psicólogo.
+4) Sugiere acciones no diagnósticas (p. ej. derivación, seguimiento, psicoeducación) sin reemplazar criterio profesional.
+5) Asigna risk_level coherente con ideación autolesiva, desesperanza severa, psicosis o violencia si aparecen en el texto; si no hay indicios, no infles el riesgo.
+
+Recuerda: salida JSON única, sin markdown.

@@ -11,12 +11,14 @@ import java.util.UUID;
 public record NotificationProperties(
 		Redis redis,
 		Retry retry,
+		Reminder reminder,
 		Email email,
 		Whatsapp whatsapp
 ) {
 	public NotificationProperties {
 		redis = redis == null ? Redis.defaults() : redis.normalized();
 		retry = retry == null ? Retry.defaults() : retry.normalized();
+		reminder = reminder == null ? Reminder.defaults() : reminder.normalized();
 		email = email == null ? Email.defaults() : email.normalized();
 		whatsapp = whatsapp == null ? Whatsapp.defaults() : whatsapp.normalized();
 	}
@@ -79,6 +81,25 @@ public record NotificationProperties(
 					initialBackoffMs == null || initialBackoffMs < 1000 ? defaults.initialBackoffMs : initialBackoffMs,
 					multiplier == null || multiplier < 1.0d ? defaults.multiplier : multiplier,
 					maxBackoffMs == null || maxBackoffMs < 1000 ? defaults.maxBackoffMs : maxBackoffMs
+			);
+		}
+	}
+
+	public record Reminder(
+			Boolean enabled,
+			Long leadTimeMinutes,
+			Long pollDelayMs
+	) {
+		private static Reminder defaults() {
+			return new Reminder(true, 1440L, 60000L);
+		}
+
+		private Reminder normalized() {
+			var defaults = defaults();
+			return new Reminder(
+					enabled == null ? defaults.enabled : enabled,
+					leadTimeMinutes == null || leadTimeMinutes < 1 ? defaults.leadTimeMinutes : leadTimeMinutes,
+					pollDelayMs == null || pollDelayMs < 1000 ? defaults.pollDelayMs : pollDelayMs
 			);
 		}
 	}

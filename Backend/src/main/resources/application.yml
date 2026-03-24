@@ -115,6 +115,29 @@ app:
       initial-backoff-ms: ${NOTIFICATIONS_RETRY_INITIAL_BACKOFF_MS:10000}
       multiplier: ${NOTIFICATIONS_RETRY_MULTIPLIER:2.0}
       max-backoff-ms: ${NOTIFICATIONS_RETRY_MAX_BACKOFF_MS:300000}
+    reminder:
+      enabled: ${NOTIFICATIONS_REMINDER_ENABLED:true}
+      lead-time-minutes: ${NOTIFICATIONS_REMINDER_LEAD_TIME_MINUTES:1440}
+      poll-delay-ms: ${NOTIFICATIONS_REMINDER_POLL_DELAY_MS:60000}
+    medical-alerts:
+      enabled: ${NOTIFICATIONS_MEDICAL_ALERTS_ENABLED:true}
+      severity-routes:
+        low: [PATIENT]
+        medium: [PATIENT]
+        high: [PATIENT, PROFESSIONALS]
+        critical: [PATIENT, PROFESSIONALS, ADMINS]
+      # Contactos staff/admin por sede: BD vía /api/notifications/medical-alert-contacts (JWT site_id)
+      # o /api/notifications/medical-alert-contacts/by-site/{siteId} (solo ADMIN/ORG_ADMIN, misma organization_id del JWT).
+      # Estos bloques siguen sirviendo como fallback o capa global opcional.
+      default-contacts:
+        professionals:
+          email: []
+          whatsapp: []
+        admins:
+          email: []
+          whatsapp: []
+      site-severity-routes: {}
+      site-contacts: {}
     email:
       enabled: ${NOTIFICATIONS_EMAIL_ENABLED:true}
       provider: ${NOTIFICATIONS_EMAIL_PROVIDER:LOG}
@@ -128,3 +151,16 @@ app:
       phone-number-id: ${NOTIFICATIONS_WHATSAPP_PHONE_NUMBER_ID:}
   tenancy:
     mode: shared-schema
+  analytics:
+    cache-ttl-seconds: ${ANALYTICS_CACHE_TTL_SECONDS:60}
+  ai-assist:
+    enabled: ${AI_ASSIST_ENABLED:true}
+    async: ${AI_ASSIST_ASYNC:true}
+    provider: ${AI_ASSIST_PROVIDER:STUB}
+    base-url: ${AI_ASSIST_BASE_URL:https://api.openai.com}
+    api-key: ${AI_ASSIST_API_KEY:}
+    model: ${AI_ASSIST_MODEL:gpt-4o-mini}
+    prompt-version: ${AI_ASSIST_PROMPT_VERSION:v1}
+    alert-on-critical: ${AI_ASSIST_ALERT_ON_CRITICAL:false}
+    http-timeout: ${AI_ASSIST_HTTP_TIMEOUT:60s}
+    validate-output-schema: ${AI_ASSIST_VALIDATE_OUTPUT_SCHEMA:true}

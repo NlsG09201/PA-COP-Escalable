@@ -14,8 +14,12 @@ import com.COP_Escalable.Backend.tenancy.domain.Professional;
 import com.COP_Escalable.Backend.tenancy.domain.ProfessionalStatus;
 import com.COP_Escalable.Backend.tenancy.domain.Site;
 import com.COP_Escalable.Backend.tenancy.domain.SiteStatus;
+import com.COP_Escalable.Backend.catalog.application.PublishedCatalogService;
+import com.COP_Escalable.Backend.catalog.application.PublishedOfferingView;
+import com.COP_Escalable.Backend.patients.application.PatientRegisteredEvent;
 import com.COP_Escalable.Backend.tenancy.infrastructure.ProfessionalRepository;
 import com.COP_Escalable.Backend.tenancy.infrastructure.SiteRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +31,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,81 +48,8 @@ public class PublicBookingService {
 	private final PublicPaymentService paymentService;
 	private final PublicNotificationLogRepository notificationLogs;
 	private final PublicBookingNotificationService notificationService;
-
-	private final Map<String, ServiceDefinition> catalog = Map.of(
-			"general-dentistry", new ServiceDefinition(
-					"general-dentistry",
-					"Odontologia",
-					"Valoracion dental integral",
-					"Consulta de diagnostico, plan de tratamiento y recomendaciones preventivas.",
-					45,
-					120000,
-					95000L,
-					"Promocion",
-					List.of("Diagnostico clinico", "Revision de tejidos", "Plan inicial"),
-					List.of("odont", "dent")
-			),
-			"teeth-cleaning", new ServiceDefinition(
-					"teeth-cleaning",
-					"Odontologia",
-					"Profilaxis y limpieza",
-					"Higiene oral profesional para control preventivo y mantenimiento.",
-					60,
-					160000,
-					null,
-					null,
-					List.of("Limpieza completa", "Remocion de placa", "Educacion en higiene"),
-					List.of("odont", "dent")
-			),
-			"orthodontics", new ServiceDefinition(
-					"orthodontics",
-					"Odontologia",
-					"Valoracion de ortodoncia",
-					"Evaluacion de alineacion dental y opciones de tratamiento.",
-					50,
-					180000,
-					150000L,
-					null,
-					List.of("Analisis oclusal", "Plan por fases", "Presupuesto estimado"),
-					List.of("orto", "odont", "dent")
-			),
-			"psych-assessment", new ServiceDefinition(
-					"psych-assessment",
-					"Psicologia",
-					"Consulta psicologica inicial",
-					"Entrevista clinica, definicion de objetivos y ruta terapeutica.",
-					60,
-					140000,
-					null,
-					null,
-					List.of("Entrevista inicial", "Historia breve", "Plan de seguimiento"),
-					List.of("psico", "psych")
-			),
-			"therapy-session", new ServiceDefinition(
-					"therapy-session",
-					"Psicologia",
-					"Sesion terapeutica",
-					"Atencion individual con enfoque clinico y seguimiento de progreso.",
-					50,
-					130000,
-					110000L,
-					"Alta demanda",
-					List.of("Sesion individual", "Notas clinicas", "Objetivos por sesion"),
-					List.of("psico", "psych")
-			),
-			"psych-tests", new ServiceDefinition(
-					"psych-tests",
-					"Psicologia",
-					"Bateria de test psicologicos",
-					"Aplicacion de instrumentos con interpretacion y devolucion profesional.",
-					75,
-					210000,
-					null,
-					null,
-					List.of("Aplicacion guiada", "Score automatizado", "Informe breve"),
-					List.of("psico", "psych")
-			)
-	);
+	private final ApplicationEventPublisher eventPublisher;
+	private final PublishedCatalogService publishedCatalog;
 
 	public PublicBookingService(
 			SiteRepository sites,
@@ -130,7 +60,9 @@ public class PublicBookingService {
 			PublicPaymentRepository payments,
 			PublicPaymentService paymentService,
 			PublicNotificationLogRepository notificationLogs,
-			PublicBookingNotificationService notificationService
+			PublicBookingNotificationService notificationService,
+			ApplicationEventPublisher eventPublisher,
+			PublishedCatalogService publishedCatalog
 	) {
 		this.sites = sites;
 		this.professionals = professionals;
@@ -141,17 +73,20 @@ public class PublicBookingService {
 		this.paymentService = paymentService;
 		this.notificationLogs = notificationLogs;
 		this.notificationService = notificationService;
+		this.eventPublisher = eventPublisher;
+		this.publishedCatalog = publishedCatalog;
 	}
 
 	@Transactional(readOnly = true)
 	public List<ServiceSummary> listCatalog(UUID siteId) {
-		if (siteId != null) {
-			requireSite(siteId);
+		if (siteId == null) {
+			return List.of();
 		}
-		return catalog.values().stream()
+		var site = requireSite(siteId);
+		return publishedCatalog.listPublishedForSite(site.getOrganizationId(), siteId).stream()
 				.map(def -> new ServiceSummary(
-						def.id(),
-						def.category(),
+						def.publicId(),
+						def.categoryDisplayName(),
 						def.title(),
 						def.description(),
 						def.durationMinutes(),
@@ -167,7 +102,7 @@ public class PublicBookingService {
 	@Transactional(readOnly = true)
 	public AvailabilitySummary getAvailability(UUID siteId, String serviceId, LocalDate fromDate) {
 		var site = requireSite(siteId);
-		var definition = requireService(serviceId);
+		var definition = requireOffering(site, serviceId);
 		var zoneId = ZoneId.of(site.getTimezone());
 		var professionalsForService = eligibleProfessionals(site, definition);
 		var slots = new ArrayList<AvailabilitySlot>();
@@ -218,9 +153,9 @@ public class PublicBookingService {
 		var booking = PublicBooking.createPendingPayment(
 				resolved.site().getOrganizationId(),
 				resolved.site().getId(),
-				resolved.definition().id(),
+				resolved.definition().publicId(),
 				resolved.definition().title(),
-				resolved.definition().category(),
+				resolved.definition().categoryDisplayName(),
 				command.patientName(),
 				command.email(),
 				command.phone(),
@@ -336,6 +271,19 @@ public class PublicBookingService {
 		booking.confirm(patient.getId(), appointment.getId());
 		payments.save(payment);
 		bookings.save(booking);
+		var paidAt = payment.getPaidAt() != null ? payment.getPaidAt() : Instant.now();
+		eventPublisher.publishEvent(new PublicPaymentPaidEvent(
+				booking.getOrganizationId(),
+				booking.getSiteId(),
+				payment.getId(),
+				booking.getId(),
+				booking.getProfessionalId(),
+				booking.getAppointmentStartAt(),
+				booking.getAppointmentEndAt(),
+				payment.getAmount(),
+				payment.getCurrency(),
+				paidAt
+		));
 		notificationService.dispatchBookingConfirmation(booking, requireSite(booking.getSiteId()));
 
 		var site = requireSite(booking.getSiteId());
@@ -366,7 +314,14 @@ public class PublicBookingService {
 				booking.getPatientPhone(),
 				booking.getPatientEmail()
 		);
-		return patients.save(patient);
+		var saved = patients.save(patient);
+		eventPublisher.publishEvent(new PatientRegisteredEvent(
+				saved.getOrganizationId(),
+				saved.getSiteId(),
+				saved.getId(),
+				saved.getCreatedAt()
+		));
+		return saved;
 	}
 
 	private Optional<Patient> findExistingPatient(PublicBooking booking) {
@@ -405,6 +360,12 @@ public class PublicBookingService {
 		}
 
 		var reason = "Reserva publica - " + booking.getServiceName() + (booking.getNotes() == null ? "" : " - " + booking.getNotes());
+		UUID serviceOfferingId;
+		try {
+			serviceOfferingId = UUID.fromString(booking.getServiceId());
+		} catch (IllegalArgumentException ex) {
+			serviceOfferingId = null;
+		}
 		return appointments.save(Appointment.request(
 				booking.getOrganizationId(),
 				booking.getSiteId(),
@@ -412,7 +373,10 @@ public class PublicBookingService {
 				patientId,
 				booking.getAppointmentStartAt(),
 				booking.getAppointmentEndAt(),
-				reason
+				reason,
+				serviceOfferingId,
+				booking.getServiceName(),
+				booking.getServiceCategory()
 		));
 	}
 
@@ -429,34 +393,44 @@ public class PublicBookingService {
 				.findFirst();
 	}
 
-	private List<Professional> eligibleProfessionals(Site site, ServiceDefinition definition) {
+	private List<Professional> eligibleProfessionals(Site site, PublishedOfferingView offering) {
+		var explicit = publishedCatalog.explicitProfessionalIds(site.getOrganizationId(), site.getId(), offering.offeringId());
+		if (!explicit.isEmpty()) {
+			var assigned = professionals.findAllByOrganizationIdAndIdIn(site.getOrganizationId(), explicit).stream()
+					.filter(professional -> professional.getStatus() == ProfessionalStatus.ACTIVE)
+					.toList();
+			if (!assigned.isEmpty()) {
+				return assigned;
+			}
+		}
+
 		var primary = professionals.findAllByOrganizationIdAndDefaultSiteIdAndStatus(site.getOrganizationId(), site.getId(), ProfessionalStatus.ACTIVE);
 		var source = primary.isEmpty()
 				? professionals.findAllByOrganizationIdAndStatus(site.getOrganizationId(), ProfessionalStatus.ACTIVE)
 				: primary;
 
 		var filtered = source.stream()
-				.filter(professional -> specialtyMatches(professional, definition))
+				.filter(professional -> specialtyMatches(professional, offering))
 				.toList();
 		return filtered.isEmpty() ? source : filtered;
 	}
 
-	private boolean specialtyMatches(Professional professional, ServiceDefinition definition) {
+	private boolean specialtyMatches(Professional professional, PublishedOfferingView offering) {
 		var specialty = normalize(professional.getSpecialty());
-		return definition.specialtyTokens().stream().map(this::normalize).anyMatch(specialty::contains);
+		return offering.specialtyMatchTokens().stream().map(this::normalize).anyMatch(specialty::contains);
 	}
 
 	private String normalize(String value) {
 		return value == null ? "" : value.toLowerCase(Locale.ROOT);
 	}
 
-	private long resolvePrice(ServiceDefinition definition) {
+	private long resolvePrice(PublishedOfferingView definition) {
 		return definition.promoPrice() != null ? definition.promoPrice() : definition.basePrice();
 	}
 
 	private QuotedSlot resolveQuotedSlot(UUID siteId, String serviceId, Instant slotStartAt, Instant now) {
 		var site = requireSite(siteId);
-		var definition = requireService(serviceId);
+		var definition = requireOffering(site, serviceId);
 		if (slotStartAt == null || !slotStartAt.isAfter(now)) {
 			throw new IllegalArgumentException("Selected slot must be in the future");
 		}
@@ -471,9 +445,9 @@ public class PublicBookingService {
 		return new QuoteSummary(
 				quotedSlot.site().getId(),
 				quotedSlot.site().getName(),
-				quotedSlot.definition().id(),
+				quotedSlot.definition().publicId(),
 				quotedSlot.definition().title(),
-				quotedSlot.definition().category(),
+				quotedSlot.definition().categoryDisplayName(),
 				quotedSlot.slotStartAt(),
 				quotedSlot.slotEndAt(),
 				quotedSlot.professional().getId(),
@@ -488,12 +462,8 @@ public class PublicBookingService {
 		);
 	}
 
-	private ServiceDefinition requireService(String serviceId) {
-		var definition = catalog.get(serviceId);
-		if (definition == null) {
-			throw new IllegalArgumentException("Service not found");
-		}
-		return definition;
+	private PublishedOfferingView requireOffering(Site site, String serviceId) {
+		return publishedCatalog.requirePublished(site.getOrganizationId(), site.getId(), serviceId);
 	}
 
 	private Site requireSite(UUID siteId) {
@@ -688,22 +658,9 @@ public class PublicBookingService {
 			Instant createdAt
 	) {}
 
-	private record ServiceDefinition(
-			String id,
-			String category,
-			String title,
-			String description,
-			int durationMinutes,
-			long basePrice,
-			Long promoPrice,
-			String badge,
-			List<String> features,
-			List<String> specialtyTokens
-	) {}
-
 	private record QuotedSlot(
 			Site site,
-			ServiceDefinition definition,
+			PublishedOfferingView definition,
 			Instant slotStartAt,
 			Instant slotEndAt,
 			Professional professional

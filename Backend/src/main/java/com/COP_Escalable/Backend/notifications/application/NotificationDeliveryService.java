@@ -2,6 +2,8 @@ package com.COP_Escalable.Backend.notifications.application;
 
 import com.COP_Escalable.Backend.appointments.application.AppointmentEventType;
 import com.COP_Escalable.Backend.appointments.application.AppointmentLifecycleEvent;
+import com.COP_Escalable.Backend.clinical.application.MedicalAlertNotificationEvent;
+import com.COP_Escalable.Backend.notifications.domain.AlertAudience;
 import com.COP_Escalable.Backend.notifications.domain.NotificationDelivery;
 import com.COP_Escalable.Backend.notifications.domain.NotificationOutboxMessage;
 import com.COP_Escalable.Backend.notifications.infrastructure.NotificationDeliveryRepository;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class NotificationDeliveryService {
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+	private static final String MEDICAL_ALERT_EVENT_TYPE = MedicalAlertNotificationEvent.EVENT_TYPE;
 
 	private final NotificationOutboxRepository outboxRepository;
 	private final NotificationDeliveryRepository deliveryRepository;
@@ -36,6 +39,7 @@ public class NotificationDeliveryService {
 	private final ProfessionalRepository professionalRepository;
 	private final EmailNotificationGateway emailGateway;
 	private final WhatsappNotificationGateway whatsappGateway;
+	private final MedicalAlertRoutingService medicalAlertRoutingService;
 	private final NotificationProperties properties;
 	private final ObjectMapper objectMapper;
 
@@ -47,6 +51,7 @@ public class NotificationDeliveryService {
 			ProfessionalRepository professionalRepository,
 			EmailNotificationGateway emailGateway,
 			WhatsappNotificationGateway whatsappGateway,
+			MedicalAlertRoutingService medicalAlertRoutingService,
 			NotificationProperties properties,
 			ObjectMapper objectMapper
 	) {
@@ -57,6 +62,7 @@ public class NotificationDeliveryService {
 		this.professionalRepository = professionalRepository;
 		this.emailGateway = emailGateway;
 		this.whatsappGateway = whatsappGateway;
+		this.medicalAlertRoutingService = medicalAlertRoutingService;
 		this.properties = properties;
 		this.objectMapper = objectMapper;
 	}
@@ -69,20 +75,20 @@ public class NotificationDeliveryService {
 			return;
 		}
 
-		var event = deserialize(outboxMessage.getPayload());
-		var patient = patientRepository.findByIdAndOrganizationIdAndSiteId(event.patientId(), event.organizationId(), event.siteId())
-				.orElseThrow(() -> new IllegalArgumentException("Patient not found for event " + outboxMessageId));
-		var site = siteRepository.findByIdAndOrganizationId(event.siteId(), event.organizationId())
-				.orElseThrow(() -> new IllegalArgumentException("Site not found for event " + outboxMessageId));
-		var professional = professionalRepository.findByIdAndOrganizationId(event.professionalId(), event.organizationId())
-				.orElse(null);
+		var preparedNotification = prepareNotification(outboxMessage);
+		var targets = preparedNotification.targets(outboxMessage.getId());
 
 		Instant nextRetryAt = null;
 		String retryError = null;
 
-		for (var channel : List.of(NotificationDelivery.Channel.EMAIL, NotificationDelivery.Channel.WHATSAPP)) {
-			var delivery = deliveryRepository.findByOutboxMessageIdAndChannel(outboxMessageId, channel)
-					.orElseGet(() -> NotificationDelivery.create(outboxMessage, channel));
+		for (var target : targets) {
+			var delivery = deliveryRepository.findByOutboxMessageIdAndChannelAndAudienceAndRecipient(
+							outboxMessageId,
+							target.channel(),
+							target.audience(),
+							target.recipient()
+					)
+					.orElseGet(() -> NotificationDelivery.create(outboxMessage, target.audience(), target.channel(), target.recipient()));
 
 			if (delivery.isTerminal()) {
 				continue;
@@ -96,15 +102,22 @@ public class NotificationDeliveryService {
 				continue;
 			}
 
-			var rendered = renderNotification(event, outboxMessage.getId(), patient, site, professional, channel);
 			delivery.refreshDispatchContext(
-					rendered.recipient(),
-					rendered.templateCode(),
-					rendered.subject(),
-					rendered.messageBody()
+					target.recipient(),
+					target.templateCode(),
+					target.subject(),
+					target.messageBody()
 			);
 
-			var result = dispatch(rendered);
+			var result = dispatch(new RenderedNotification(
+					outboxMessage.getId(),
+					target.audience(),
+					target.channel(),
+					target.recipient(),
+					target.templateCode(),
+					target.subject(),
+					target.messageBody()
+			));
 			switch (result.status()) {
 				case SENT -> delivery.markSent(result.providerMessageId());
 				case SKIPPED -> delivery.markSkipped(defaultMessage(result.errorMessage(), "Notification skipped"));
@@ -133,7 +146,50 @@ public class NotificationDeliveryService {
 		outboxRepository.save(outboxMessage);
 	}
 
-	private AppointmentLifecycleEvent deserialize(String payload) {
+	private PreparedNotification prepareNotification(NotificationOutboxMessage outboxMessage) {
+		if (isAppointmentEvent(outboxMessage.getEventType())) {
+			var event = deserializeAppointmentEvent(outboxMessage.getPayload());
+			var patient = patientRepository.findByIdAndOrganizationIdAndSiteId(event.patientId(), event.organizationId(), event.siteId())
+					.orElseThrow(() -> new IllegalArgumentException("Patient not found for event " + outboxMessage.getId()));
+			var site = siteRepository.findByIdAndOrganizationId(event.siteId(), event.organizationId())
+					.orElseThrow(() -> new IllegalArgumentException("Site not found for event " + outboxMessage.getId()));
+			var professional = professionalRepository.findByIdAndOrganizationId(event.professionalId(), event.organizationId())
+					.orElse(null);
+
+			return outboxMessageId -> List.of(
+					renderAppointmentNotification(
+							event,
+							patient,
+							site,
+							professional,
+							AlertAudience.PATIENT,
+							NotificationDelivery.Channel.EMAIL
+					),
+					renderAppointmentNotification(
+							event,
+							patient,
+							site,
+							professional,
+							AlertAudience.PATIENT,
+							NotificationDelivery.Channel.WHATSAPP
+					)
+			);
+		}
+
+		if (MEDICAL_ALERT_EVENT_TYPE.equals(outboxMessage.getEventType())) {
+			var event = deserializeMedicalAlertEvent(outboxMessage.getPayload());
+			var patient = patientRepository.findByIdAndOrganizationIdAndSiteId(event.patientId(), event.organizationId(), event.siteId())
+					.orElseThrow(() -> new IllegalArgumentException("Patient not found for event " + outboxMessage.getId()));
+			var site = siteRepository.findByIdAndOrganizationId(event.siteId(), event.organizationId())
+					.orElseThrow(() -> new IllegalArgumentException("Site not found for event " + outboxMessage.getId()));
+
+			return outboxMessageId -> renderMedicalAlertNotifications(event, patient, site);
+		}
+
+		throw new IllegalArgumentException("Unsupported notification event type " + outboxMessage.getEventType());
+	}
+
+	private AppointmentLifecycleEvent deserializeAppointmentEvent(String payload) {
 		try {
 			return objectMapper.readValue(payload, AppointmentLifecycleEvent.class);
 		} catch (JsonProcessingException ex) {
@@ -141,12 +197,20 @@ public class NotificationDeliveryService {
 		}
 	}
 
-	private RenderedNotification renderNotification(
+	private MedicalAlertNotificationEvent deserializeMedicalAlertEvent(String payload) {
+		try {
+			return objectMapper.readValue(payload, MedicalAlertNotificationEvent.class);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalArgumentException("Unable to deserialize medical alert payload", ex);
+		}
+	}
+
+	private DeliveryTarget renderAppointmentNotification(
 			AppointmentLifecycleEvent event,
-			UUID outboxMessageId,
 			Patient patient,
 			Site site,
 			Professional professional,
+			AlertAudience audience,
 			NotificationDelivery.Channel channel
 	) {
 		var zoneId = ZoneId.of(site.getTimezone());
@@ -158,17 +222,43 @@ public class NotificationDeliveryService {
 		var greetingName = patient.getFullName();
 		var subject = properties.email().subjectPrefix() + " " + subjectFor(event.eventType());
 		var body = bodyFor(event.eventType(), greetingName, appointmentDate, appointmentTime, siteName, professionalName);
-		var templateCode = "appointment-" + event.eventType().code().replace('_', '-') + "-" + channel.name().toLowerCase(Locale.ROOT);
+		var templateCode = "appointment-" + event.eventType().code().replace('_', '-') + "-" + audience.name().toLowerCase(Locale.ROOT) + "-" + channel.name().toLowerCase(Locale.ROOT);
 		var recipient = channel == NotificationDelivery.Channel.EMAIL ? patient.getEmail() : patient.getPhone();
 
-		return new RenderedNotification(
-				outboxMessageId,
+		return new DeliveryTarget(
+				audience,
 				channel,
-				recipient,
+				recipient == null ? "" : recipient,
 				templateCode,
 				subject,
 				body
 		);
+	}
+
+	private List<DeliveryTarget> renderMedicalAlertNotifications(
+			MedicalAlertNotificationEvent event,
+			Patient patient,
+			Site site
+	) {
+		var subject = properties.email().subjectPrefix() + " Alerta medica " + event.severity() + ": " + event.title();
+		var body = """
+				Hola %s,
+
+				Se genero una alerta medica de severidad %s en %s.
+				Asunto: %s
+				Detalle: %s
+				Generada por: %s
+				"""
+				.formatted(
+						patient.getFullName(),
+						event.severity(),
+						site.getName(),
+						event.title(),
+						event.message(),
+						event.authorUsername()
+				)
+				.trim();
+		return medicalAlertRoutingService.resolveTargets(event, patient, subject, body);
 	}
 
 	private ChannelDispatchResult dispatch(RenderedNotification renderedNotification) {
@@ -183,6 +273,7 @@ public class NotificationDeliveryService {
 			case CITA_CREADA -> "Solicitud de cita registrada";
 			case CITA_CONFIRMADA -> "Cita confirmada";
 			case CITA_CANCELADA -> "Cita cancelada";
+			case RECORDATORIO_CITA -> "Recordatorio de cita";
 		};
 	}
 
@@ -216,7 +307,23 @@ public class NotificationDeliveryService {
 					Si deseas reprogramarla, responde por este mismo canal.
 					"""
 					.formatted(patientName, appointmentDate, appointmentTime, siteName, professionalName).trim();
+			case RECORDATORIO_CITA -> """
+					Hola %s,
+
+					Este es un recordatorio de tu cita programada para el %s a las %s en %s con %s.
+					Si no podras asistir, avisanos con anticipacion.
+					"""
+					.formatted(patientName, appointmentDate, appointmentTime, siteName, professionalName).trim();
 		};
+	}
+
+	private boolean isAppointmentEvent(String eventType) {
+		for (var value : AppointmentEventType.values()) {
+			if (value.code().equals(eventType)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Instant earliest(Instant left, Instant right) {
@@ -237,10 +344,24 @@ public class NotificationDeliveryService {
 	private String defaultMessage(String value, String fallback) {
 		return value == null || value.isBlank() ? fallback : value;
 	}
+
+	private interface PreparedNotification {
+		List<DeliveryTarget> targets(UUID outboxMessageId);
+	}
 }
 
 record RenderedNotification(
 		UUID outboxMessageId,
+		AlertAudience audience,
+		NotificationDelivery.Channel channel,
+		String recipient,
+		String templateCode,
+		String subject,
+		String messageBody
+) {}
+
+record DeliveryTarget(
+		AlertAudience audience,
 		NotificationDelivery.Channel channel,
 		String recipient,
 		String templateCode,

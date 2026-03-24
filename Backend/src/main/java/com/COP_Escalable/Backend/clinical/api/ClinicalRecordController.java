@@ -46,9 +46,42 @@ public class ClinicalRecordController {
 		return service.addEntry(patientId, UUID.fromString(userIdClaim), username, req.type(), req.note());
 	}
 
+	@PostMapping("/records/{patientId}/alerts")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
+	public ClinicalRecord createMedicalAlert(
+			@PathVariable UUID patientId,
+			@AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody AddMedicalAlertRequest req
+	) {
+		String userIdClaim = jwt != null ? jwt.getClaimAsString("user_id") : null;
+		if (userIdClaim == null || userIdClaim.isBlank()) {
+			throw new IllegalArgumentException("Missing user_id claim");
+		}
+
+		String username = jwt.getSubject();
+		if (username == null || username.isBlank()) {
+			throw new IllegalArgumentException("Missing subject claim");
+		}
+
+		return service.createMedicalAlert(
+				patientId,
+				UUID.fromString(userIdClaim),
+				username,
+				req.title(),
+				req.message(),
+				req.severity()
+		);
+	}
+
 	public record AddEntryRequest(
 			@NotBlank String type,
 			@NotBlank String note
+	) {}
+
+	public record AddMedicalAlertRequest(
+			@NotBlank String title,
+			@NotBlank String message,
+			String severity
 	) {}
 }
 

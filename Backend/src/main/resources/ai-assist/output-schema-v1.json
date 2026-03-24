@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiStructuredOutputV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "disclaimer",
+    "risk_level",
+    "human_review_required",
+    "candidate_conditions",
+    "supporting_signals",
+    "recommended_clarifying_questions",
+    "recommended_non_diagnostic_actions",
+    "evidence_quotes_from_input"
+  ],
+  "properties": {
+    "disclaimer": { "type": "string" },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "human_review_required": { "type": "boolean" },
+    "candidate_conditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "rationale", "confidence_0_to_1"],
+        "properties": {
+          "label": { "type": "string" },
+          "rationale": { "type": "string" },
+          "confidence_0_to_1": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "supporting_signals": { "type": "array", "items": { "type": "string" } },
+    "recommended_clarifying_questions": { "type": "array", "items": { "type": "string" } },
+    "recommended_non_diagnostic_actions": { "type": "array", "items": { "type": "string" } },
+    "evidence_quotes_from_input": { "type": "array", "items": { "type": "string" } }
+  }
+}

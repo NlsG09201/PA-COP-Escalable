@@ -1,20 +1,27 @@
 package com.COP_Escalable.Backend.notifications.domain;
 
 import com.COP_Escalable.Backend.appointments.application.AppointmentLifecycleEvent;
+import com.COP_Escalable.Backend.clinical.application.MedicalAlertNotificationEvent;
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notification_outbox_messages")
+@Table(
+		name = "notification_outbox_messages",
+		uniqueConstraints = {
+				@UniqueConstraint(name = "uk_notification_outbox_appointment_event", columnNames = {"appointment_id", "event_type"})
+		}
+)
 public class NotificationOutboxMessage extends TenantScopedEntity {
-	@Column(name = "appointment_id", nullable = false)
+	@Column(name = "appointment_id")
 	private UUID appointmentId;
 
 	@Column(name = "patient_id", nullable = false)
@@ -52,14 +59,13 @@ public class NotificationOutboxMessage extends TenantScopedEntity {
 
 	public static NotificationOutboxMessage pending(AppointmentLifecycleEvent event, String payload) {
 		var message = new NotificationOutboxMessage();
-		message.setTenant(event.organizationId(), event.siteId());
-		message.appointmentId = event.appointmentId();
-		message.patientId = event.patientId();
-		message.eventType = event.eventType().code();
-		message.payload = payload;
-		message.status = Status.PENDING;
-		message.relayAttemptCount = 0;
-		message.nextRelayAttemptAt = Instant.now();
+		message.init(event.organizationId(), event.siteId(), event.appointmentId(), event.patientId(), event.eventType().code(), payload);
+		return message;
+	}
+
+	public static NotificationOutboxMessage pending(MedicalAlertNotificationEvent event, String payload) {
+		var message = new NotificationOutboxMessage();
+		message.init(event.organizationId(), event.siteId(), null, event.patientId(), event.eventTypeCode(), payload);
 		return message;
 	}
 
@@ -134,5 +140,16 @@ public class NotificationOutboxMessage extends TenantScopedEntity {
 		PENDING,
 		PUBLISHED,
 		FAILED
+	}
+
+	private void init(UUID organizationId, UUID siteId, UUID appointmentId, UUID patientId, String eventType, String payload) {
+		setTenant(organizationId, siteId);
+		this.appointmentId = appointmentId;
+		this.patientId = patientId;
+		this.eventType = eventType;
+		this.payload = payload;
+		this.status = Status.PENDING;
+		this.relayAttemptCount = 0;
+		this.nextRelayAttemptAt = Instant.now();
 	}
 }

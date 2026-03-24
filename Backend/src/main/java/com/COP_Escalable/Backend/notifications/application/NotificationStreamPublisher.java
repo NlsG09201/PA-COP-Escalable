@@ -24,7 +24,9 @@ public class NotificationStreamPublisher {
 	public RecordId publish(NotificationOutboxMessage outboxMessage, String purpose) {
 		var payload = new LinkedHashMap<String, String>();
 		payload.put("outboxMessageId", outboxMessage.getId().toString());
-		payload.put("appointmentId", outboxMessage.getAppointmentId().toString());
+		if (outboxMessage.getAppointmentId() != null) {
+			payload.put("appointmentId", outboxMessage.getAppointmentId().toString());
+		}
 		payload.put("patientId", outboxMessage.getPatientId().toString());
 		payload.put("eventType", outboxMessage.getEventType());
 		payload.put("purpose", purpose);

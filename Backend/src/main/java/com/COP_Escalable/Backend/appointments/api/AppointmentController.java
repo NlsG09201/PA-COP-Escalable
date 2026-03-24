@@ -39,7 +39,16 @@ public class AppointmentController {
 	@PostMapping
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL','PACIENTE','PATIENT')")
 	public Appointment request(@Valid @RequestBody RequestAppointment req) {
-		return service.request(req.professionalId(), req.patientId(), req.startAt(), req.endAt(), req.reason());
+		return service.request(
+				req.professionalId(),
+				req.patientId(),
+				req.startAt(),
+				req.endAt(),
+				req.reason(),
+				req.serviceOfferingId(),
+				req.serviceNameSnapshot(),
+				req.serviceCategorySnapshot()
+		);
 	}
 
 	@PostMapping("/{appointmentId}/confirm")
@@ -59,7 +68,10 @@ public class AppointmentController {
 			@NotNull UUID patientId,
 			@NotNull Instant startAt,
 			@NotNull Instant endAt,
-			String reason
+			String reason,
+			UUID serviceOfferingId,
+			String serviceNameSnapshot,
+			String serviceCategorySnapshot
 	) {}
 }
 

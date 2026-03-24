@@ -30,8 +30,12 @@ export class AppointmentsApiService {
   }
 
   private mapAppointment(entry: Record<string, unknown>): AppointmentVm {
+    const serviceTitle =
+      typeof entry['serviceNameSnapshot'] === 'string' && String(entry['serviceNameSnapshot']).trim()
+        ? String(entry['serviceNameSnapshot'])
+        : '';
     return {
-      title: String(entry['title'] ?? entry['reason'] ?? 'Cita clinica'),
+      title: serviceTitle || String(entry['title'] ?? entry['reason'] ?? 'Cita clinica'),
       start: String(entry['start'] ?? entry['startAt'] ?? new Date().toISOString())
     };
   }

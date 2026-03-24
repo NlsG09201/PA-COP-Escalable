@@ -61,4 +61,19 @@ public record AppointmentLifecycleEvent(
 				Instant.now()
 		);
 	}
+
+	public static AppointmentLifecycleEvent reminder(Appointment appointment) {
+		return new AppointmentLifecycleEvent(
+				appointment.getOrganizationId(),
+				appointment.getSiteId(),
+				appointment.getId(),
+				appointment.getPatientId(),
+				appointment.getProfessionalId(),
+				AppointmentEventType.RECORDATORIO_CITA,
+				appointment.getStartAt(),
+				appointment.getEndAt(),
+				appointment.getReason(),
+				Instant.now()
+		);
+	}
 }

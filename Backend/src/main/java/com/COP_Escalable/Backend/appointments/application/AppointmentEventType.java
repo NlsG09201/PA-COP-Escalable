@@ -3,7 +3,8 @@ package com.COP_Escalable.Backend.appointments.application;
 public enum AppointmentEventType {
 	CITA_CREADA("cita_creada"),
 	CITA_CONFIRMADA("cita_confirmada"),
-	CITA_CANCELADA("cita_cancelada");
+	CITA_CANCELADA("cita_cancelada"),
+	RECORDATORIO_CITA("recordatorio_cita");
 
 	private final String code;
 

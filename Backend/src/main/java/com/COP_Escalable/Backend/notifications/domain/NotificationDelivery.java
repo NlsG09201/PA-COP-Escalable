@@ -15,14 +15,14 @@ import java.util.UUID;
 @Table(
 		name = "notification_deliveries",
 		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_notification_delivery_outbox_channel", columnNames = {"outbox_message_id", "channel"})
+				@UniqueConstraint(name = "uk_notification_delivery_target", columnNames = {"outbox_message_id", "channel", "audience", "recipient"})
 		}
 )
 public class NotificationDelivery extends TenantScopedEntity {
 	@Column(name = "outbox_message_id", nullable = false)
 	private UUID outboxMessageId;
 
-	@Column(name = "appointment_id", nullable = false)
+	@Column(name = "appointment_id")
 	private UUID appointmentId;
 
 	@Column(name = "patient_id", nullable = false)
@@ -33,9 +33,13 @@ public class NotificationDelivery extends TenantScopedEntity {
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
+	private AlertAudience audience;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
 	private Channel channel;
 
-	@Column
+	@Column(nullable = false)
 	private String recipient;
 
 	@Column(name = "template_code", nullable = false)
@@ -68,14 +72,21 @@ public class NotificationDelivery extends TenantScopedEntity {
 
 	protected NotificationDelivery() {}
 
-	public static NotificationDelivery create(NotificationOutboxMessage outboxMessage, Channel channel) {
+	public static NotificationDelivery create(
+			NotificationOutboxMessage outboxMessage,
+			AlertAudience audience,
+			Channel channel,
+			String recipient
+	) {
 		var delivery = new NotificationDelivery();
 		delivery.setTenant(outboxMessage.getOrganizationId(), outboxMessage.getSiteId());
 		delivery.outboxMessageId = outboxMessage.getId();
 		delivery.appointmentId = outboxMessage.getAppointmentId();
 		delivery.patientId = outboxMessage.getPatientId();
 		delivery.eventType = outboxMessage.getEventType();
+		delivery.audience = audience;
 		delivery.channel = channel;
+		delivery.recipient = recipient == null ? "" : recipient;
 		delivery.templateCode = "pending";
 		delivery.messageBody = "";
 		delivery.status = Status.PENDING;
@@ -138,6 +149,10 @@ public class NotificationDelivery extends TenantScopedEntity {
 
 	public String getEventType() {
 		return eventType;
+	}
+
+	public AlertAudience getAudience() {
+		return audience;
 	}
 
 	public Channel getChannel() {

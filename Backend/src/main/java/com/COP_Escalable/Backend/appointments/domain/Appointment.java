@@ -34,6 +34,15 @@ public class Appointment extends TenantScopedEntity {
 	@Column
 	private String reason;
 
+	@Column(name = "service_offering_id")
+	private UUID serviceOfferingId;
+
+	@Column(name = "service_name_snapshot")
+	private String serviceNameSnapshot;
+
+	@Column(name = "service_category_snapshot")
+	private String serviceCategorySnapshot;
+
 	@Version
 	@Column(nullable = false)
 	private long version;
@@ -41,6 +50,21 @@ public class Appointment extends TenantScopedEntity {
 	protected Appointment() {}
 
 	public static Appointment request(UUID organizationId, UUID siteId, UUID professionalId, UUID patientId, Instant startAt, Instant endAt, String reason) {
+		return request(organizationId, siteId, professionalId, patientId, startAt, endAt, reason, null, null, null);
+	}
+
+	public static Appointment request(
+			UUID organizationId,
+			UUID siteId,
+			UUID professionalId,
+			UUID patientId,
+			Instant startAt,
+			Instant endAt,
+			String reason,
+			UUID serviceOfferingId,
+			String serviceNameSnapshot,
+			String serviceCategorySnapshot
+	) {
 		if (siteId == null) throw new IllegalArgumentException("siteId is required");
 		if (professionalId == null) throw new IllegalArgumentException("professionalId is required");
 		if (patientId == null) throw new IllegalArgumentException("patientId is required");
@@ -54,6 +78,9 @@ public class Appointment extends TenantScopedEntity {
 		a.endAt = endAt;
 		a.status = AppointmentStatus.REQUESTED;
 		a.reason = reason == null || reason.isBlank() ? null : reason.trim();
+		a.serviceOfferingId = serviceOfferingId;
+		a.serviceNameSnapshot = serviceNameSnapshot == null || serviceNameSnapshot.isBlank() ? null : serviceNameSnapshot.trim();
+		a.serviceCategorySnapshot = serviceCategorySnapshot == null || serviceCategorySnapshot.isBlank() ? null : serviceCategorySnapshot.trim();
 		return a;
 	}
 
@@ -99,6 +126,18 @@ public class Appointment extends TenantScopedEntity {
 
 	public String getReason() {
 		return reason;
+	}
+
+	public UUID getServiceOfferingId() {
+		return serviceOfferingId;
+	}
+
+	public String getServiceNameSnapshot() {
+		return serviceNameSnapshot;
+	}
+
+	public String getServiceCategorySnapshot() {
+		return serviceCategorySnapshot;
 	}
 }
 

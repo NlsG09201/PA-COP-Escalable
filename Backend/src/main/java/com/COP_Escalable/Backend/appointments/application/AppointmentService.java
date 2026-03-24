@@ -31,13 +31,38 @@ public class AppointmentService {
 
 	@Transactional
 	public Appointment request(UUID professionalId, UUID patientId, Instant startAt, Instant endAt, String reason) {
+		return request(professionalId, patientId, startAt, endAt, reason, null, null, null);
+	}
+
+	@Transactional
+	public Appointment request(
+			UUID professionalId,
+			UUID patientId,
+			Instant startAt,
+			Instant endAt,
+			String reason,
+			UUID serviceOfferingId,
+			String serviceNameSnapshot,
+			String serviceCategorySnapshot
+	) {
 		var ctx = TenantContextHolder.require();
 		if (ctx.siteId() == null) throw new IllegalArgumentException("site_id is required in tenant context");
 		boolean overlap = appointments.existsOverlapping(ctx.organizationId(), ctx.siteId(), professionalId, startAt, endAt);
 		if (overlap) {
 			throw new IllegalArgumentException("Overlapping appointment for professional");
 		}
-		var appt = Appointment.request(ctx.organizationId(), ctx.siteId(), professionalId, patientId, startAt, endAt, reason);
+		var appt = Appointment.request(
+				ctx.organizationId(),
+				ctx.siteId(),
+				professionalId,
+				patientId,
+				startAt,
+				endAt,
+				reason,
+				serviceOfferingId,
+				serviceNameSnapshot,
+				serviceCategorySnapshot
+		);
 		var saved = appointments.save(appt);
 		eventPublisher.publishEvent(AppointmentLifecycleEvent.created(saved));
 		return saved;

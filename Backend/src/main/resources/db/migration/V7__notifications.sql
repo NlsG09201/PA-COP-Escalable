@@ -2,7 +2,7 @@ create table if not exists notification_outbox_messages (
   id uuid primary key,
   organization_id uuid not null references organizations(id),
   site_id uuid not null references sites(id),
-  appointment_id uuid not null references appointments(id) on delete cascade,
+  appointment_id uuid references appointments(id) on delete cascade,
   patient_id uuid not null references patients(id),
   event_type text not null,
   payload text not null,
@@ -16,6 +16,8 @@ create table if not exists notification_outbox_messages (
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
+create unique index if not exists uk_notification_outbox_appointment_event
+  on notification_outbox_messages(appointment_id, event_type);
 create index if not exists idx_notification_outbox_relay
   on notification_outbox_messages(status, next_relay_attempt_at);
 create index if not exists idx_notification_outbox_delivery_retry
@@ -27,11 +29,12 @@ create table if not exists notification_deliveries (
   organization_id uuid not null references organizations(id),
   site_id uuid not null references sites(id),
   outbox_message_id uuid not null references notification_outbox_messages(id) on delete cascade,
-  appointment_id uuid not null references appointments(id) on delete cascade,
+  appointment_id uuid references appointments(id) on delete cascade,
   patient_id uuid not null references patients(id),
   event_type text not null,
+  audience text not null,
   channel text not null,
-  recipient text,
+  recipient text not null,
   template_code text not null,
   subject text,
   message_body text not null,
@@ -42,9 +45,10 @@ create table if not exists notification_deliveries (
   next_attempt_at timestamptz,
   sent_at timestamptz,
   created_at timestamptz not null,
-  updated_at timestamptz not null,
-  unique (outbox_message_id, channel)
+  updated_at timestamptz not null
 );
+create unique index if not exists uk_notification_delivery_target
+  on notification_deliveries(outbox_message_id, channel, audience, recipient);
 create index if not exists idx_notification_deliveries_status_next_attempt
   on notification_deliveries(status, next_attempt_at);
 create index if not exists idx_notification_deliveries_appointment

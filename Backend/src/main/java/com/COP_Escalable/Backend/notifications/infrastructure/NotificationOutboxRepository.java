@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface NotificationOutboxRepository extends JpaRepository<NotificationOutboxMessage, UUID> {
+	boolean existsByAppointmentIdAndEventType(UUID appointmentId, String eventType);
+
 	List<NotificationOutboxMessage> findTop50ByStatusInAndNextRelayAttemptAtLessThanEqualOrderByCreatedAtAsc(
 			List<NotificationOutboxMessage.Status> statuses,
 			Instant nextRelayAttemptAt
