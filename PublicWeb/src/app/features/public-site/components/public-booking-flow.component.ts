@@ -49,7 +49,9 @@ import {
                     data-testid="public-service-select"
                     (change)="serviceChange.emit($any($event.target).value)">
                     @for (service of services; track service.id) {
-                      <option [value]="service.id">{{ service.title }}</option>
+                      <option [value]="service.id">
+                        {{ service.title }} - {{ service.category }} - {{ service.priceToPay | currency: 'COP':'symbol':'1.0-0' }} - {{ service.durationMinutes }} min
+                      </option>
                     }
                   </select>
                 </div>

@@ -29,4 +29,36 @@ public interface ServiceOfferingRepository extends JpaRepository<ServiceOffering
 			order by c.sortOrder asc, o.publicTitle asc
 			""")
 	List<ServiceOffering> findAllPublishedForSite(@Param("orgId") UUID orgId, @Param("siteId") UUID siteId);
+
+	@Query("""
+			select o from ServiceOffering o
+			join fetch o.catalogService cs
+			join fetch cs.category c
+			where o.id = :id and o.organizationId = :orgId and o.siteId = :siteId
+			""")
+	Optional<ServiceOffering> findByIdForManagement(@Param("id") UUID id, @Param("orgId") UUID orgId, @Param("siteId") UUID siteId);
+
+	@Query("""
+			select o from ServiceOffering o
+			join fetch o.catalogService cs
+			join fetch cs.category c
+			where o.organizationId = :orgId
+			  and o.siteId = :siteId
+			  and (:active is null or o.active = :active)
+			  and (:categorySlug is null or c.slug = :categorySlug)
+			  and (
+			    :q is null
+			    or lower(o.publicTitle) like lower(concat('%', :q, '%'))
+			    or lower(cs.name) like lower(concat('%', :q, '%'))
+			    or lower(coalesce(o.publicDescription, '')) like lower(concat('%', :q, '%'))
+			  )
+			order by c.sortOrder asc, o.publicTitle asc
+			""")
+	List<ServiceOffering> searchForManagement(
+			@Param("orgId") UUID orgId,
+			@Param("siteId") UUID siteId,
+			@Param("active") Boolean active,
+			@Param("categorySlug") String categorySlug,
+			@Param("q") String q
+	);
 }
