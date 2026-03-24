@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, signal } from '@angular/core';
 import { ECharts, EChartsOption, init } from 'echarts';
-import { PsychologicalSnapshotVm } from 'src/app/core/services/psychology-api.service';
+import { PsychologicalSnapshotVm } from '../../../core/services/psychology-api.service';
 
 @Component({
   selector: 'app-psychology-evolution-chart',

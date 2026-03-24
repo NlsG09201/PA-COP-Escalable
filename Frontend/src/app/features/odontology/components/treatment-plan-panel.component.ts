@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
-import { TreatmentPlanVm } from 'src/app/core/services/odontology-api.service';
+import { TreatmentPlanVm } from '../../../core/services/odontology-api.service';
 
 @Component({
   selector: 'app-treatment-plan-panel',

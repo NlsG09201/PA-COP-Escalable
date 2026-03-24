@@ -1,5 +1,5 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, inject, Input, Output, computed, signal } from '@angular/core';
 import { AiAssistApiService, AiClinicalSuggestionVm, AiStructuredOutput } from '../../../core/services/ai-assist-api.service';
 
 @Component({
@@ -188,7 +188,7 @@ export class AiSuggestionPanelComponent {
     if (!s) return;
     this.loading.set(true);
     this.aiApi.approve$(s.id).subscribe({
-      next: (res) => {
+      next: (res: AiClinicalSuggestionVm) => {
         this.suggestion.set(res);
         this.loading.set(false);
         this.approved.emit(res);
@@ -205,7 +205,7 @@ export class AiSuggestionPanelComponent {
     }
     this.loading.set(true);
     this.aiApi.reject$(s.id).subscribe({
-      next: (res) => {
+      next: (_res: AiClinicalSuggestionVm) => {
         this.suggestion.set(null);
         this.loading.set(false);
         this.rejected.emit();

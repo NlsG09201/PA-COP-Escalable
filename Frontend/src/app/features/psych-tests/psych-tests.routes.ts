@@ -83,7 +83,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
 
 @Component({
   standalone: true,
-  imports: [AsyncPipe, DatePipe, ReactiveFormsModule],
+  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, AiSuggestionPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-shell">
@@ -233,7 +233,8 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
                   </div>
                 </form>
 
-                <div class="row mt-4" *ngIf="lastResult() || aiLoading()">
+                @if (lastResult() || aiLoading()) {
+                <div class="row mt-4">
                   <div class="col-lg-7">
                     @if (lastResult(); as result) {
                       <div class="result-card h-100">
