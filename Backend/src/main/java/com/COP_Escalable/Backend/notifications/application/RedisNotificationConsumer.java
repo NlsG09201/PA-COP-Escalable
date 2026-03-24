@@ -84,7 +84,7 @@ public class RedisNotificationConsumer {
 		}
 	}
 
-	private List<MapRecord<String, String, String>> readNewMessages() {
+	private List<MapRecord<String, Object, Object>> readNewMessages() {
 		return redisTemplate.opsForStream().read(
 				Consumer.from(properties.redis().consumerGroup(), properties.redis().consumerName()),
 				StreamReadOptions.empty()
@@ -94,20 +94,20 @@ public class RedisNotificationConsumer {
 		);
 	}
 
-	private void processRecords(List<MapRecord<String, String, String>> records) {
+	private void processRecords(List<MapRecord<String, Object, Object>> records) {
 		if (records == null || records.isEmpty()) {
 			return;
 		}
 
 		for (var record : records) {
 			var rawOutboxMessageId = record.getValue().get("outboxMessageId");
-			if (rawOutboxMessageId == null || rawOutboxMessageId.isBlank()) {
+			if (rawOutboxMessageId == null) {
 				acknowledge(record);
 				continue;
 			}
 
 			try {
-				deliveryService.processOutboxMessage(UUID.fromString(rawOutboxMessageId));
+				deliveryService.processOutboxMessage(UUID.fromString(rawOutboxMessageId.toString()));
 				acknowledge(record);
 			} catch (IllegalArgumentException ex) {
 				log.error("Discarding invalid notification stream record {}: {}", record.getId(), ex.getMessage());
@@ -118,7 +118,7 @@ public class RedisNotificationConsumer {
 		}
 	}
 
-	private void acknowledge(MapRecord<String, String, String> record) {
+	private void acknowledge(MapRecord<String, Object, Object> record) {
 		redisTemplate.opsForStream().acknowledge(
 				properties.redis().stream(),
 				properties.redis().consumerGroup(),
