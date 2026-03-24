@@ -16,10 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -38,7 +39,7 @@ public class DiagnosisService {
 	private final RedisStreamEventPublisher redisPublisher;
 	private final DiagnosisProperties properties;
 	private final ObjectMapper objectMapper;
-	private final WebClient webClient;
+	private final RestClient restClient;
 
 	public DiagnosisService(
 			DiagnosticImageRepository imageRepository,
@@ -47,7 +48,7 @@ public class DiagnosisService {
 			RedisStreamEventPublisher redisPublisher,
 			DiagnosisProperties properties,
 			ObjectMapper objectMapper,
-			WebClient.Builder webClientBuilder
+			RestClient.Builder restClientBuilder
 	) {
 		this.imageRepository = imageRepository;
 		this.resultRepository = resultRepository;
@@ -55,7 +56,7 @@ public class DiagnosisService {
 		this.redisPublisher = redisPublisher;
 		this.properties = properties;
 		this.objectMapper = objectMapper;
-		this.webClient = webClientBuilder.baseUrl(properties.getServiceUrl()).build();
+		this.restClient = restClientBuilder.baseUrl(properties.getServiceUrl()).build();
 	}
 
 	@Transactional
@@ -106,21 +107,22 @@ public class DiagnosisService {
 
 		long startMs = System.currentTimeMillis();
 		try {
-			MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
-			bodyBuilder.part("file", new ByteArrayResource(imageData) {
+			var fileResource = new ByteArrayResource(imageData) {
 				@Override
 				public String getFilename() {
 					return filename;
 				}
-			}).contentType(MediaType.parseMediaType(contentType));
+			};
 
-			String responseBody = webClient.post()
+			var multipartBody = new LinkedMultiValueMap<String, Object>();
+			multipartBody.add("file", fileResource);
+
+			String responseBody = restClient.post()
 					.uri("/api/diagnosis/analyze")
 					.contentType(MediaType.MULTIPART_FORM_DATA)
-					.bodyValue(bodyBuilder.build())
+					.body(multipartBody)
 					.retrieve()
-					.bodyToMono(String.class)
-					.block();
+					.body(String.class);
 
 			long elapsed = System.currentTimeMillis() - startMs;
 			List<Finding> findings = parseFindings(responseBody);
@@ -134,19 +136,27 @@ public class DiagnosisService {
 					image.getId(), findings, modelVersion, elapsed
 			);
 			return resultRepository.save(result);
+		} catch (RestClientResponseException e) {
+			long elapsed = System.currentTimeMillis() - startMs;
+			log.error("Sync diagnosis analysis failed for image {} (HTTP {}): {}",
+					image.getId(), e.getStatusCode(), e.getResponseBodyAsString(), e);
+			return handleSyncFailure(image, elapsed);
 		} catch (Exception e) {
 			long elapsed = System.currentTimeMillis() - startMs;
 			log.error("Sync diagnosis analysis failed for image {}: {}", image.getId(), e.getMessage(), e);
-
-			image.markFailed();
-			imageRepository.save(image);
-
-			var failedResult = DiagnosisResult.failed(
-					image.getOrganizationId(), image.getSiteId(), image.getPatientId(),
-					image.getId(), "unknown", elapsed
-			);
-			return resultRepository.save(failedResult);
+			return handleSyncFailure(image, elapsed);
 		}
+	}
+
+	private DiagnosisResult handleSyncFailure(DiagnosticImage image, long elapsed) {
+		image.markFailed();
+		imageRepository.save(image);
+
+		var failedResult = DiagnosisResult.failed(
+				image.getOrganizationId(), image.getSiteId(), image.getPatientId(),
+				image.getId(), "unknown", elapsed
+		);
+		return resultRepository.save(failedResult);
 	}
 
 	public void processAsyncResult(String imageIdStr, String resultJson) {

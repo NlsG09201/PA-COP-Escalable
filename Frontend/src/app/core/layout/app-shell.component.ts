@@ -209,9 +209,18 @@ export class AppShellComponent {
     { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Diagnostico IA', path: '/app/diagnosis', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Simulacion 3D', path: '/app/simulation', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Presupuestos', path: '/app/budget', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Seguimiento', path: '/app/followup', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Historial Clinico', path: '/app/clinical-history', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Modulo Psicologico', path: '/app/psychology', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
-    { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+    { label: 'Analisis de Voz', path: '/app/voice-analysis', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Terapia Digital', path: '/app/therapy', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Riesgo de Recaida', path: '/app/relapse', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Copiloto Clinico', path: '/app/copilot', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Experiencia Paciente', path: '/app/experience', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN'] }
   ];
 
   protected readonly activeRoles = signal<UserRole[]>(['ADMIN']);

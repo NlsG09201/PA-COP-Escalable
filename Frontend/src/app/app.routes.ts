@@ -60,6 +60,60 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         loadChildren: () => import('./features/psych-tests/psych-tests.routes').then((m) => m.PSYCH_TESTS_ROUTES),
         data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'diagnosis',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/diagnosis/diagnosis.routes').then((m) => m.DIAGNOSIS_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'simulation',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/simulation/simulation.routes').then((m) => m.SIMULATION_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'budget',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/budget/budget.routes').then((m) => m.BUDGET_ROUTES),
+        data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'followup',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/followup/followup.routes').then((m) => m.FOLLOWUP_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'therapy',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/therapy/therapy.routes').then((m) => m.THERAPY_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'copilot',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/copilot/copilot.routes').then((m) => m.COPILOT_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'experience',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/experience/experience.routes').then((m) => m.EXPERIENCE_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'voice-analysis',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/voice-analysis/voice-analysis.routes').then((m) => m.VOICE_ANALYSIS_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
+        path: 'relapse',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/relapse/relapse.routes').then((m) => m.RELAPSE_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       }
     ]
   },
@@ -71,5 +125,14 @@ export const routes: Routes = [
   { path: 'clinical-history', pathMatch: 'full', redirectTo: 'app/clinical-history' },
   { path: 'psychology', pathMatch: 'full', redirectTo: 'app/psychology' },
   { path: 'psych-tests', pathMatch: 'full', redirectTo: 'app/psych-tests' },
+  { path: 'diagnosis', pathMatch: 'full', redirectTo: 'app/diagnosis' },
+  { path: 'simulation', pathMatch: 'full', redirectTo: 'app/simulation' },
+  { path: 'budget', pathMatch: 'full', redirectTo: 'app/budget' },
+  { path: 'followup', pathMatch: 'full', redirectTo: 'app/followup' },
+  { path: 'therapy', pathMatch: 'full', redirectTo: 'app/therapy' },
+  { path: 'copilot', pathMatch: 'full', redirectTo: 'app/copilot' },
+  { path: 'experience', pathMatch: 'full', redirectTo: 'app/experience' },
+  { path: 'voice-analysis', pathMatch: 'full', redirectTo: 'app/voice-analysis' },
+  { path: 'relapse', pathMatch: 'full', redirectTo: 'app/relapse' },
   { path: '**', redirectTo: 'login' }
 ];

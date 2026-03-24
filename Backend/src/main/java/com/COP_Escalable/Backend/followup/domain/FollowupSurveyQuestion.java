@@ -1,5 +1,6 @@
 package com.COP_Escalable.Backend.followup.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ public class FollowupSurveyQuestion {
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "survey_id", nullable = false)
+	@JsonIgnore
 	private FollowupSurvey survey;
 
 	@Column(name = "question", nullable = false, columnDefinition = "TEXT")
