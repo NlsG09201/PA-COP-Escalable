@@ -16,6 +16,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -24,11 +28,19 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.EnumSet;
 import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
 public class AiAssistService {
+
+	private static final EnumSet<AiSuggestionStatus> TERMINAL_ASYNC_STATUSES = EnumSet.of(
+			AiSuggestionStatus.PENDING_REVIEW,
+			AiSuggestionStatus.APPROVED,
+			AiSuggestionStatus.REJECTED,
+			AiSuggestionStatus.FAILED
+	);
 
 	private final AiAssistProperties props;
 	private final AiClinicalSuggestionRepository suggestions;
@@ -43,6 +55,7 @@ public class AiAssistService {
 	private final PsychometricLocalScoringService psychometricLocalScoringService;
 	private final AiStructuredOutputSchemaValidator outputSchemaValidator;
 	private final TransactionTemplate transactionTemplate;
+	private final MongoOperations mongoOperations;
 
 	public AiAssistService(
 			AiAssistProperties props,
@@ -57,7 +70,8 @@ public class AiAssistService {
 			ApplicationEventPublisher eventPublisher,
 			PsychometricLocalScoringService psychometricLocalScoringService,
 			AiStructuredOutputSchemaValidator outputSchemaValidator,
-			PlatformTransactionManager transactionManager
+			PlatformTransactionManager transactionManager,
+			MongoOperations mongoOperations
 	) {
 		this.props = props;
 		this.suggestions = suggestions;
@@ -72,6 +86,7 @@ public class AiAssistService {
 		this.psychometricLocalScoringService = psychometricLocalScoringService;
 		this.outputSchemaValidator = outputSchemaValidator;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
+		this.mongoOperations = mongoOperations;
 	}
 
 	public boolean useAsyncAnalyzeByDefault() {
@@ -199,28 +214,23 @@ public class AiAssistService {
 		if (rowOpt.isEmpty()) {
 			return;
 		}
-		var row = rowOpt.get();
-		TenantContextHolder.set(new TenantContext(row.getOrganizationId(), row.getSiteId()));
+		if (TERMINAL_ASYNC_STATUSES.contains(rowOpt.get().getStatus())) {
+			return;
+		}
+
+		boolean claimed = mongoOperations.updateFirst(
+				Query.query(Criteria.where("id").is(suggestionId).and("status").is(AiSuggestionStatus.QUEUED)),
+				Update.update("status", AiSuggestionStatus.PROCESSING),
+				AiClinicalSuggestion.class
+		).getModifiedCount() > 0;
+
+		if (!claimed) {
+			return;
+		}
+
+		var processing = suggestions.findById(suggestionId).orElseThrow();
+		TenantContextHolder.set(new TenantContext(processing.getOrganizationId(), processing.getSiteId()));
 		try {
-			if (row.getStatus() != AiSuggestionStatus.QUEUED) {
-				return;
-			}
-
-			boolean[] proceed = { false };
-			transactionTemplate.executeWithoutResult(status -> {
-				var fresh = suggestions.findById(suggestionId).orElse(null);
-				if (fresh == null || fresh.getStatus() != AiSuggestionStatus.QUEUED) {
-					return;
-				}
-				fresh.markProcessing();
-				suggestions.save(fresh);
-				proceed[0] = true;
-			});
-			if (!proceed[0]) {
-				return;
-			}
-
-			var processing = suggestions.findById(suggestionId).orElseThrow();
 			var submission = submissions.findById(processing.getPsychTestSubmissionId()).orElse(null);
 			var template = templates.findById(processing.getPsychTestTemplateId()).orElse(null);
 			if (submission == null || template == null) {

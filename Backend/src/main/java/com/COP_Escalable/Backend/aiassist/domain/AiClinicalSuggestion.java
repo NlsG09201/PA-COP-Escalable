@@ -134,13 +134,6 @@ public class AiClinicalSuggestion {
 		this.structuredJson = structuredJson;
 	}
 
-	public void markProcessing() {
-		if (this.status != AiSuggestionStatus.QUEUED) {
-			throw new IllegalStateException("Expected QUEUED, was " + this.status);
-		}
-		this.status = AiSuggestionStatus.PROCESSING;
-	}
-
 	public void applyAnalysisFailure(String raw, String headline, String structuredJson) {
 		this.status = AiSuggestionStatus.FAILED;
 		this.rawModelResponseJson = raw;

@@ -164,3 +164,12 @@ app:
     alert-on-critical: ${AI_ASSIST_ALERT_ON_CRITICAL:false}
     http-timeout: ${AI_ASSIST_HTTP_TIMEOUT:60s}
     validate-output-schema: ${AI_ASSIST_VALIDATE_OUTPUT_SCHEMA:true}
+    redis-stream:
+      enabled: ${AI_ASSIST_REDIS_STREAM_ENABLED:true}
+      stream-key: ${AI_ASSIST_REDIS_STREAM_KEY:cop:ai-assist:analysis}
+      consumer-group: ${AI_ASSIST_REDIS_STREAM_GROUP:ai-assist-workers}
+      consumer-name: ${AI_ASSIST_REDIS_STREAM_CONSUMER_NAME:}
+      batch-size: ${AI_ASSIST_REDIS_STREAM_BATCH_SIZE:10}
+      consumer-poll-delay-ms: ${AI_ASSIST_REDIS_STREAM_POLL_MS:1000}
+      read-block-ms: ${AI_ASSIST_REDIS_STREAM_READ_BLOCK_MS:1000}
+      claim-idle-time-ms: ${AI_ASSIST_REDIS_STREAM_CLAIM_IDLE_MS:60000}

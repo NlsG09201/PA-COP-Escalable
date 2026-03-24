@@ -1,8 +1,12 @@
 package com.COP_Escalable.Backend.aiassist.application;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.UUID;
 
 @ConfigurationProperties(prefix = "app.ai-assist")
 public class AiAssistProperties {
@@ -22,6 +26,15 @@ public class AiAssistProperties {
 	private String promptVersion = "v1";
 	private boolean alertOnCritical = false;
 	private Duration httpTimeout = Duration.ofSeconds(60);
+	private RedisStream redisStream = new RedisStream();
+
+	@PostConstruct
+	public void normalizeRedisStreamDefaults() {
+		if (redisStream == null) {
+			redisStream = new RedisStream();
+		}
+		redisStream.normalizeDefaults();
+	}
 
 	public boolean isEnabled() {
 		return enabled;
@@ -101,5 +114,128 @@ public class AiAssistProperties {
 
 	public void setHttpTimeout(Duration httpTimeout) {
 		this.httpTimeout = httpTimeout;
+	}
+
+	public RedisStream getRedisStream() {
+		return redisStream;
+	}
+
+	public void setRedisStream(RedisStream redisStream) {
+		this.redisStream = redisStream != null ? redisStream : new RedisStream();
+	}
+
+	/**
+	 * Cola de análisis vía Redis Streams (varios workers, reclamo de pendientes).
+	 */
+	public static class RedisStream {
+		private boolean enabled = true;
+		private String streamKey = "cop:ai-assist:analysis";
+		private String consumerGroup = "ai-assist-workers";
+		private String consumerName = "";
+		private int batchSize = 10;
+		private long consumerPollDelayMs = 1000L;
+		private long readBlockMs = 1000L;
+		private long claimIdleTimeMs = 60_000L;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
+
+		public String getStreamKey() {
+			return streamKey;
+		}
+
+		public void setStreamKey(String streamKey) {
+			this.streamKey = streamKey;
+		}
+
+		public String getConsumerGroup() {
+			return consumerGroup;
+		}
+
+		public void setConsumerGroup(String consumerGroup) {
+			this.consumerGroup = consumerGroup;
+		}
+
+		public String getConsumerName() {
+			return consumerName;
+		}
+
+		public void setConsumerName(String consumerName) {
+			this.consumerName = consumerName;
+		}
+
+		public int getBatchSize() {
+			return batchSize;
+		}
+
+		public void setBatchSize(int batchSize) {
+			this.batchSize = batchSize;
+		}
+
+		public long getConsumerPollDelayMs() {
+			return consumerPollDelayMs;
+		}
+
+		public void setConsumerPollDelayMs(long consumerPollDelayMs) {
+			this.consumerPollDelayMs = consumerPollDelayMs;
+		}
+
+		public long getReadBlockMs() {
+			return readBlockMs;
+		}
+
+		public void setReadBlockMs(long readBlockMs) {
+			this.readBlockMs = readBlockMs;
+		}
+
+		public long getClaimIdleTimeMs() {
+			return claimIdleTimeMs;
+		}
+
+		public void setClaimIdleTimeMs(long claimIdleTimeMs) {
+			this.claimIdleTimeMs = claimIdleTimeMs;
+		}
+
+		public String effectiveConsumerName() {
+			if (consumerName != null && !consumerName.isBlank()) {
+				return consumerName.trim();
+			}
+			return defaultConsumerName();
+		}
+
+		public void normalizeDefaults() {
+			var d = new RedisStream();
+			if (streamKey == null || streamKey.isBlank()) {
+				streamKey = d.streamKey;
+			}
+			if (consumerGroup == null || consumerGroup.isBlank()) {
+				consumerGroup = d.consumerGroup;
+			}
+			if (batchSize < 1) {
+				batchSize = d.batchSize;
+			}
+			if (consumerPollDelayMs < 100) {
+				consumerPollDelayMs = d.consumerPollDelayMs;
+			}
+			if (readBlockMs < 100) {
+				readBlockMs = d.readBlockMs;
+			}
+			if (claimIdleTimeMs < 1000) {
+				claimIdleTimeMs = d.claimIdleTimeMs;
+			}
+		}
+
+		private static String defaultConsumerName() {
+			try {
+				return "ai-assist-" + InetAddress.getLocalHost().getHostName() + "-" + UUID.randomUUID();
+			} catch (UnknownHostException ex) {
+				return "ai-assist-" + UUID.randomUUID();
+			}
+		}
 	}
 }
