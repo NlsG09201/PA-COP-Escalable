@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -24,17 +25,20 @@ public class AnalyticsService {
 	private final PatientRepository patients;
 	private final SiteRepository sites;
 	private final AnalyticsCacheService cache;
+	private final AnalyticsProperties properties;
 
 	public AnalyticsService(
 			AnalyticsQueryRepository queries,
 			PatientRepository patients,
 			SiteRepository sites,
-			AnalyticsCacheService cache
+			AnalyticsCacheService cache,
+			AnalyticsProperties properties
 	) {
 		this.queries = queries;
 		this.patients = patients;
 		this.sites = sites;
 		this.cache = cache;
+		this.properties = properties;
 	}
 
 	@Transactional(readOnly = true)
@@ -60,7 +64,7 @@ public class AnalyticsService {
 							PatientStatus.ACTIVE
 					);
 					var response = toOverviewResponse(from, to, zone.getId(), row, patientsTotal);
-					cache.put(key, response);
+					cache.put(key, response, cacheTtl("kpis"));
 					return response;
 				});
 	}
@@ -87,7 +91,7 @@ public class AnalyticsService {
 							zone.getId(),
 							rows.stream().map(this::mapTimeseriesPoint).toList()
 					);
-					cache.put(key, response);
+					cache.put(key, response, cacheTtl("trend"));
 					return response;
 				});
 	}
@@ -114,7 +118,7 @@ public class AnalyticsService {
 							zone.getId(),
 							rows.stream().map(this::mapSpecialty).toList()
 					);
-					cache.put(key, response);
+					cache.put(key, response, cacheTtl("distribution"));
 					return response;
 				});
 	}
@@ -142,7 +146,7 @@ public class AnalyticsService {
 							zone.getId(),
 							rows.stream().map(this::mapDoctor).toList()
 					);
-					cache.put(key, response);
+					cache.put(key, response, cacheTtl("doctors"));
 					return response;
 				});
 	}
@@ -157,6 +161,90 @@ public class AnalyticsService {
 				overview.overview().revenuePaidCents(),
 				"COP"
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public KpisResponse kpis(Instant from, Instant to) {
+		var overview = overview(from, to);
+		double totalAppointments = Math.max(0, overview.overview().appointmentsCreated());
+		double totalDays = Math.max(1, ChronoUnit.DAYS.between(from, to) + 1);
+		double cancellationRate = totalAppointments == 0 ? 0 : (overview.overview().appointmentsCancelled() * 100.0) / totalAppointments;
+		return new KpisResponse(
+				overview.range().from(),
+				overview.range().to(),
+				overview.range().timezone(),
+				overview.overview().appointmentsCreated(),
+				overview.patientsRegisteredTotal(),
+				overview.overview().revenuePaidCents(),
+				totalAppointments / totalDays,
+				cancellationRate,
+				"COP"
+		);
+	}
+
+	@Transactional(readOnly = true)
+	public TrendResponse appointmentsTrend(Instant from, Instant to, GroupBy groupBy) {
+		return trend(from, to, groupBy, true);
+	}
+
+	@Transactional(readOnly = true)
+	public TrendResponse revenueTrend(Instant from, Instant to, GroupBy groupBy) {
+		return trend(from, to, groupBy, false);
+	}
+
+	@Transactional(readOnly = true)
+	public HeatmapResponse appointmentsHeatmap(Instant from, Instant to) {
+		var ctx = TenantContextHolder.require();
+		if (ctx.siteId() == null) throw new IllegalArgumentException("site_id is required in tenant context");
+		var zone = resolveZone(ctx.organizationId(), ctx.siteId());
+		var fromDay = toLocalDate(from, zone);
+		var toDay = toLocalDate(to, zone);
+		var key = cacheKey(ctx.organizationId(), ctx.siteId(), "heatmap", fromDay, toDay);
+		return cache.get(key, HeatmapResponse.class).orElseGet(() -> {
+			var rows = queries.appointmentHeatmap(ctx.organizationId(), ctx.siteId(), fromDay, toDay);
+			var response = new HeatmapResponse(
+					from, to, zone.getId(),
+					rows.stream().map(r -> new HeatmapCell(r.dayOfWeek(), r.hourOfDay(), r.total())).toList()
+			);
+			cache.put(key, response, cacheTtl("heatmap"));
+			return response;
+		});
+	}
+
+	private TrendResponse trend(Instant from, Instant to, GroupBy groupBy, boolean appointments) {
+		var ctx = TenantContextHolder.require();
+		if (ctx.siteId() == null) throw new IllegalArgumentException("site_id is required in tenant context");
+		var zone = resolveZone(ctx.organizationId(), ctx.siteId());
+		var fromDay = toLocalDate(from, zone);
+		var toDay = toLocalDate(to, zone);
+		if (toDay.isBefore(fromDay)) {
+			throw new IllegalArgumentException("to must be on or after from");
+		}
+		var effectiveGroupBy = normalizeGroupBy(groupBy, fromDay, toDay);
+		var kind = appointments ? "appointments-trend:" + effectiveGroupBy.name().toLowerCase() : "revenue-trend:" + effectiveGroupBy.name().toLowerCase();
+		var key = cacheKey(ctx.organizationId(), ctx.siteId(), kind, fromDay, toDay);
+		return cache.get(key, TrendResponse.class).orElseGet(() -> {
+			var rows = appointments
+					? queries.appointmentTrend(ctx.organizationId(), ctx.siteId(), fromDay, toDay, effectiveGroupBy.sqlBucket())
+					: queries.revenueTrend(ctx.organizationId(), ctx.siteId(), fromDay, toDay, effectiveGroupBy.sqlBucket());
+			var response = new TrendResponse(
+					from, to, zone.getId(), effectiveGroupBy,
+					rows.stream().map(r -> new TrendPoint(r.bucket(), r.total())).toList()
+			);
+			cache.put(key, response, cacheTtl("trend"));
+			return response;
+		});
+	}
+
+	private GroupBy normalizeGroupBy(GroupBy requested, LocalDate fromDay, LocalDate toDay) {
+		long days = ChronoUnit.DAYS.between(fromDay, toDay) + 1;
+		if (requested == GroupBy.DAY && days > 120) {
+			return GroupBy.WEEK;
+		}
+		if (requested == GroupBy.WEEK && days > 730) {
+			return GroupBy.MONTH;
+		}
+		return requested;
 	}
 
 	private DashboardOverviewResponse toOverviewResponse(
@@ -235,6 +323,17 @@ public class AnalyticsService {
 		return AnalyticsCacheService.overviewKey(orgId + ":" + siteId, kind + ":" + fromDay + ":" + toDay);
 	}
 
+	private int cacheTtl(String kind) {
+		return switch (kind) {
+			case "kpis" ->  properties.kpiTtlSeconds();
+			case "trend" -> properties.trendTtlSeconds();
+			case "distribution" -> properties.distributionTtlSeconds();
+			case "doctors" -> properties.doctorsTtlSeconds();
+			case "heatmap" -> properties.heatmapTtlSeconds();
+			default -> properties.cacheTtlSeconds();
+		};
+	}
+
 	public record DateRange(Instant from, Instant to, String timezone) {}
 
 	public record OverviewMetrics(
@@ -309,4 +408,32 @@ public class AnalyticsService {
 			long revenuePaidCents,
 			String currency
 	) {}
+
+	public enum GroupBy {
+		DAY("day"),
+		WEEK("week"),
+		MONTH("month"),
+		YEAR("year");
+		private final String sqlBucket;
+		GroupBy(String sqlBucket) { this.sqlBucket = sqlBucket; }
+		public String sqlBucket() { return sqlBucket; }
+	}
+
+	public record KpisResponse(
+			Instant from,
+			Instant to,
+			String timezone,
+			long totalAppointments,
+			long totalPatientsActive,
+			long totalRevenueCents,
+			double avgAppointmentsPerDay,
+			double cancellationRatePct,
+			String currency
+	) {}
+
+	public record TrendPoint(LocalDate bucket, long total) {}
+	public record TrendResponse(Instant from, Instant to, String timezone, GroupBy groupBy, List<TrendPoint> series) {}
+	public record HeatmapCell(int dayOfWeek, int hourOfDay, long total) {}
+	public record HeatmapResponse(Instant from, Instant to, String timezone, List<HeatmapCell> cells) {}
+
 }

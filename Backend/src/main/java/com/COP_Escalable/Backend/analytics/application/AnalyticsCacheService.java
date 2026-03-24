@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.Optional;
 
 @Service
@@ -41,16 +42,34 @@ public class AnalyticsCacheService {
 	}
 
 	public void put(String key, Object value) {
+		put(key, value, properties.cacheTtlSeconds());
+	}
+
+	public void put(String key, Object value, int ttlSeconds) {
 		if (properties.cacheTtlSeconds() == 0) {
 			return;
 		}
 		try {
 			var json = objectMapper.writeValueAsString(value);
-			redis.opsForValue().set(key, json, Duration.ofSeconds(properties.cacheTtlSeconds()));
+			redis.opsForValue().set(key, json, Duration.ofSeconds(Math.max(1, ttlSeconds)));
 		} catch (JsonProcessingException ex) {
 			log.warn("Analytics cache write failed for key {}: {}", key, ex.getMessage());
 		} catch (Exception ex) {
 			log.warn("Analytics cache write failed for key {}: {}", key, ex.getMessage());
+		}
+	}
+
+	public void invalidateNamespace(String namespacePrefix) {
+		if (properties.cacheTtlSeconds() == 0) {
+			return;
+		}
+		try {
+			Set<String> keys = redis.keys("analytics:v1:" + namespacePrefix + ":*");
+			if (keys != null && !keys.isEmpty()) {
+				redis.delete(keys);
+			}
+		} catch (Exception ex) {
+			log.warn("Analytics cache invalidation failed for namespace {}: {}", namespacePrefix, ex.getMessage());
 		}
 	}
 

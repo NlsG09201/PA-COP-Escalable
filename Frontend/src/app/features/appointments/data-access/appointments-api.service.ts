@@ -8,11 +8,25 @@ export interface AppointmentVm {
   start: string;
 }
 
+export interface AppointmentPageVm {
+  items: AppointmentVm[];
+  page: number;
+  size: number;
+  total: number;
+  hasNext: boolean;
+}
+
+export type AppointmentStatusVm = 'REQUESTED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsApiService {
   constructor(private readonly http: HttpClient) {}
 
-  list$(): Observable<AppointmentVm[]> {
+  listPage$(
+    page = 0,
+    size = 50,
+    filters?: { professionalId?: string; status?: AppointmentStatusVm | '' }
+  ): Observable<AppointmentPageVm> {
     const now = new Date();
     const from = new Date(now);
     from.setDate(now.getDate() - 7);
@@ -20,12 +34,20 @@ export class AppointmentsApiService {
     to.setDate(now.getDate() + 30);
     const params = new URLSearchParams({
       from: from.toISOString(),
-      to: to.toISOString()
+      to: to.toISOString(),
+      page: String(Math.max(0, page)),
+      size: String(Math.min(Math.max(1, size), 200))
     });
-    const url = `${API_BASE_URL}/api/appointments?${params.toString()}`;
+    if (filters?.professionalId?.trim()) {
+      params.set('professionalId', filters.professionalId.trim());
+    }
+    if (filters?.status) {
+      params.set('status', filters.status);
+    }
+    const url = `${API_BASE_URL}/api/appointments/page?${params.toString()}`;
 
     return this.http.get<unknown>(url).pipe(
-      map((raw) => this.toArray(raw).map((entry) => this.mapAppointment(entry)))
+      map((raw) => this.mapPage(raw))
     );
   }
 
@@ -48,5 +70,23 @@ export class AppointmentsApiService {
       return (raw as { data: Record<string, unknown>[] }).data;
     }
     return [];
+  }
+
+  private mapPage(raw: unknown): AppointmentPageVm {
+    if (typeof raw !== 'object' || raw === null) {
+      return { items: [], page: 0, size: 50, total: 0, hasNext: false };
+    }
+    const payload = raw as Record<string, unknown>;
+    const itemsRaw = Array.isArray(payload['items']) ? payload['items'] : [];
+    const items = itemsRaw
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .map((entry) => this.mapAppointment(entry));
+    return {
+      items,
+      page: Number(payload['page'] ?? 0),
+      size: Number(payload['size'] ?? items.length),
+      total: Number(payload['total'] ?? items.length),
+      hasNext: Boolean(payload['hasNext'] ?? false)
+    };
   }
 }

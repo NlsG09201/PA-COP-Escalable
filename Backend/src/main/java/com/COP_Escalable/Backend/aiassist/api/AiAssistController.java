@@ -30,6 +30,20 @@ public class AiAssistController {
 		this.service = service;
 	}
 
+	@PostMapping("/patients/{patientId}/analyze-context")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
+	public AiClinicalSuggestion analyzeContext(
+			@PathVariable UUID patientId,
+			@AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody AnalyzeContextRequest req
+	) {
+		try {
+			return service.analyzeClinicalContextSync(patientId, req.sourceType(), req.clinicalContext(), jwt);
+		} catch (IllegalStateException e) {
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+		}
+	}
+
 	@PostMapping("/patients/{patientId}/psych-tests/submissions/{submissionId}/analyze")
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
 	public ResponseEntity<AiClinicalSuggestion> analyzePsychSubmission(
@@ -107,4 +121,9 @@ public class AiAssistController {
 	}
 
 	public record ReviewBody(String note, String reason) {}
+
+	public record AnalyzeContextRequest(
+			com.COP_Escalable.Backend.aiassist.domain.AiAssistSourceType sourceType,
+			@jakarta.validation.constraints.NotBlank String clinicalContext
+	) {}
 }

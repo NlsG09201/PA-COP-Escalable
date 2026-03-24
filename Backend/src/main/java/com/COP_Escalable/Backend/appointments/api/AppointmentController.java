@@ -1,7 +1,10 @@
 package com.COP_Escalable.Backend.appointments.api;
 
 import com.COP_Escalable.Backend.appointments.application.AppointmentService;
+import com.COP_Escalable.Backend.appointments.application.AppointmentService.AppointmentPage;
+import com.COP_Escalable.Backend.appointments.application.SmartAssignmentService;
 import com.COP_Escalable.Backend.appointments.domain.Appointment;
+import com.COP_Escalable.Backend.appointments.domain.AppointmentStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,18 +25,34 @@ import java.util.UUID;
 @RequestMapping("/api/appointments")
 public class AppointmentController {
 	private final AppointmentService service;
+	private final SmartAssignmentService smartAssignment;
 
-	public AppointmentController(AppointmentService service) {
+	public AppointmentController(AppointmentService service, SmartAssignmentService smartAssignment) {
 		this.service = service;
+		this.smartAssignment = smartAssignment;
 	}
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
 	public List<Appointment> list(
 			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@RequestParam(defaultValue = "1000") int limit
 	) {
-		return service.list(from, to);
+		return service.list(from, to, limit);
+	}
+
+	@GetMapping("/page")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public AppointmentPage listPage(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "50") int size,
+			@RequestParam(required = false) UUID professionalId,
+			@RequestParam(required = false) AppointmentStatus status
+	) {
+		return service.listPageFiltered(from, to, page, size, professionalId, status);
 	}
 
 	@PostMapping
@@ -63,6 +82,18 @@ public class AppointmentController {
 		return service.cancel(appointmentId);
 	}
 
+	@PostMapping("/assignments/recommend")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public SmartAssignmentService.AssignmentRecommendation recommend(@Valid @RequestBody AssignmentRequest req) {
+		return smartAssignment.recommend(req.toCommand());
+	}
+
+	@PostMapping("/assignments/auto-request")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public Appointment autoRequest(@Valid @RequestBody AssignmentRequest req) {
+		return smartAssignment.autoAssignAndRequest(req.toCommand());
+	}
+
 	public record RequestAppointment(
 			@NotNull UUID professionalId,
 			@NotNull UUID patientId,
@@ -73,5 +104,33 @@ public class AppointmentController {
 			String serviceNameSnapshot,
 			String serviceCategorySnapshot
 	) {}
+
+	public record AssignmentRequest(
+			@NotNull UUID patientId,
+			@NotNull SmartAssignmentService.AppointmentType appointmentType,
+			@NotNull Instant startAt,
+			@NotNull Instant endAt,
+			@NotNull SmartAssignmentService.AppointmentPriority priority,
+			UUID preferredProfessionalId,
+			String reason,
+			UUID serviceOfferingId,
+			String serviceNameSnapshot,
+			String serviceCategorySnapshot
+	) {
+		public SmartAssignmentService.AssignmentRequest toCommand() {
+			return new SmartAssignmentService.AssignmentRequest(
+					patientId,
+					appointmentType,
+					startAt,
+					endAt,
+					priority,
+					preferredProfessionalId,
+					reason,
+					serviceOfferingId,
+					serviceNameSnapshot,
+					serviceCategorySnapshot
+			);
+		}
+	}
 }
 

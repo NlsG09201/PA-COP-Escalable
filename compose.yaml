@@ -21,6 +21,11 @@ services:
     volumes:
       - mongodb_data:/data/db
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   legacy-backend:
     build:
       context: ./Backend
@@ -30,6 +35,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cop}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cop_dev_password_change_me}
       MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SEC_ISSUER: ${SEC_ISSUER:-http://localhost:8080}
       APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
       APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
@@ -40,9 +47,11 @@ services:
       JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
       SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED:-true}
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
     depends_on:
       - postgres
       - mongodb
+      - redis
 
   iam-service:
     build:

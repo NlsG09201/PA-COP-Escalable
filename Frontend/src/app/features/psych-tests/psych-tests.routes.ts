@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { catchError, map, of, switchMap, tap } from 'rxjs';
 import {
   PsychQuestionVm,
   PsychTestOptionVm,
@@ -14,8 +14,11 @@ import {
 } from './data-access/psych-tests-api.service';
 import { ClinicalHistoryApiService } from '../clinical-history/data-access/clinical-history-api.service';
 import { selectSelectedPatient, selectSelectedPatientId } from '../../store/patients.selectors';
+import { AiAssistApiService, AiClinicalSuggestionVm } from '../../core/services/ai-assist-api.service';
+import { AiSuggestionPanelComponent } from '../ai-assist/components/ai-suggestion-panel.component';
 
 const LIKERT_OPTIONS: PsychTestOptionVm[] = [
+// ...
   { label: 'Nunca', value: '0', score: 0 },
   { label: 'Rara vez', value: '1', score: 1 },
   { label: 'A veces', value: '2', score: 2 },
@@ -230,18 +233,28 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
                   </div>
                 </form>
 
-                @if (lastResult(); as result) {
-                  <div class="result-card mt-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-                      <div>
-                        <p class="eyebrow mb-2">Resultado calculado</p>
-                        <h4 class="h5 mb-1">{{ result.templateName }}</h4>
-                        <p class="text-muted mb-0">{{ result.classification }}</p>
+                <div class="row mt-4" *ngIf="lastResult() || aiLoading()">
+                  <div class="col-lg-7">
+                    @if (lastResult(); as result) {
+                      <div class="result-card h-100">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                          <div>
+                            <p class="eyebrow mb-2">Resultado calculado</p>
+                            <h4 class="h5 mb-1">{{ result.templateName }}</h4>
+                            <p class="text-muted mb-0">{{ result.classification }}</p>
+                          </div>
+                          <div class="result-score">{{ result.score }}</div>
+                        </div>
                       </div>
-                      <div class="result-score">{{ result.score }}</div>
-                    </div>
+                    }
                   </div>
-                }
+                  <div class="col-lg-5">
+                    <app-ai-suggestion-panel
+                      [suggestion]="aiSuggestion()"
+                      [loading]="aiLoading()">
+                    </app-ai-suggestion-panel>
+                  </div>
+                </div>
               }
             </div>
           </div>
@@ -418,6 +431,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
 class PsychTestsPageComponent {
   private readonly testsApi = inject(PsychTestsApiService);
   private readonly clinicalApi = inject(ClinicalHistoryApiService);
+  private readonly aiApi = inject(AiAssistApiService);
   private readonly store = inject(Store);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -429,6 +443,9 @@ class PsychTestsPageComponent {
   protected readonly lastResult = signal<PsychTestSubmissionVm | null>(null);
   protected readonly submitting = signal(false);
   protected testForm = this.fb.group({});
+
+  aiSuggestion = signal<AiClinicalSuggestionVm | null>(null);
+  aiLoading = signal(false);
 
   private readonly patientId = signal<string | null>(null);
   protected readonly activeTemplate = computed(
@@ -452,6 +469,7 @@ class PsychTestsPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((patientId) => {
         this.patientId.set(patientId);
+        this.aiSuggestion.set(null);
         this.loadHistory(patientId);
       });
 
@@ -460,6 +478,7 @@ class PsychTestsPageComponent {
 
   protected activateTemplate(templateId: string): void {
     this.activeTemplateId.set(templateId);
+    this.aiSuggestion.set(null);
     this.rebuildForm();
   }
 
@@ -536,6 +555,18 @@ class PsychTestsPageComponent {
         ]);
         this.lastResult.set(saved);
         this.submitting.set(false);
+
+        // Trigger AI analysis
+        if (patientId) {
+          this.aiLoading.set(true);
+          this.aiApi.analyzePsychSubmission$(patientId, saved.id).subscribe({
+            next: (aiRes) => {
+              this.aiSuggestion.set(aiRes);
+              this.aiLoading.set(false);
+            },
+            error: () => this.aiLoading.set(false)
+          });
+        }
       });
   }
 

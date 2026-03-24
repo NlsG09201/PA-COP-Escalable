@@ -4,7 +4,11 @@ import com.COP_Escalable.Backend.analytics.application.AnalyticsService;
 import com.COP_Escalable.Backend.analytics.application.AnalyticsService.AppointmentsBySpecialtyResponse;
 import com.COP_Escalable.Backend.analytics.application.AnalyticsService.DashboardOverviewResponse;
 import com.COP_Escalable.Backend.analytics.application.AnalyticsService.DoctorsPerformanceResponse;
+import com.COP_Escalable.Backend.analytics.application.AnalyticsService.GroupBy;
+import com.COP_Escalable.Backend.analytics.application.AnalyticsService.HeatmapResponse;
+import com.COP_Escalable.Backend.analytics.application.AnalyticsService.KpisResponse;
 import com.COP_Escalable.Backend.analytics.application.AnalyticsService.RevenueResponse;
+import com.COP_Escalable.Backend.analytics.application.AnalyticsService.TrendResponse;
 import com.COP_Escalable.Backend.analytics.application.AnalyticsService.TimeseriesResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -71,5 +75,62 @@ public class AnalyticsController {
 			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
 	) {
 		return analytics.revenue(from, to);
+	}
+
+	@GetMapping("/kpis")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public KpisResponse kpis(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+	) {
+		return analytics.kpis(from, to);
+	}
+
+	@GetMapping("/appointments/trend")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public TrendResponse appointmentsTrend(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@RequestParam(defaultValue = "DAY") GroupBy groupBy
+	) {
+		return analytics.appointmentsTrend(from, to, groupBy);
+	}
+
+	@GetMapping("/revenue/trend")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public TrendResponse revenueTrend(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@RequestParam(defaultValue = "MONTH") GroupBy groupBy
+	) {
+		return analytics.revenueTrend(from, to, groupBy);
+	}
+
+	@GetMapping("/specialties/distribution")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public AppointmentsBySpecialtyResponse specialtiesDistribution(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+	) {
+		return analytics.appointmentsBySpecialty(from, to);
+	}
+
+	@GetMapping("/doctors/performance")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public DoctorsPerformanceResponse doctorsPerformanceV2(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit
+	) {
+		return analytics.doctorsPerformance(from, to, limit);
+	}
+
+	@GetMapping("/appointments/heatmap")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public HeatmapResponse heatmap(
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+	) {
+		return analytics.appointmentsHeatmap(from, to);
 	}
 }

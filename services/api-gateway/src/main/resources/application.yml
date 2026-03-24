@@ -33,6 +33,7 @@ spring:
                 maxAge: 3600
           default-filters:
             - AddRequestHeader=X-Request-Source, api-gateway
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
           routes:
             - id: iam
               uri: http://iam-service:8080
@@ -48,6 +49,11 @@ spring:
               uri: http://patients-service:8080
               predicates:
                 - Path=/api/patients/**
+
+            - id: appointments-assignments-legacy
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/appointments/assignments/**
 
             - id: appointments
               uri: http://appointments-service:8080
@@ -68,6 +74,11 @@ spring:
               uri: http://psych-tests-service:8080
               predicates:
                 - Path=/api/psych-tests/**
+
+            - id: ai-assist
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/ai-assist/**
 
             # Strangler: todo al legacy mientras se extrae por servicio
             - id: legacy-all

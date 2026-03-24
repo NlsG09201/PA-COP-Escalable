@@ -47,10 +47,10 @@ public interface ServiceOfferingRepository extends JpaRepository<ServiceOffering
 			  and (:active is null or o.active = :active)
 			  and (:categorySlug is null or c.slug = :categorySlug)
 			  and (
-			    :q is null
-			    or lower(o.publicTitle) like lower(concat('%', :q, '%'))
-			    or lower(cs.name) like lower(concat('%', :q, '%'))
-			    or lower(coalesce(o.publicDescription, '')) like lower(concat('%', :q, '%'))
+			    :q = ''
+			    or lower(o.publicTitle) like concat('%', :q, '%')
+			    or lower(cs.name) like concat('%', :q, '%')
+			    or lower(coalesce(o.publicDescription, '')) like concat('%', :q, '%')
 			  )
 			order by c.sortOrder asc, o.publicTitle asc
 			""")

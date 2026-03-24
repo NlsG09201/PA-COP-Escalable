@@ -24,15 +24,18 @@ public class AnalyticsProjectionListener {
 	private final AnalyticsRollupRepository rollup;
 	private final ProfessionalRepository professionals;
 	private final SiteRepository sites;
+	private final AnalyticsCacheService cache;
 
 	public AnalyticsProjectionListener(
 			AnalyticsRollupRepository rollup,
 			ProfessionalRepository professionals,
-			SiteRepository sites
+			SiteRepository sites,
+			AnalyticsCacheService cache
 	) {
 		this.rollup = rollup;
 		this.professionals = professionals;
 		this.sites = sites;
+		this.cache = cache;
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -98,6 +101,7 @@ public class AnalyticsProjectionListener {
 					dCreated == 1 ? bookedMinutes : 0
 			);
 		}
+		cache.invalidateNamespace(event.organizationId() + ":" + event.siteId());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -188,6 +192,7 @@ public class AnalyticsProjectionListener {
 					0
 			);
 		}
+		cache.invalidateNamespace(event.organizationId() + ":" + event.siteId());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -196,6 +201,7 @@ public class AnalyticsProjectionListener {
 		var zone = resolveZone(event.organizationId(), event.siteId());
 		var day = toLocalDate(event.createdAt(), zone);
 		rollup.mergeSite(event.organizationId(), event.siteId(), day, 0, 0, 0, 0, 1, 0, 0);
+		cache.invalidateNamespace(event.organizationId() + ":" + event.siteId());
 	}
 
 	private ZoneId resolveZone(UUID organizationId, UUID siteId) {

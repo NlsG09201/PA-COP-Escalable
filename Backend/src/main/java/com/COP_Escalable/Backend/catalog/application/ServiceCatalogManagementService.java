@@ -35,7 +35,7 @@ public class ServiceCatalogManagementService {
 		if (tenant.siteId() == null) {
 			throw new IllegalArgumentException("site_id is required in tenant context");
 		}
-		String search = (query == null || query.isBlank()) ? null : query.trim();
+		String search = (query == null || query.isBlank()) ? "" : query.trim().toLowerCase(Locale.ROOT);
 		String categorySlug = category == null ? null : category.slug();
 		return offerings.searchForManagement(tenant.organizationId(), tenant.siteId(), active, categorySlug, search)
 				.stream()

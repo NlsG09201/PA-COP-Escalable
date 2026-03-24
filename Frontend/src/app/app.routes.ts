@@ -20,6 +20,12 @@ export const routes: Routes = [
         data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
+        path: 'services',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/services/services.routes').then((m) => m.SERVICES_ROUTES),
+        data: { roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
         path: 'appointments',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/appointments/appointments.routes').then((m) => m.APPOINTMENTS_ROUTES),
@@ -58,6 +64,7 @@ export const routes: Routes = [
     ]
   },
   { path: 'dashboard', pathMatch: 'full', redirectTo: 'app/dashboard' },
+  { path: 'services', pathMatch: 'full', redirectTo: 'app/services' },
   { path: 'appointments', pathMatch: 'full', redirectTo: 'app/appointments' },
   { path: 'patients', pathMatch: 'full', redirectTo: 'app/patients' },
   { path: 'odontogram', pathMatch: 'full', redirectTo: 'app/odontogram' },

@@ -121,6 +121,56 @@ public class AiAssistService {
 	}
 
 	@Transactional
+	public AiClinicalSuggestion analyzeClinicalContextSync(UUID patientId, AiAssistSourceType sourceType, String clinicalContext, Jwt jwt) {
+		requireFeatureEnabled();
+		var tenant = TenantContextHolder.require();
+		if (tenant.siteId() == null) throw new IllegalArgumentException("siteId is required in tenant context");
+		var orgId = tenant.organizationId();
+		var siteId = tenant.siteId();
+
+		patients.findByIdAndOrganizationId(patientId, orgId)
+				.orElseThrow(() -> new IllegalArgumentException("Patient not found in tenant"));
+
+		UUID userId = requireUserId(jwt);
+		String username = requireUsername(jwt);
+		String modelLabel = props.getProvider() == AiAssistProperties.Provider.STUB ? "stub" : props.getModel();
+
+		String systemPrompt = promptLoader.loadSystemPrompt();
+		String userPrompt = "Tipo de análisis: " + sourceType.name() + "\n"
+				+ "Contexto clínico del paciente:\n" + clinicalContext + "\n\n"
+				+ "Genera sugerencias estructuradas según el formato JSON esperado.";
+
+		String raw;
+		try {
+			raw = llmCompletionClient.complete(systemPrompt, userPrompt);
+		} catch (Exception e) {
+			var failed = AiClinicalSuggestion.createGenericClinical(orgId, siteId, patientId, sourceType, modelLabel, props.getPromptVersion(), userId, username);
+			failed.applyAnalysisFailure(e.getMessage(), "Fallo al invocar el modelo", "{}");
+			return suggestions.save(failed);
+		}
+
+		try {
+			ParsedAssistOutput parsed = parseAndValidateModelJson(raw);
+			var success = AiClinicalSuggestion.createGenericClinical(orgId, siteId, patientId, sourceType, modelLabel, props.getPromptVersion(), userId, username);
+			success.applyAnalysisSuccess(
+					raw,
+					parsed.fingerprint(),
+					parsed.risk(),
+					parsed.humanReviewRequired(),
+					parsed.headline(),
+					parsed.structuredJson()
+			);
+			var saved = suggestions.save(success);
+			maybeCriticalAlert(saved, jwt);
+			return saved;
+		} catch (Exception e) {
+			var failed = AiClinicalSuggestion.createGenericClinical(orgId, siteId, patientId, sourceType, modelLabel, props.getPromptVersion(), userId, username);
+			failed.applyAnalysisFailure(raw, "No se pudo interpretar la salida", "{}");
+			return suggestions.save(failed);
+		}
+	}
+
+	@Transactional
 	public AiClinicalSuggestion analyzePsychTestSubmissionSync(UUID patientId, UUID submissionId, Jwt jwt) {
 		requireFeatureEnabled();
 		var loaded = loadValidatedPsychContext(patientId, submissionId);

@@ -145,6 +145,62 @@ public class AnalyticsQueryRepository {
 		);
 	}
 
+	public List<TrendBucketRow> appointmentTrend(UUID organizationId, UUID siteId, LocalDate fromDay, LocalDate toDay, String groupBy) {
+		var sql = """
+				select
+				  date_trunc(?, day)::date as bucket,
+				  coalesce(sum(appointments_created), 0) as total
+				from analytics_daily_site_metrics
+				where organization_id = ? and site_id = ? and day between ? and ?
+				group by 1
+				order by 1 asc
+				""";
+		return jdbc.query(
+				sql,
+				(rs, rowNum) -> new TrendBucketRow(rs.getDate("bucket").toLocalDate(), rs.getLong("total")),
+				groupBy, organizationId, siteId, Date.valueOf(fromDay), Date.valueOf(toDay)
+		);
+	}
+
+	public List<TrendBucketRow> revenueTrend(UUID organizationId, UUID siteId, LocalDate fromDay, LocalDate toDay, String groupBy) {
+		var sql = """
+				select
+				  date_trunc(?, day)::date as bucket,
+				  coalesce(sum(revenue_paid_cents), 0) as total
+				from analytics_daily_site_metrics
+				where organization_id = ? and site_id = ? and day between ? and ?
+				group by 1
+				order by 1 asc
+				""";
+		return jdbc.query(
+				sql,
+				(rs, rowNum) -> new TrendBucketRow(rs.getDate("bucket").toLocalDate(), rs.getLong("total")),
+				groupBy, organizationId, siteId, Date.valueOf(fromDay), Date.valueOf(toDay)
+		);
+	}
+
+	public List<HeatmapCellRow> appointmentHeatmap(UUID organizationId, UUID siteId, LocalDate fromDay, LocalDate toDay) {
+		var sql = """
+				select
+				  extract(dow from a.start_at at time zone 'UTC')::int as dow,
+				  extract(hour from a.start_at at time zone 'UTC')::int as hour_of_day,
+				  count(*) as total
+				from appointments a
+				where a.organization_id = ?
+				  and a.site_id = ?
+				  and a.start_at >= ?
+				  and a.start_at < (?::date + interval '1 day')
+				  and a.status in ('REQUESTED','CONFIRMED','COMPLETED')
+				group by 1, 2
+				order by 1 asc, 2 asc
+				""";
+		return jdbc.query(
+				sql,
+				(rs, rowNum) -> new HeatmapCellRow(rs.getInt("dow"), rs.getInt("hour_of_day"), rs.getLong("total")),
+				organizationId, siteId, Date.valueOf(fromDay), Date.valueOf(toDay)
+		);
+	}
+
 	public record SiteOverviewRow(
 			long appointmentsCreated,
 			long appointmentsConfirmed,
@@ -181,6 +237,17 @@ public class AnalyticsQueryRepository {
 			long appointmentsConfirmed,
 			long appointmentsCancelled,
 			long revenuePaidCents
+	) {}
+
+	public record TrendBucketRow(
+			LocalDate bucket,
+			long total
+	) {}
+
+	public record HeatmapCellRow(
+			int dayOfWeek,
+			int hourOfDay,
+			long total
 	) {}
 
 	private static final class SiteOverviewRowMapper implements RowMapper<SiteOverviewRow> {

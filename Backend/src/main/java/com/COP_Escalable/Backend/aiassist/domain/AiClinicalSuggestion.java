@@ -52,6 +52,36 @@ public class AiClinicalSuggestion {
 	protected AiClinicalSuggestion() {
 	}
 
+	public static AiClinicalSuggestion createGenericClinical(
+			UUID organizationId,
+			UUID siteId,
+			UUID patientId,
+			AiAssistSourceType sourceType,
+			String modelId,
+			String promptVersion,
+			UUID requestedByUserId,
+			String requestedByUsername
+	) {
+		var s = new AiClinicalSuggestion();
+		s.id = UUID.randomUUID();
+		s.organizationId = require(organizationId, "organizationId");
+		s.siteId = require(siteId, "siteId");
+		s.patientId = require(patientId, "patientId");
+		s.sourceType = require(sourceType, "sourceType");
+		s.modelId = modelId;
+		s.promptVersion = promptVersion;
+		s.requestedByUserId = requestedByUserId;
+		s.requestedByUsername = requestedByUsername;
+		s.status = AiSuggestionStatus.PENDING_REVIEW; // Initial state if sync
+		s.createdAt = Instant.now();
+		s.parsedJsonFingerprint = "";
+		s.riskLevel = "unknown";
+		s.humanReviewRequired = true;
+		s.headline = "Análisis IA";
+		s.structuredJson = "{}";
+		return s;
+	}
+
 	public static AiClinicalSuggestion createQueuedPsychTest(
 			UUID organizationId,
 			UUID siteId,
