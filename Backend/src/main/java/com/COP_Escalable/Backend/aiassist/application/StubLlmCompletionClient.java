@@ -24,6 +24,17 @@ public class StubLlmCompletionClient implements LlmCompletionClient {
 			out.getRecommendedClarifyingQuestions().add("¿Ha tenido pensamientos de hacerse daño o de que la vida no valga la pena?");
 			out.getRecommendedNonDiagnosticActions().add("Completar evaluación clínica presencial o por telemedicina con un profesional.");
 			out.getEvidenceQuotesFromInput().add("Ver texto del cuestionario en el mensaje de usuario (resumen no incluido en STUB).");
+
+			var sentiment = new AiStructuredOutput.SentimentAnalysis();
+			sentiment.setLabel("neutral");
+			sentiment.setScore(0.1);
+			out.setSentimentAnalysis(sentiment);
+
+			out.getClinicalMetrics().put("wellbeing", 0.6);
+			out.getClinicalMetrics().put("anxiety", 0.4);
+			out.getClinicalMetrics().put("depression", 0.2);
+			out.getClinicalMetrics().put("stress", 0.5);
+
 			return objectMapper.writeValueAsString(out);
 		} catch (Exception e) {
 			throw new IllegalStateException("Stub LLM serialization failed", e);

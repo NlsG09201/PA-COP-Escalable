@@ -16,6 +16,8 @@ Contrato JSON (campos requeridos):
   "candidate_conditions": [ { "label": "string", "rationale": "string", "confidence_0_to_1": 0.0 } ],
   "supporting_signals": [ "string" ],
   "recommended_clarifying_questions": [ "string" ],
-  "recommended_non_diagnostic_actions": [ "string" ],
-  "evidence_quotes_from_input": [ "string" ]
+    "recommended_non_diagnostic_actions": [ "string" ],
+    "sentiment_analysis": { "label": "positive|neutral|negative|mixed", "score": 0.0 },
+    "clinical_metrics": { "wellbeing": 0.0, "anxiety": 0.0, "depression": 0.0, "stress": 0.0 },
+    "evidence_quotes_from_input": [ "string" ]
 }

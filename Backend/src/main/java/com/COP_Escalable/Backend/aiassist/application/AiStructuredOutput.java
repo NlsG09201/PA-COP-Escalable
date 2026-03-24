@@ -33,8 +33,44 @@ public class AiStructuredOutput {
 	@JsonProperty("recommended_non_diagnostic_actions")
 	private List<String> recommendedNonDiagnosticActions = new ArrayList<>();
 
+	@JsonProperty("sentiment_analysis")
+	private SentimentAnalysis sentimentAnalysis;
+
+	@JsonProperty("clinical_metrics")
+	private java.util.Map<String, Double> clinicalMetrics = new java.util.HashMap<>();
+
 	@JsonProperty("evidence_quotes_from_input")
 	private List<String> evidenceQuotesFromInput = new ArrayList<>();
+
+	public SentimentAnalysis getSentimentAnalysis() {
+		return sentimentAnalysis;
+	}
+
+	public void setSentimentAnalysis(SentimentAnalysis sentimentAnalysis) {
+		this.sentimentAnalysis = sentimentAnalysis;
+	}
+
+	public java.util.Map<String, Double> getClinicalMetrics() {
+		return clinicalMetrics;
+	}
+
+	public void setClinicalMetrics(java.util.Map<String, Double> clinicalMetrics) {
+		this.clinicalMetrics = clinicalMetrics != null ? clinicalMetrics : new java.util.HashMap<>();
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class SentimentAnalysis {
+		@JsonProperty("label")
+		private String label; // positive, neutral, negative, mixed
+
+		@JsonProperty("score")
+		private Double score; // -1.0 to 1.0
+
+		public String getLabel() { return label; }
+		public void setLabel(String label) { this.label = label; }
+		public Double getScore() { return score; }
+		public void setScore(Double score) { this.score = score; }
+	}
 
 	public String getDisclaimer() {
 		return disclaimer;

@@ -7,6 +7,8 @@ import { Store } from '@ngrx/store';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { OdontogramApiService, ToothHistoryVm, ToothStateVm, ToothStatus } from './data-access/odontogram-api.service';
 import { ClinicalHistoryApiService } from '../clinical-history/data-access/clinical-history-api.service';
+import { OdontologyApiService, TreatmentPlanVm } from '../../core/services/odontology-api.service';
+import { TreatmentPlanPanelComponent } from '../odontology/components/treatment-plan-panel.component';
 import { selectSelectedPatient, selectSelectedPatientId } from '../../store/patients.selectors';
 
 type ToothVisual = ToothStateVm & {
@@ -43,7 +45,7 @@ function buildDefaultRecords(): ToothStateVm[] {
 
 @Component({
   standalone: true,
-  imports: [AsyncPipe, DatePipe, ReactiveFormsModule],
+  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, TreatmentPlanPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-shell">
@@ -63,7 +65,7 @@ function buildDefaultRecords(): ToothStateVm[] {
 
       <div class="row g-4 mt-1">
         <div class="col-xl-8">
-          <div class="card border-0 shadow-sm">
+          <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
               <div class="d-flex flex-wrap gap-2 mb-4">
                 @for (status of statusEntries; track status.key) {
@@ -170,7 +172,7 @@ function buildDefaultRecords(): ToothStateVm[] {
         </div>
 
         <div class="col-xl-4">
-          <div class="card border-0 shadow-sm h-100">
+          <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
                 <div>
@@ -187,8 +189,8 @@ function buildDefaultRecords(): ToothStateVm[] {
 
               <form [formGroup]="toothForm" (ngSubmit)="saveTooth()" class="d-grid gap-3">
                 <div>
-                  <label class="form-label">Estado</label>
-                  <select class="form-select" formControlName="status">
+                  <label class="form-label small fw-bold">Estado Clínico</label>
+                  <select class="form-select border-0 bg-light shadow-none" formControlName="status">
                     @for (status of statusEntries; track status.key) {
                       <option [value]="status.key">{{ status.value.label }}</option>
                     }
@@ -196,22 +198,22 @@ function buildDefaultRecords(): ToothStateVm[] {
                 </div>
 
                 <div>
-                  <label class="form-label">Diagnostico</label>
-                  <input class="form-control" formControlName="diagnosis" placeholder="Ej. Caries oclusal incipiente" />
+                  <label class="form-label small fw-bold">Diagnóstico</label>
+                  <input class="form-control border-0 bg-light shadow-none" formControlName="diagnosis" placeholder="Ej. Caries oclusal" />
                 </div>
 
                 <div>
-                  <label class="form-label">Tratamiento</label>
-                  <input class="form-control" formControlName="treatment" placeholder="Ej. Restauracion resina compuesta" />
+                  <label class="form-label small fw-bold">Tratamiento Sugerido</label>
+                  <input class="form-control border-0 bg-light shadow-none" formControlName="treatment" placeholder="Ej. Restauración resina" />
                 </div>
 
                 <div>
-                  <label class="form-label">Observaciones clinicas</label>
-                  <textarea class="form-control" rows="4" formControlName="observations"></textarea>
+                  <label class="form-label small fw-bold">Observaciones</label>
+                  <textarea class="form-control border-0 bg-light shadow-none" rows="3" formControlName="observations"></textarea>
                 </div>
 
-                <button class="btn btn-primary" [disabled]="saving() || toothForm.invalid">
-                  {{ saving() ? 'Guardando...' : 'Guardar evolucion del diente' }}
+                <button class="btn btn-primary shadow-sm" [disabled]="saving() || toothForm.invalid">
+                  {{ saving() ? 'Guardando...' : 'Guardar Evolución' }}
                 </button>
               </form>
 
@@ -224,21 +226,26 @@ function buildDefaultRecords(): ToothStateVm[] {
 
               <div class="history-list">
                 @for (event of selectedRecord()?.history ?? []; track event.at + event.status + event.diagnosis) {
-                  <article class="history-item">
-                    <div class="d-flex justify-content-between gap-3">
+                  <article class="history-item mb-2">
+                    <div class="d-flex justify-content-between gap-3 mb-1">
                       <strong>{{ statusStyles[event.status].label }}</strong>
                       <span class="text-muted small">{{ event.at | date: 'short' }}</span>
                     </div>
-                    <p class="mb-1"><strong>Dx:</strong> {{ event.diagnosis || 'Sin diagnostico' }}</p>
-                    <p class="mb-1"><strong>Tx:</strong> {{ event.treatment || 'Sin tratamiento' }}</p>
-                    <p class="mb-0 text-muted">{{ event.observations || 'Sin observaciones' }}</p>
+                    <p class="mb-1 small"><strong>Dx:</strong> {{ event.diagnosis || 'Sin diagnostico' }}</p>
+                    <p class="mb-0 text-muted small">{{ event.observations || 'Sin observaciones' }}</p>
                   </article>
                 } @empty {
-                  <div class="empty-state">No hay historial registrado para esta pieza dental.</div>
+                  <div class="empty-state">No hay historial registrado.</div>
                 }
               </div>
             </div>
           </div>
+
+          <app-treatment-plan-panel
+            [plans]="treatmentPlans"
+            [loading]="plansLoading"
+            (suggest)="onSuggestPlan()">
+          </app-treatment-plan-panel>
         </div>
       </div>
     </section>
@@ -378,15 +385,15 @@ function buildDefaultRecords(): ToothStateVm[] {
     .history-list {
       display: grid;
       gap: 0.85rem;
-      max-height: 330px;
+      max-height: 200px;
       overflow: auto;
       padding-right: 0.25rem;
     }
 
     .history-item {
       border: 1px solid #edf2f7;
-      border-radius: 16px;
-      padding: 0.9rem;
+      border-radius: 12px;
+      padding: 0.75rem;
       background: #fff;
     }
 
@@ -402,6 +409,7 @@ function buildDefaultRecords(): ToothStateVm[] {
 class OdontogramPageComponent {
   private readonly odontogramApi = inject(OdontogramApiService);
   private readonly clinicalApi = inject(ClinicalHistoryApiService);
+  private readonly odontologyApi = inject(OdontologyApiService);
   private readonly store = inject(Store);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -415,6 +423,9 @@ class OdontogramPageComponent {
   private readonly toothRecords = signal<ToothStateVm[]>(buildDefaultRecords());
   protected readonly selectedTooth = signal<string>('11');
   protected readonly saving = signal(false);
+
+  protected readonly treatmentPlans = signal<TreatmentPlanVm[]>([]);
+  protected readonly plansLoading = signal(false);
 
   protected readonly selectedRecord = computed(
     () =>
@@ -439,13 +450,39 @@ class OdontogramPageComponent {
         takeUntilDestroyed(this.destroyRef),
         switchMap((patientId: string | null) => {
           this.patientId.set(patientId);
-          return patientId ? this.odontogramApi.getByPatient$(patientId).pipe(catchError(() => of([]))) : of([]);
+          if (patientId) {
+            this.loadPlans(patientId);
+            return this.odontogramApi.getByPatient$(patientId).pipe(catchError(() => of([])));
+          }
+          return of([]);
         })
       )
       .subscribe((records: ToothStateVm[]) => {
         this.toothRecords.set(this.mergeWithDefaults(records));
         this.syncSelection();
       });
+  }
+
+  protected loadPlans(patientId: string) {
+    this.odontologyApi.getPatientPlans$(patientId).subscribe(plans => {
+      this.treatmentPlans.set(plans);
+    });
+  }
+
+  protected onSuggestPlan() {
+    const patientId = this.patientId();
+    if (!patientId) return;
+
+    this.plansLoading.set(true);
+    this.odontologyApi.suggestPlan$(patientId).subscribe({
+      next: (plan) => {
+        this.treatmentPlans.update(prev => [plan, ...prev]);
+        this.plansLoading.set(false);
+      },
+      error: () => {
+        this.plansLoading.set(false);
+      }
+    });
   }
 
   protected selectTooth(tooth: string): void {

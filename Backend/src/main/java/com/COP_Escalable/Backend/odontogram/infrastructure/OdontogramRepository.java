@@ -8,5 +8,7 @@ import java.util.UUID;
 
 public interface OdontogramRepository extends MongoRepository<Odontogram, UUID> {
 	Optional<Odontogram> findByOrganizationIdAndSiteIdAndPatientId(UUID organizationId, UUID siteId, UUID patientId);
+
+	Optional<Odontogram> findTopByOrganizationIdAndSiteIdAndPatientIdOrderByCreatedAtDesc(UUID organizationId, UUID siteId, UUID patientId);
 }
 

@@ -116,12 +116,60 @@ services:
     depends_on:
       - legacy-backend
 
+  ai-diagnosis-service:
+    build:
+      context: ./services/ai-diagnosis-service
+    environment:
+      DIAG_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      DIAG_MONGODB_DB: cop
+      DIAG_REDIS_HOST: redis
+      DIAG_REDIS_PORT: 6379
+      DIAG_MODEL_DEVICE: cpu
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - models_data:/app/app/ml/weights
+
+  emotion-analysis-service:
+    build:
+      context: ./services/emotion-analysis-service
+    environment:
+      EMOTION_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      EMOTION_MONGODB_DB: cop
+      EMOTION_REDIS_HOST: redis
+      EMOTION_REDIS_PORT: 6379
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - models_data:/app/app/ml/weights
+
+  recommendation-engine:
+    build:
+      context: ./services/recommendation-engine
+    environment:
+      RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      RECO_MONGODB_DB: cop
+      RECO_POSTGRES_URL: postgresql://${POSTGRES_USER:-cop}:${POSTGRES_PASSWORD:-cop_dev_password_change_me}@postgres:5432/${POSTGRES_DB:-cop}
+      RECO_REDIS_HOST: redis
+      RECO_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - mongodb
+      - redis
+    volumes:
+      - models_data:/app/app/ml/weights
+
   api-gateway:
     build:
       context: ./services/api-gateway
     environment:
       SERVER_PORT: 8080
       LEGACY_URI: http://legacy-backend:8080
+      AI_DIAGNOSIS_URI: http://ai-diagnosis-service:8090
+      EMOTION_ANALYSIS_URI: http://emotion-analysis-service:8091
+      RECOMMENDATION_ENGINE_URI: http://recommendation-engine:8092
     ports:
       - "8080:8080"
     depends_on:
@@ -133,6 +181,9 @@ services:
       - odontogram-service
       - psych-tests-service
       - legacy-backend
+      - ai-diagnosis-service
+      - emotion-analysis-service
+      - recommendation-engine
 
   dashboard:
     build:
@@ -158,4 +209,5 @@ services:
 volumes:
   postgres_data:
   mongodb_data:
+  models_data:
 

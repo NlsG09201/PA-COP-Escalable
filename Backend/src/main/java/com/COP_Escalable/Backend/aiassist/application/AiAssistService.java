@@ -56,6 +56,7 @@ public class AiAssistService {
 	private final AiStructuredOutputSchemaValidator outputSchemaValidator;
 	private final TransactionTemplate transactionTemplate;
 	private final MongoOperations mongoOperations;
+	private final com.COP_Escalable.Backend.psychology.application.PsychologyService psychologyService;
 
 	public AiAssistService(
 			AiAssistProperties props,
@@ -71,7 +72,8 @@ public class AiAssistService {
 			PsychometricLocalScoringService psychometricLocalScoringService,
 			AiStructuredOutputSchemaValidator outputSchemaValidator,
 			PlatformTransactionManager transactionManager,
-			MongoOperations mongoOperations
+			MongoOperations mongoOperations,
+			com.COP_Escalable.Backend.psychology.application.PsychologyService psychologyService
 	) {
 		this.props = props;
 		this.suggestions = suggestions;
@@ -87,6 +89,7 @@ public class AiAssistService {
 		this.outputSchemaValidator = outputSchemaValidator;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 		this.mongoOperations = mongoOperations;
+		this.psychologyService = psychologyService;
 	}
 
 	public boolean useAsyncAnalyzeByDefault() {
@@ -468,6 +471,16 @@ public class AiAssistService {
 				+ (s.getHeadline() == null ? "" : s.getHeadline())
 				+ (trimmedNote.isEmpty() ? "" : "\nNota del profesional: " + trimmedNote);
 		clinicalRecordService.addEntry(s.getPatientId(), reviewer, uname, "AI_ASSIST_REVIEWED", clinicalNote);
+
+		// Si tiene JSON estructurado, capturamos el snapshot evolutivo
+		if (s.getStructuredJson() != null && !s.getStructuredJson().isBlank() && !s.getStructuredJson().equals("{}")) {
+			psychologyService.captureFromAiSuggestion(
+					s.getPatientId(),
+					"AI_ASSIST:" + s.getSourceType().name(),
+					s.getId(),
+					s.getStructuredJson()
+			);
+		}
 
 		return suggestions.save(s);
 	}

@@ -80,6 +80,76 @@ spring:
               predicates:
                 - Path=/api/ai-assist/**
 
+            - id: psychology
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/psychology/**
+
+            - id: odontology
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/odontology/**
+
+            - id: diagnosis
+              uri: ${AI_DIAGNOSIS_URI:http://ai-diagnosis-service:8090}
+              predicates:
+                - Path=/api/diagnosis/**
+
+            - id: emotion
+              uri: ${EMOTION_ANALYSIS_URI:http://emotion-analysis-service:8091}
+              predicates:
+                - Path=/api/emotion/**
+
+            - id: recommendations
+              uri: ${RECOMMENDATION_ENGINE_URI:http://recommendation-engine:8092}
+              predicates:
+                - Path=/api/recommendations/**
+
+            - id: relapse
+              uri: ${RECOMMENDATION_ENGINE_URI:http://recommendation-engine:8092}
+              predicates:
+                - Path=/api/relapse/**
+
+            - id: simulation
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/simulation/**
+
+            - id: followup
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/followup/**
+
+            - id: budget
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/budget/**
+
+            - id: therapy
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/therapy/**
+
+            - id: copilot
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/copilot/**
+
+            - id: experience
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/experience/**
+
+            - id: portal
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/portal/**
+
+            - id: files
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
+              predicates:
+                - Path=/api/files/**
+
             # Strangler: todo al legacy mientras se extrae por servicio
             - id: legacy-all
               uri: ${LEGACY_URI:http://legacy-backend:8080}

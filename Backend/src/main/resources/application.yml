@@ -153,6 +153,53 @@ app:
     mode: shared-schema
   analytics:
     cache-ttl-seconds: ${ANALYTICS_CACHE_TTL_SECONDS:60}
+  diagnosis:
+    service-url: ${DIAGNOSIS_SERVICE_URL:http://localhost:8090}
+    async: ${DIAGNOSIS_ASYNC:true}
+    redis-stream:
+      enabled: ${DIAGNOSIS_REDIS_STREAM_ENABLED:true}
+      requests-key: ${DIAGNOSIS_REDIS_STREAM_REQUESTS:cop:diagnosis:requests}
+      results-key: ${DIAGNOSIS_REDIS_STREAM_RESULTS:cop:diagnosis:results}
+      consumer-group: ${DIAGNOSIS_REDIS_CONSUMER_GROUP:backend-diagnosis}
+      consumer-name: ${DIAGNOSIS_REDIS_CONSUMER_NAME:}
+      poll-delay-ms: ${DIAGNOSIS_REDIS_POLL_MS:2000}
+      batch-size: ${DIAGNOSIS_REDIS_BATCH_SIZE:10}
+      read-block-ms: ${DIAGNOSIS_REDIS_READ_BLOCK_MS:1000}
+      claim-idle-time-ms: ${DIAGNOSIS_REDIS_CLAIM_IDLE_MS:60000}
+  emotion:
+    service-url: ${EMOTION_SERVICE_URL:http://localhost:8091}
+    async: ${EMOTION_ASYNC:true}
+    redis-stream:
+      enabled: ${EMOTION_REDIS_STREAM_ENABLED:true}
+      requests-key: ${EMOTION_REDIS_STREAM_REQUESTS:cop:emotion:requests}
+      results-key: ${EMOTION_REDIS_STREAM_RESULTS:cop:emotion:results}
+      consumer-group: ${EMOTION_REDIS_CONSUMER_GROUP:backend-emotion}
+      consumer-name: ${EMOTION_REDIS_CONSUMER_NAME:}
+      poll-delay-ms: ${EMOTION_REDIS_POLL_MS:2000}
+      batch-size: ${EMOTION_REDIS_BATCH_SIZE:10}
+      read-block-ms: ${EMOTION_REDIS_READ_BLOCK_MS:1000}
+      claim-idle-time-ms: ${EMOTION_REDIS_CLAIM_IDLE_MS:60000}
+  recommendation:
+    service-url: ${RECOMMENDATION_SERVICE_URL:http://localhost:8092}
+  simulation:
+    max-phases: ${SIMULATION_MAX_PHASES:24}
+    tooth-movement-rate-mm-per-month: ${SIMULATION_TOOTH_MOVEMENT_RATE:0.75}
+  followup:
+    enabled: ${FOLLOWUP_ENABLED:true}
+    survey-delay-days: ${FOLLOWUP_SURVEY_DELAY_DAYS:7}
+    control-appointment-days: ${FOLLOWUP_CONTROL_DAYS:30,90,180}
+  budget:
+    currency: ${BUDGET_CURRENCY:COP}
+    tax-rate: ${BUDGET_TAX_RATE:0.19}
+  therapy:
+    enabled: ${THERAPY_ENABLED:true}
+    max-daily-sessions: ${THERAPY_MAX_DAILY_SESSIONS:3}
+  copilot:
+    enabled: ${COPILOT_ENABLED:true}
+    max-suggestions-per-session: ${COPILOT_MAX_SUGGESTIONS:20}
+  experience:
+    nps-enabled: ${EXPERIENCE_NPS_ENABLED:true}
+    survey-cooldown-days: ${EXPERIENCE_SURVEY_COOLDOWN_DAYS:30}
   ai-assist:
     enabled: ${AI_ASSIST_ENABLED:true}
     async: ${AI_ASSIST_ASYNC:true}
@@ -163,7 +210,7 @@ app:
     prompt-version: ${AI_ASSIST_PROMPT_VERSION:v1}
     alert-on-critical: ${AI_ASSIST_ALERT_ON_CRITICAL:false}
     http-timeout: ${AI_ASSIST_HTTP_TIMEOUT:60s}
-    validate-output-schema: ${AI_ASSIST_VALIDATE_OUTPUT_SCHEMA:true}
+    validate-output-schema: ${AI_ASSIST_VALIDATE_OUTPUT_SCHEMA:false}
     redis-stream:
       enabled: ${AI_ASSIST_REDIS_STREAM_ENABLED:true}
       stream-key: ${AI_ASSIST_REDIS_STREAM_KEY:cop:ai-assist:analysis}

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -6,13 +6,17 @@ import { selectSelectedPatient } from '../../store/patients.selectors';
 import { CommonModule } from '@angular/common';
 import { AiAssistApiService, AiClinicalSuggestionVm } from '../../core/services/ai-assist-api.service';
 import { AiSuggestionPanelComponent } from '../ai-assist/components/ai-suggestion-panel.component';
+import { PsychologyApiService, PsychologicalSnapshotVm } from '../../core/services/psychology-api.service';
+import { PsychologyEvolutionChartComponent } from './components/psychology-evolution-chart.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AiSuggestionPanelComponent],
+  imports: [CommonModule, FormsModule, AiSuggestionPanelComponent, PsychologyEvolutionChartComponent],
   template: `
     <div class="row g-4">
       <div class="col-lg-8">
+        <app-psychology-evolution-chart [data]="evolutionData()"></app-psychology-evolution-chart>
+
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -94,9 +98,10 @@ import { AiSuggestionPanelComponent } from '../ai-assist/components/ai-suggestio
     }
   `]
 })
-class PsychologyPageComponent {
+class PsychologyPageComponent implements OnInit {
   private readonly store = inject(Store);
   private readonly aiApi = inject(AiAssistApiService);
+  private readonly psychApi = inject(PsychologyApiService);
 
   protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
 
@@ -105,6 +110,21 @@ class PsychologyPageComponent {
 
   aiSuggestion = signal<AiClinicalSuggestionVm | null>(null);
   aiLoading = signal(false);
+  evolutionData = signal<PsychologicalSnapshotVm[]>([]);
+
+  ngOnInit() {
+    this.selectedPatient$.subscribe(patient => {
+      if (patient) {
+        this.loadEvolution(patient.id);
+      }
+    });
+  }
+
+  loadEvolution(patientId: string) {
+    this.psychApi.getPatientEvolution$(patientId).subscribe(data => {
+      this.evolutionData.set(data);
+    });
+  }
 
   canAnalyze() {
     return this.clinicalNotes.trim().length >= 20;
@@ -130,7 +150,13 @@ class PsychologyPageComponent {
   }
 
   onAiApproved(suggestion: AiClinicalSuggestionVm) {
-    // Feedback logic here
+    // Al aprobar, el backend crea el snapshot. Recargamos la gráfica.
+    this.selectedPatient$.subscribe(patient => {
+      if (patient) {
+        // Un pequeño delay para dar tiempo a que el backend procese la transacción
+        setTimeout(() => this.loadEvolution(patient.id), 500);
+      }
+    }).unsubscribe();
   }
 
   onAiRejected() {
