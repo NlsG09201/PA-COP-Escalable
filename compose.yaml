@@ -36,8 +36,8 @@ services:
       PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER: ${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:-SANDBOX}
       PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL: ${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:-http://localhost:5174}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
-      # Existing local databases may predate Flyway; keep update for compatibility.
-      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      # Keep schema evolution via Flyway migrations (V1..V12).
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
       SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED:-true}
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
     depends_on:

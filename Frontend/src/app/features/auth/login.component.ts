@@ -54,6 +54,9 @@ import { AuthApiService } from '../../core/services/auth-api.service';
                 @if (errorMessage) {
                   <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
+                <div class="alert alert-secondary py-2 small">
+                  Credenciales local dev: <strong>admin@cop.local</strong> / <strong>Admin123ChangeMe</strong>
+                </div>
                 <button class="btn btn-primary w-100" data-testid="login-submit" [disabled]="form.invalid || loading">
                   {{ loading ? 'Ingresando...' : 'Ingresar' }}
                 </button>
@@ -66,6 +69,9 @@ import { AuthApiService } from '../../core/services/auth-api.service';
   `
 })
 export class LoginComponent {
+  private static readonly DEV_DEFAULT_USERNAME = 'admin@cop.local';
+  private static readonly DEV_DEFAULT_PASSWORD = 'Admin123ChangeMe';
+
   private readonly fb = inject(FormBuilder);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
@@ -75,8 +81,8 @@ export class LoginComponent {
   protected sites: Array<{ id: string; name: string }> = [];
 
   protected readonly form = this.fb.nonNullable.group({
-    username: ['', [Validators.required]],
-    password: ['', [Validators.required]],
+    username: [LoginComponent.DEV_DEFAULT_USERNAME, [Validators.required]],
+    password: [LoginComponent.DEV_DEFAULT_PASSWORD, [Validators.required]],
     siteId: ['', [Validators.required]]
   });
 
@@ -130,7 +136,7 @@ export class LoginComponent {
     }
 
     if (error.status === 401) {
-      return 'Credenciales invalidas. Verifica usuario y contrasena.';
+      return 'Credenciales invalidas. Usa admin@cop.local / Admin123ChangeMe y verifica la sede seleccionada.';
     }
     if (error.status === 400) {
       return 'Solicitud invalida. Revisa los datos del formulario.';
