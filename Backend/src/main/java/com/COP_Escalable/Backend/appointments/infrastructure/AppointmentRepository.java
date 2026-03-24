@@ -6,11 +6,14 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 
 	List<Appointment> findAllByOrganizationIdAndSiteIdAndStartAtBetween(UUID organizationId, UUID siteId, Instant from, Instant to);
+
+	Optional<Appointment> findByIdAndOrganizationIdAndSiteId(UUID id, UUID organizationId, UUID siteId);
 
 	@Query("""
 			select case when count(a) > 0 then true else false end

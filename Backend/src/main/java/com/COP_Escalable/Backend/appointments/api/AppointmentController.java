@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +40,18 @@ public class AppointmentController {
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL','PACIENTE','PATIENT')")
 	public Appointment request(@Valid @RequestBody RequestAppointment req) {
 		return service.request(req.professionalId(), req.patientId(), req.startAt(), req.endAt(), req.reason());
+	}
+
+	@PostMapping("/{appointmentId}/confirm")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL')")
+	public Appointment confirm(@PathVariable UUID appointmentId) {
+		return service.confirm(appointmentId);
+	}
+
+	@PostMapping("/{appointmentId}/cancel")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','ORG_ADMIN','SITE_ADMIN','PROFESSIONAL','PACIENTE','PATIENT')")
+	public Appointment cancel(@PathVariable UUID appointmentId) {
+		return service.cancel(appointmentId);
 	}
 
 	public record RequestAppointment(

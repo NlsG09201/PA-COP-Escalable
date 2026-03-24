@@ -57,6 +57,26 @@ public class Appointment extends TenantScopedEntity {
 		return a;
 	}
 
+	public void confirm() {
+		if (status == AppointmentStatus.CONFIRMED) {
+			return;
+		}
+		if (status != AppointmentStatus.REQUESTED) {
+			throw new IllegalArgumentException("Only requested appointments can be confirmed");
+		}
+		status = AppointmentStatus.CONFIRMED;
+	}
+
+	public void cancel() {
+		if (status == AppointmentStatus.CANCELLED) {
+			return;
+		}
+		if (status == AppointmentStatus.COMPLETED) {
+			throw new IllegalArgumentException("Completed appointments cannot be cancelled");
+		}
+		status = AppointmentStatus.CANCELLED;
+	}
+
 	public UUID getProfessionalId() {
 		return professionalId;
 	}

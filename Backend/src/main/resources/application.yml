@@ -38,6 +38,23 @@ spring:
   mongodb:
     uri: ${MONGODB_URI:mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin&uuidRepresentation=standard}
     uuid-representation: standard
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
 
   jackson:
     time-zone: UTC
@@ -82,5 +99,32 @@ app:
       whatsapp:
         enabled: ${PUBLIC_BOOKING_WHATSAPP_NOTIFICATIONS_ENABLED:true}
         template-code: ${PUBLIC_BOOKING_WHATSAPP_TEMPLATE_CODE:booking-confirmation-whatsapp}
+  notifications:
+    redis:
+      stream: ${NOTIFICATIONS_REDIS_STREAM:cop:notifications:appointments}
+      consumer-group: ${NOTIFICATIONS_REDIS_CONSUMER_GROUP:notifications-workers}
+      consumer-name: ${NOTIFICATIONS_REDIS_CONSUMER_NAME:}
+      batch-size: ${NOTIFICATIONS_REDIS_BATCH_SIZE:20}
+      relay-poll-delay-ms: ${NOTIFICATIONS_REDIS_RELAY_POLL_DELAY_MS:2000}
+      consumer-poll-delay-ms: ${NOTIFICATIONS_REDIS_CONSUMER_POLL_DELAY_MS:1000}
+      retry-poll-delay-ms: ${NOTIFICATIONS_REDIS_RETRY_POLL_DELAY_MS:2000}
+      read-block-ms: ${NOTIFICATIONS_REDIS_READ_BLOCK_MS:1000}
+      claim-idle-time-ms: ${NOTIFICATIONS_REDIS_CLAIM_IDLE_TIME_MS:60000}
+    retry:
+      max-attempts: ${NOTIFICATIONS_RETRY_MAX_ATTEMPTS:5}
+      initial-backoff-ms: ${NOTIFICATIONS_RETRY_INITIAL_BACKOFF_MS:10000}
+      multiplier: ${NOTIFICATIONS_RETRY_MULTIPLIER:2.0}
+      max-backoff-ms: ${NOTIFICATIONS_RETRY_MAX_BACKOFF_MS:300000}
+    email:
+      enabled: ${NOTIFICATIONS_EMAIL_ENABLED:true}
+      provider: ${NOTIFICATIONS_EMAIL_PROVIDER:LOG}
+      from-address: ${NOTIFICATIONS_EMAIL_FROM:no-reply@cop.local}
+      subject-prefix: ${NOTIFICATIONS_EMAIL_SUBJECT_PREFIX:[COP]}
+    whatsapp:
+      enabled: ${NOTIFICATIONS_WHATSAPP_ENABLED:true}
+      provider: ${NOTIFICATIONS_WHATSAPP_PROVIDER:LOG}
+      base-url: ${NOTIFICATIONS_WHATSAPP_BASE_URL:https://graph.facebook.com/v23.0}
+      api-token: ${NOTIFICATIONS_WHATSAPP_API_TOKEN:}
+      phone-number-id: ${NOTIFICATIONS_WHATSAPP_PHONE_NUMBER_ID:}
   tenancy:
     mode: shared-schema
