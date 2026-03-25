@@ -10,8 +10,8 @@ spring:
       server:
         webflux:
           httpclient:
-            connect-timeout: 5000
-            response-timeout: 30s
+            connect-timeout: 10000
+            response-timeout: 60s
           globalcors:
             cors-configurations:
               '[/**]':
@@ -40,8 +40,9 @@ spring:
               predicates:
                 - Path=/api/auth/**
 
-            - id: public-tenancy
-              uri: http://tenancy-service:8080
+            # Direct to legacy: avoids extra hop via tenancy-service (reduces 504/empty responses on cold start).
+            - id: public-legacy
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
               predicates:
                 - Path=/public/**
 
@@ -91,7 +92,7 @@ spring:
                 - Path=/api/odontology/**
 
             - id: diagnosis
-              uri: ${AI_DIAGNOSIS_URI:http://ai-diagnosis-service:8090}
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
               predicates:
                 - Path=/api/diagnosis/**
 

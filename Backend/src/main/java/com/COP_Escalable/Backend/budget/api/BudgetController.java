@@ -41,6 +41,16 @@ public class BudgetController {
 		return service.getPatientBudgets(patientId);
 	}
 
+	/**
+	 * Backward-compatible alias for older frontend builds:
+	 * GET /api/budget/patients/{patientId} -> list budgets
+	 */
+	@GetMapping("/patients/{patientId}")
+	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
+	public List<ClinicalBudget> listBudgetsAlias(@PathVariable UUID patientId) {
+		return service.getPatientBudgets(patientId);
+	}
+
 	@GetMapping("/{budgetId}")
 	@PreAuthorize("hasAnyRole('ADMIN','MEDICO','PROFESSIONAL')")
 	public ClinicalBudget getBudget(@PathVariable UUID budgetId) {

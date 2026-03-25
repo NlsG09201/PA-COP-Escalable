@@ -43,8 +43,10 @@ services:
       PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER: ${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:-SANDBOX}
       PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL: ${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:-http://localhost:5174}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
-      # Keep schema evolution via Flyway migrations (V1..V12).
-      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
+      # Dev-friendly schema evolution:
+      # If Flyway fails to apply (e.g. stale jar / missing migration resources), Hibernate will create/update tables.
+      # For production you should set JPA_DDL_AUTO=validate and ensure Flyway runs.
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
       SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED:-true}
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
@@ -52,6 +54,12 @@ services:
       - postgres
       - mongodb
       - redis
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
   iam-service:
     build:
@@ -173,17 +181,26 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - iam-service
-      - tenancy-service
-      - patients-service
-      - appointments-service
-      - clinical-service
-      - odontogram-service
-      - psych-tests-service
-      - legacy-backend
-      - ai-diagnosis-service
-      - emotion-analysis-service
-      - recommendation-engine
+      legacy-backend:
+        condition: service_healthy
+      iam-service:
+        condition: service_started
+      patients-service:
+        condition: service_started
+      appointments-service:
+        condition: service_started
+      clinical-service:
+        condition: service_started
+      odontogram-service:
+        condition: service_started
+      psych-tests-service:
+        condition: service_started
+      ai-diagnosis-service:
+        condition: service_started
+      emotion-analysis-service:
+        condition: service_started
+      recommendation-engine:
+        condition: service_started
 
   dashboard:
     build:

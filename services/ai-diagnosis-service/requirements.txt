@@ -9,6 +9,7 @@ torch==2.5.1
 torchvision==0.20.1
 timm==1.0.12
 onnxruntime==1.20.1
+onnx
 redis==5.2.1
 pymongo[srv]==4.10.1
 scikit-learn==1.6.1

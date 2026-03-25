@@ -286,13 +286,15 @@ interface ToothMesh {
 })
 class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('rendererCanvas', { static: false })
-  private canvasRef!: ElementRef<HTMLCanvasElement>;
+  private canvasRef?: ElementRef<HTMLCanvasElement>;
 
   private readonly store = inject(Store);
   private readonly simApi = inject(SimulationApiService);
   private readonly zone = inject(NgZone);
   private sub?: Subscription;
   private animFrameId = 0;
+  private threeJsInitialized = false;
+  private initRetryCount = 0;
 
   // Three.js objects
   private renderer!: THREE.WebGLRenderer;
@@ -325,6 +327,9 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sub = this.store.select(selectSelectedPatientId).subscribe((id) => {
       this.patientId.set(id);
       if (id) this.loadSimulations(id);
+      // Canvas is only rendered when patientId() exists (see @if in the template).
+      // If it appears after ngAfterViewInit, we must retry Three.js initialization.
+      if (id) this.zone.runOutsideAngular(() => requestAnimationFrame(() => this.initThreeJs()));
     });
   }
 
@@ -410,7 +415,19 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   // ─── Three.js ──────────────────────────────────────────────
 
   private initThreeJs(): void {
-    const canvas = this.canvasRef.nativeElement;
+    if (this.threeJsInitialized) return;
+
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas) {
+      // Canvas is conditionally rendered when patientId exists.
+      // When it's not yet in the DOM, postpone initialization.
+      if (this.initRetryCount++ < 10) {
+        requestAnimationFrame(() => this.initThreeJs());
+      }
+      return;
+    }
+    this.initRetryCount = 0;
+
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
 
@@ -448,6 +465,7 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.createDefaultArch();
 
     window.addEventListener('resize', this.onWindowResize);
+    this.threeJsInitialized = true;
     this.animate();
   }
 

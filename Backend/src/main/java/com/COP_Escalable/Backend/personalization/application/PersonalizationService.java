@@ -161,8 +161,8 @@ public class PersonalizationService {
 		Map<String, Double> factors = new HashMap<>();
 
 		if (snapshots.size() >= 2) {
-			var latest = snapshots.getFirst();
-			var earliest = snapshots.getLast();
+			var latest = snapshots.get(0);
+			var earliest = snapshots.get(snapshots.size() - 1);
 
 			double latestWellbeing = latest.getMetrics() != null
 					? latest.getMetrics().getOrDefault("wellbeing", 0.5) : 0.5;
@@ -182,8 +182,8 @@ public class PersonalizationService {
 		}
 
 		double avgSnapInterval = snapshots.size() >= 2
-				? java.time.Duration.between(snapshots.getLast().getOccurredAt(),
-				snapshots.getFirst().getOccurredAt()).toDays() / (double) (snapshots.size() - 1)
+				? java.time.Duration.between(snapshots.get(snapshots.size() - 1).getOccurredAt(),
+				snapshots.get(0).getOccurredAt()).toDays() / (double) (snapshots.size() - 1)
 				: 7.0;
 
 		if (avgSnapInterval < 5) {
@@ -218,7 +218,7 @@ public class PersonalizationService {
 		}
 
 		if (!snapshots.isEmpty()) {
-			var latest = snapshots.getFirst();
+			var latest = snapshots.get(0);
 			if (latest.getMetrics() != null) {
 				Double anxiety = latest.getMetrics().get("anxiety");
 				if (anxiety != null && anxiety > 0.6) {
@@ -245,8 +245,8 @@ public class PersonalizationService {
 		var times = profile.getPreferredAppointmentTimes();
 		if (!times.isEmpty()) {
 			recs.add(Map.of(
-					"preferredTime", times.getFirst(),
-					"description", "Patient typically engages during " + times.getFirst().toLowerCase() + " hours"
+					"preferredTime", times.get(0),
+					"description", "Patient typically engages during " + times.get(0).toLowerCase() + " hours"
 			));
 		}
 

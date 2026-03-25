@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@ConditionalOnBean(StringRedisTemplate.class)
 public class RedisStreamEventPublisher {
 
 	private static final Logger log = LoggerFactory.getLogger(RedisStreamEventPublisher.class);
@@ -24,12 +23,16 @@ public class RedisStreamEventPublisher {
 	private final StringRedisTemplate redisTemplate;
 	private final ObjectMapper objectMapper;
 
-	public RedisStreamEventPublisher(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
-		this.redisTemplate = redisTemplate;
+	public RedisStreamEventPublisher(ObjectProvider<StringRedisTemplate> redisTemplateProvider, ObjectMapper objectMapper) {
+		this.redisTemplate = redisTemplateProvider.getIfAvailable();
 		this.objectMapper = objectMapper;
 	}
 
 	public RecordId publish(String streamKey, String eventType, Map<String, Object> payload) {
+		if (redisTemplate == null) {
+			log.warn("Redis not configured; skipping publish to stream {} eventType={}", streamKey, eventType);
+			return null;
+		}
 		var fields = new LinkedHashMap<String, String>();
 		fields.put("eventId", UUID.randomUUID().toString());
 		fields.put("eventType", eventType);
@@ -50,6 +53,10 @@ public class RedisStreamEventPublisher {
 	}
 
 	public RecordId publishJson(String streamKey, String eventType, Object payload) {
+		if (redisTemplate == null) {
+			log.warn("Redis not configured; skipping publishJson to stream {} eventType={}", streamKey, eventType);
+			return null;
+		}
 		var fields = new LinkedHashMap<String, String>();
 		fields.put("eventId", UUID.randomUUID().toString());
 		fields.put("eventType", eventType);

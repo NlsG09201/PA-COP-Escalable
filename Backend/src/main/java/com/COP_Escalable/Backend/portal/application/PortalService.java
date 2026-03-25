@@ -184,7 +184,7 @@ public class PortalService {
 			return new PortalDashboardResponse.PsychologicalEvolutionView(0, Map.of(), null, null);
 		}
 
-		PsychologicalSnapshot latest = snapshots.getFirst();
+		PsychologicalSnapshot latest = snapshots.get(0);
 		return new PortalDashboardResponse.PsychologicalEvolutionView(
 				snapshots.size(),
 				latest.getMetrics() != null ? latest.getMetrics() : Map.of(),

@@ -39,7 +39,13 @@ export class SimulationApiService {
   constructor(private readonly http: HttpClient) {}
 
   createSimulation$(patientId: string, type: string): Observable<DentalSimulation> {
-    return this.http.post<DentalSimulation>(`${API_BASE_URL}/api/simulation/patients/${patientId}`, { simulationType: type });
+    // Backend expects: POST /api/simulation/patients/{patientId}/create?type={ORTHODONTICS|IMPLANT|COMBINED}
+    // and the type is sent as a query param (RequestParam), not in the JSON body.
+    return this.http.post<DentalSimulation>(
+      `${API_BASE_URL}/api/simulation/patients/${patientId}/create`,
+      null,
+      { params: { type } }
+    );
   }
 
   simulateOrthodontics$(simulationId: string): Observable<DentalSimulation> {

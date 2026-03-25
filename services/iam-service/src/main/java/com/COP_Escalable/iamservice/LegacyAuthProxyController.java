@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -41,9 +42,53 @@ public class LegacyAuthProxyController {
 		), httpReq);
 	}
 
-	@PostMapping(value = "/refresh", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> refresh(@Valid @RequestBody RefreshRequest req, HttpServletRequest httpReq) {
-		return forwardJson("/api/auth/refresh", Map.of("refreshToken", req.refreshToken()), httpReq);
+	@PostMapping(value = "/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<String> refresh(@RequestBody(required = false) byte[] rawBody, HttpServletRequest httpReq) {
+		String body = rawBody == null ? "" : new String(rawBody, StandardCharsets.UTF_8);
+		String refreshToken = extractRefreshToken(body);
+		if (!StringUtils.hasText(refreshToken)) {
+			return ResponseEntity.badRequest().body("Missing refreshToken");
+		}
+		return forwardJson("/api/auth/refresh", Map.of("refreshToken", refreshToken), httpReq);
+	}
+
+	private String extractRefreshToken(String body) {
+		if (!StringUtils.hasText(body)) {
+			return null;
+		}
+
+		// Expected payload (from frontend):
+		// {"refreshToken":"<token>"}
+		//
+		// Observed failure in logs:
+		// {"refreshToken":...} arrives with backslashes before quotes (invalid JSON),
+		// e.g. {\"refreshToken\":\"...\"}. We normalize it before parsing.
+		String normalized = body.trim();
+
+		// If the body arrived with backslashes before quotes, normalize it first:
+		// {\"refreshToken\":\"...\"} -> {"refreshToken":"..."}
+		String normalizedQuotes = normalized.replace("\\\"", "\"");
+
+		// Match: "refreshToken" : "<token>"
+		// JWT/refresh tokens are opaque strings and typically do not contain unescaped quotes.
+		// This keeps the endpoint robust even without Jackson on the classpath.
+		String candidate = normalizedQuotes;
+		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+				"\"refreshToken\"\\s*:\\s*\"([^\"]*)\""
+		);
+		java.util.regex.Matcher matcher = pattern.matcher(candidate);
+		if (matcher.find()) {
+			return matcher.group(1);
+		}
+
+		// Fallback: sometimes tokens could be wrapped/escaped by extra quotes.
+		candidate = normalizedQuotes.replaceAll("^\"|\"$", "");
+		matcher = pattern.matcher(candidate);
+		if (matcher.find()) {
+			return matcher.group(1);
+		}
+
+		return null;
 	}
 
 	private ResponseEntity<String> forwardJson(String path, Object body, HttpServletRequest incoming) {

@@ -117,7 +117,7 @@ public class RelapseService {
 				"patient_id", patientId.toString(),
 				"snapshot_count", snapshots.size(),
 				"latest_sentiment_score", snapshots.isEmpty() ? 0.0
-						: snapshots.getFirst().getSentimentScore() != null ? snapshots.getFirst().getSentimentScore() : 0.0
+						: snapshots.get(0).getSentimentScore() != null ? snapshots.get(0).getSentimentScore() : 0.0
 		);
 		return restClient.post()
 				.uri("/api/relapse/predict")
@@ -134,7 +134,7 @@ public class RelapseService {
 
 		double emotionTrendRisk = 0.5;
 		if (snapshots.size() >= 2) {
-			var latest = snapshots.getFirst();
+			var latest = snapshots.get(0);
 			var previous = snapshots.get(snapshots.size() / 2);
 			double latentScore = latest.getSentimentScore() != null ? latest.getSentimentScore() : 0.0;
 			double prevScore = previous.getSentimentScore() != null ? previous.getSentimentScore() : 0.0;
@@ -162,7 +162,7 @@ public class RelapseService {
 
 		double daysSinceSessionRisk = 0.5;
 		if (!snapshots.isEmpty()) {
-			long daysSince = Duration.between(snapshots.getFirst().getOccurredAt(), Instant.now()).toDays();
+			long daysSince = Duration.between(snapshots.get(0).getOccurredAt(), Instant.now()).toDays();
 			daysSinceSessionRisk = daysSince > 60 ? 0.9 : daysSince > 30 ? 0.7 : daysSince > 14 ? 0.4 : 0.1;
 			factors.put("days_since_session", daysSince);
 		}

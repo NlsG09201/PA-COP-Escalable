@@ -43,6 +43,15 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
+  // Public endpoints must remain accessible even if the client still has an old/invalid token.
+  // Otherwise Spring Security returns 401 when Authorization: Bearer <invalid> is present.
+  const isPublicEndpoint =
+    req.url.startsWith('/public') || req.url.includes('/public/');
+
+  if (isPublicEndpoint) {
+    return next(req);
+  }
+
   const withJwt = req.clone({
     setHeaders: {
       Authorization: `Bearer ${token}`

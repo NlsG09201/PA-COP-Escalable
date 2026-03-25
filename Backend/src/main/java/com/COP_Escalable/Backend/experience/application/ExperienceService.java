@@ -124,7 +124,7 @@ public class ExperienceService {
 				.findByOrganizationIdAndSiteIdAndPatientIdOrderByCreatedAtDesc(orgId, siteId, patientId);
 
 		boolean noRecentVisits = surveys.isEmpty() ||
-				surveys.getFirst().getCreatedAt().isBefore(Instant.now().minus(90, ChronoUnit.DAYS));
+				surveys.get(0).getCreatedAt().isBefore(Instant.now().minus(90, ChronoUnit.DAYS));
 		if (noRecentVisits) {
 			score += 0.3;
 			factors.put("no_visits_90_days", true);
@@ -135,7 +135,7 @@ public class ExperienceService {
 				.filter(s -> "COMPLETED".equals(s.getStatus()) && s.getNpsScore() != null)
 				.toList();
 		if (completedSurveys.size() >= 2) {
-			int latestScore = completedSurveys.getFirst().getNpsScore();
+			int latestScore = completedSurveys.get(0).getNpsScore();
 			int previousScore = completedSurveys.get(1).getNpsScore();
 			if (latestScore < previousScore) {
 				decliningSatisfaction = true;
@@ -151,8 +151,8 @@ public class ExperienceService {
 		}
 
 		double lowAdherenceRisk = completedSurveys.isEmpty() ? 0.15 : 0.0;
-		if (completedSurveys.size() == 1 && completedSurveys.getFirst().getNpsScore() != null
-				&& completedSurveys.getFirst().getNpsScore() < 5) {
+		if (completedSurveys.size() == 1 && completedSurveys.get(0).getNpsScore() != null
+				&& completedSurveys.get(0).getNpsScore() < 5) {
 			lowAdherenceRisk = 0.15;
 		}
 		if (lowAdherenceRisk > 0) {
@@ -224,7 +224,7 @@ public class ExperienceService {
 		result.put("totalSurveys", surveys.size());
 		result.put("completedSurveys", completed.size());
 		result.put("averageNps", Math.round(avgNps * 100.0) / 100.0);
-		result.put("latestCategory", completed.isEmpty() ? "NONE" : completed.getFirst().npsCategory());
+		result.put("latestCategory", completed.isEmpty() ? "NONE" : completed.get(0).npsCategory());
 		churnOpt.ifPresent(c -> {
 			result.put("churnRiskScore", c.getChurnScore());
 			result.put("churnRiskLevel", c.getRiskLevel());

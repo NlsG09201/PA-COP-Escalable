@@ -95,6 +95,64 @@ async def analyze_audio_async(
         raise HTTPException(status_code=500, detail="Failed to enqueue job")
 
 
+@router.post("/patients/{patient_id}/analyze", response_model=AsyncJobResponse)
+async def analyze_patient_audio(
+    request: Request,
+    patient_id: str,
+    audio: UploadFile = File(...),
+):
+    """
+    Compatibility endpoint expected by frontend:
+    POST /api/emotion/patients/{patientId}/analyze
+    """
+    content_type = audio.content_type or "audio/wav"
+    if content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio type: {content_type}")
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file")
+
+    svc = _emotion_service(request)
+    try:
+        return await svc.analyze_async(
+            audio_bytes,
+            filename=audio.filename or "upload.wav",
+            content_type=content_type,
+            patient_id=patient_id,
+        )
+    except Exception:
+        logger.exception("analyze_patient_audio failed")
+        raise HTTPException(status_code=500, detail="Failed to enqueue job")
+
+
+@router.get("/patients/{patient_id}/results")
+async def list_patient_results(request: Request, patient_id: str, limit: int = 20):
+    """
+    Compatibility endpoint expected by frontend:
+    GET /api/emotion/patients/{patientId}/results
+    """
+    db = getattr(request.app.state, "mongo_db", None)
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not ready")
+
+    lim = max(1, min(int(limit), 200))
+    cursor = (
+        db["emotion_results"]
+        .find({"patient_id": patient_id})
+        .sort([("analyzed_at", -1), ("created_at", -1)])
+        .limit(lim)
+    )
+
+    results = []
+    for doc in cursor:
+        job_id = str(doc.get("_id"))
+        doc.pop("_id", None)
+        doc["job_id"] = job_id
+        results.append(doc)
+    return results
+
+
 @router.get("/results/{job_id}")
 async def get_result(request: Request, job_id: str):
     """Fetch an analysis result by job ID."""

@@ -256,6 +256,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
                     </app-ai-suggestion-panel>
                   </div>
                 </div>
+                }
               }
             </div>
           </div>
