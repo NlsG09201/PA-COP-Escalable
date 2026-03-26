@@ -1,8 +1,30 @@
 services:
+  mongodb-keyfile:
+    image: alpine:3.20
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Dev default. Override by editing this value (or add an .env and replace it here).
+      # Must be base64-like (avoid '_' and other unsupported chars).
+      MONGO_REPLICA_SET_KEY: cG9wZGV2cmVwbGljYXNldGtleQ==
+    volumes:
+      - mongodb_keyfile:/keyfile
+    command:
+      - sh
+      - -lc
+      - |
+        umask 077
+        if [ -z "$$MONGO_REPLICA_SET_KEY" ]; then echo "MONGO_REPLICA_SET_KEY is empty" && exit 1; fi
+        printf "%s\n" "$$MONGO_REPLICA_SET_KEY" > /keyfile/mongo-keyfile
+        chown 999:999 /keyfile/mongo-keyfile
+        chmod 400 /keyfile/mongo-keyfile
+        echo "keyfile ready"
+
   mongodb:
     image: mongo:7
     security_opt:
       - no-new-privileges:true
+    command: ["mongod","--replSet","rs0","--bind_ip_all","--keyFile","/etc/mongo-keyfile/mongo-keyfile"]
     environment:
       MONGO_INITDB_DATABASE: cop
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-cop}
@@ -11,6 +33,31 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+      - mongodb_keyfile:/etc/mongo-keyfile:ro
+    depends_on:
+      mongodb-keyfile:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch(e) { 0 }\" | grep -q 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+
+  mongodb-init:
+    image: mongo:7
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    entrypoint:
+      - bash
+      - -lc
+      - >
+        for i in {1..60}; do
+          mongosh "mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/admin?authSource=admin" --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]}); }" && exit 0;
+          sleep 1;
+        done;
+        echo "Mongo replica set init failed" && exit 1;
 
   redis:
     image: redis:7-alpine
@@ -28,7 +75,7 @@ services:
     environment:
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard&replicaSet=rs0&retryWrites=true
       MONGODB_AUTO_INDEX_CREATION: ${MONGODB_AUTO_INDEX_CREATION:-true}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -47,8 +94,12 @@ services:
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      mongodb-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1"]
       interval: 5s
@@ -219,4 +270,5 @@ services:
 volumes:
   mongodb_data:
   models_data:
+  mongodb_keyfile:
 
