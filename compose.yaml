@@ -38,7 +38,7 @@ services:
       mongodb-keyfile:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch(e) { 0 }\" | grep -q 1"]
+      test: ["CMD-SHELL", "mongosh \"mongodb://$$MONGO_INITDB_ROOT_USERNAME:$$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/admin?authSource=admin\" --quiet --eval \"try { quit(rs.status().ok ? 0 : 1) } catch(e) { quit(1) }\""]
       interval: 5s
       timeout: 5s
       retries: 60
@@ -48,7 +48,7 @@ services:
     image: mongo:7
     depends_on:
       mongodb:
-        condition: service_healthy
+        condition: service_started
     entrypoint:
       - bash
       - -lc
