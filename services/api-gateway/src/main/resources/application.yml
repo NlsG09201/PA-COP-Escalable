@@ -107,7 +107,7 @@ spring:
                 - Path=/api/recommendations/**
 
             - id: relapse
-              uri: ${RECOMMENDATION_ENGINE_URI:http://recommendation-engine:8092}
+              uri: ${LEGACY_URI:http://legacy-backend:8080}
               predicates:
                 - Path=/api/relapse/**
 

@@ -1,32 +1,25 @@
 package com.COP_Escalable.Backend.tenancy.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.AuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(name = "professionals")
+@Document(collection = "professionals")
 public class Professional extends AuditableEntity {
 
-	@Column(nullable = false, updatable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column
+	@Field("default_site_id")
 	private UUID defaultSiteId;
 
-	@Column(nullable = false)
+	@Field("full_name")
 	private String fullName;
 
-	@Column(nullable = false)
 	private String specialty;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private ProfessionalStatus status;
 
 	protected Professional() {}
@@ -62,4 +55,3 @@ public class Professional extends AuditableEntity {
 		return status;
 	}
 }
-

@@ -1,29 +1,27 @@
 package com.COP_Escalable.Backend.portal.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.AuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "portal_access_tokens")
+@Document(collection = "portal_access_tokens")
 public class PortalAccessToken extends AuditableEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false, unique = true)
+	@Field("token_hash")
 	private String tokenHash;
 
-	@Column(nullable = false)
+	@Field("expires_at")
 	private Instant expiresAt;
 
+	@Field("last_used_at")
 	private Instant lastUsedAt;
 
-	@Column(nullable = false)
 	private boolean active;
 
 	protected PortalAccessToken() {}
@@ -49,9 +47,23 @@ public class PortalAccessToken extends AuditableEntity {
 		this.active = false;
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public String getTokenHash() { return tokenHash; }
-	public Instant getExpiresAt() { return expiresAt; }
-	public Instant getLastUsedAt() { return lastUsedAt; }
-	public boolean isActive() { return active; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public String getTokenHash() {
+		return tokenHash;
+	}
+
+	public Instant getExpiresAt() {
+		return expiresAt;
+	}
+
+	public Instant getLastUsedAt() {
+		return lastUsedAt;
+	}
+
+	public boolean isActive() {
+		return active;
+	}
 }

@@ -1,59 +1,52 @@
 package com.COP_Escalable.Backend.publicbooking.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "public_payments")
+@Document(collection = "public_payments")
 public class PublicPayment extends TenantScopedEntity {
-	@Column(nullable = false)
+
+	@Field("booking_id")
 	private UUID bookingId;
 
-	@Column(nullable = false)
+	@Field("provider_key")
 	private String providerKey;
 
-	@Column(nullable = false)
+	@Field("provider_reference")
 	private String providerReference;
 
-	@Column
+	@Field("provider_status")
 	private String providerStatus;
 
-	@Column
+	@Field("checkout_url")
 	private String checkoutUrl;
 
-	@Column
+	@Field("client_secret")
 	private String clientSecret;
 
-	@Column
+	@Field("failure_reason")
 	private String failureReason;
 
-	@Column(nullable = false)
 	private long amount;
 
-	@Column(nullable = false)
 	private String currency;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Status status;
 
-	@Column
+	@Field("idempotency_key")
 	private String idempotencyKey;
 
-	@Column
+	@Field("last_webhook_idempotency_key")
 	private String lastWebhookIdempotencyKey;
 
-	@Column
+	@Field("expires_at")
 	private Instant expiresAt;
 
-	@Column
+	@Field("paid_at")
 	private Instant paidAt;
 
 	protected PublicPayment() {}

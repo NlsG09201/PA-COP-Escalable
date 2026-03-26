@@ -29,7 +29,8 @@ export class RelapseApiService {
   }
 
   getLatestRisk$(patientId: string): Observable<RelapseAlert> {
-    return this.http.get<RelapseAlert>(`${API_BASE_URL}/api/relapse/patients/${patientId}/latest`);
+    // Backend endpoint is /patients/{patientId}/risk
+    return this.http.get<RelapseAlert>(`${API_BASE_URL}/api/relapse/patients/${patientId}/risk`);
   }
 
   getRiskTrend$(patientId: string): Observable<RelapseAlert[]> {
@@ -37,6 +38,7 @@ export class RelapseApiService {
   }
 
   acknowledgeAlert$(alertId: string): Observable<RelapseAlert> {
-    return this.http.post<RelapseAlert>(`${API_BASE_URL}/api/relapse/alerts/${alertId}/acknowledge`, {});
+    // Backend uses PUT for acknowledge.
+    return this.http.put<RelapseAlert>(`${API_BASE_URL}/api/relapse/alerts/${alertId}/acknowledge`, {});
   }
 }

@@ -1,48 +1,40 @@
 package com.COP_Escalable.Backend.publicbooking.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "public_notification_logs")
+@Document(collection = "public_notification_logs")
 public class PublicNotificationLog extends TenantScopedEntity {
-	@Column(nullable = false)
+
+	@Field("booking_id")
 	private UUID bookingId;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Channel channel;
 
-	@Column
 	private String recipient;
 
-	@Column(nullable = false)
+	@Field("template_code")
 	private String templateCode;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Status status;
 
-	@Column(nullable = false)
+	@Field("attempt_count")
 	private int attemptCount;
 
-	@Column(columnDefinition = "text")
+	@Field("template_payload")
 	private String templatePayload;
 
-	@Column
+	@Field("provider_message_id")
 	private String providerMessageId;
 
-	@Column
+	@Field("error_message")
 	private String errorMessage;
 
-	@Column
+	@Field("sent_at")
 	private Instant sentAt;
 
 	protected PublicNotificationLog() {}

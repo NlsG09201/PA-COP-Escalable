@@ -50,19 +50,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     mongo_db = mongo_client[settings.MONGODB_DB]
     application.state.mongo = mongo_db
 
-    # --- PostgreSQL ------------------------------------------------------
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-
-    try:
-        pg_conn = psycopg2.connect(settings.POSTGRES_URL, cursor_factory=RealDictCursor)
-        pg_conn.autocommit = True
-        application.state.pg = pg_conn
-        logger.info("PostgreSQL connection established")
-    except Exception:
-        logger.warning("PostgreSQL unavailable – running without relational data", exc_info=True)
-        application.state.pg = None
-
     # --- Redis Stream consumer (background) ------------------------------
     consumer = RedisStreamConsumer(application)
     consumer_task = asyncio.create_task(consumer.run())
@@ -80,8 +67,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
     await redis_pool.aclose()
     mongo_client.close()
-    if application.state.pg is not None:
-        application.state.pg.close()
     logger.info("Recommendation-engine shut down cleanly")
 
 

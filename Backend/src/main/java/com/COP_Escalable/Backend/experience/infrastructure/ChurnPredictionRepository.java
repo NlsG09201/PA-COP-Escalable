@@ -1,13 +1,13 @@
 package com.COP_Escalable.Backend.experience.infrastructure;
 
 import com.COP_Escalable.Backend.experience.domain.ChurnPrediction;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ChurnPredictionRepository extends JpaRepository<ChurnPrediction, UUID> {
+public interface ChurnPredictionRepository extends MongoRepository<ChurnPrediction, UUID> {
 
 	Optional<ChurnPrediction> findTopByOrganizationIdAndSiteIdAndPatientIdOrderByCreatedAtDesc(
 			UUID organizationId, UUID siteId, UUID patientId);

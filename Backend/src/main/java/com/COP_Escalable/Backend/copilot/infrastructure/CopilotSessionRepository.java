@@ -1,12 +1,12 @@
 package com.COP_Escalable.Backend.copilot.infrastructure;
 
 import com.COP_Escalable.Backend.copilot.domain.CopilotSession;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 import java.util.UUID;
 
-public interface CopilotSessionRepository extends JpaRepository<CopilotSession, UUID> {
+public interface CopilotSessionRepository extends MongoRepository<CopilotSession, UUID> {
 
 	List<CopilotSession> findByOrganizationIdAndSiteIdAndPatientIdOrderByStartedAtDesc(
 			UUID organizationId, UUID siteId, UUID patientId);

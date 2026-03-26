@@ -1,13 +1,13 @@
 """
 Training pipeline for the clinical-recommendation ranking model.
 
-Loads clinical history and treatment outcomes from PostgreSQL + MongoDB,
+Loads treatment outcomes from MongoDB when available (legacy PostgreSQL path removed),
 engineers features, trains a GradientBoostingClassifier for recommendation
 category prediction, evaluates with cross-validation, and exports via joblib.
 
 Usage:
     python -m train.train_recommendation_model
-    RECO_POSTGRES_URL=... python -m train.train_recommendation_model
+    RECO_MONGODB_URI=... python -m train.train_recommendation_model
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from sklearn.preprocessing import StandardScaler
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("train_recommendation_model")
 
-POSTGRES_URL: str = os.getenv("RECO_POSTGRES_URL", "postgresql://cop:cop_dev_password_change_me@localhost:5432/cop")
 MONGODB_URI: str = os.getenv("RECO_MONGODB_URI", "mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin")
 MONGODB_DB: str = os.getenv("RECO_MONGODB_DB", "cop")
 OUTPUT_PATH: str = os.getenv("RECO_RECOMMENDATION_MODEL_PATH", "app/ml/weights/recommendation_model.joblib")
@@ -63,25 +62,6 @@ FEATURE_COLS = [
 
 
 # ── Data loading ─────────────────────────────────────────────────────────────
-
-def _load_pg_clinical_history(conn) -> pd.DataFrame:  # noqa: ANN001
-    query = """
-        SELECT
-            ch.patient_id,
-            ch.entry_date,
-            ch.entry_type,
-            ch.description,
-            ch.specialty,
-            COALESCE(to2.outcome_score, 0) AS outcome_score,
-            COALESCE(to2.recommended_category, 'preventive') AS recommended_category,
-            COALESCE(to2.treatment_duration_days, 0) AS treatment_duration_days
-        FROM clinical_history ch
-        LEFT JOIN treatment_outcomes to2 ON ch.patient_id = to2.patient_id
-            AND ch.entry_date = to2.entry_date
-        ORDER BY ch.patient_id, ch.entry_date
-    """
-    return pd.read_sql(query, conn)
-
 
 def _load_mongo_outcomes() -> pd.DataFrame:
     try:
@@ -183,17 +163,21 @@ def train() -> None:
     y: pd.Series
 
     try:
-        import psycopg2
-
-        conn = psycopg2.connect(POSTGRES_URL)
-        logger.info("Connected to PostgreSQL")
-
-        raw_df = _load_pg_clinical_history(conn)
         mongo_df = _load_mongo_outcomes()
-        if not mongo_df.empty and "patient_id" in mongo_df.columns:
-            raw_df = pd.concat([raw_df, mongo_df], ignore_index=True)
+        required = {
+            "patient_id",
+            "entry_date",
+            "entry_type",
+            "description",
+            "specialty",
+            "outcome_score",
+            "recommended_category",
+            "treatment_duration_days",
+        }
+        if mongo_df.empty or not required.issubset(set(mongo_df.columns)):
+            raise ValueError("MongoDB treatment_outcomes has no usable clinical rows")
 
-        features_df = _engineer_features(raw_df)
+        features_df = _engineer_features(mongo_df)
 
         if len(features_df) < 50:
             logger.warning("Only %d rows — augmenting with synthetic data", len(features_df))
@@ -206,10 +190,9 @@ def train() -> None:
 
         X = features_df[FEATURE_COLS]
         y = features_df["label_enc"]
-        conn.close()
 
     except Exception:
-        logger.warning("PostgreSQL unavailable — using synthetic data", exc_info=True)
+        logger.warning("Training data not available — using synthetic data", exc_info=True)
         X, y = _generate_synthetic_data()
 
     logger.info("Training set: %d samples, %d classes", len(y), y.nunique())

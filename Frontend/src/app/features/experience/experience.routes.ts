@@ -116,7 +116,7 @@ const CHURN_COLORS: Record<string, string> = {
                 <div class="card border-0 shadow-sm text-center">
                   <div class="card-body">
                     <div class="text-muted small mb-1">Total Encuestas</div>
-                    <div class="h2 mb-0 text-primary">{{ patientExperience()!.surveys.length }}</div>
+                    <div class="h2 mb-0 text-primary">{{ patientExperience()!.surveys?.length ?? 0 }}</div>
                   </div>
                 </div>
               </div>
@@ -339,9 +339,10 @@ class ExperiencePageComponent implements OnInit, OnDestroy {
     this.loadingPatient.set(true);
     this.api.getPatientExperience$(patientId).subscribe({
       next: exp => {
-        this.patientExperience.set(exp);
+        const normalized = { ...exp, surveys: exp?.surveys ?? [] };
+        this.patientExperience.set(normalized);
         this.loadingPatient.set(false);
-        setTimeout(() => this.renderSatisfactionChart(exp.surveys), 100);
+        setTimeout(() => this.renderSatisfactionChart(normalized.surveys), 100);
       },
       error: () => this.loadingPatient.set(false)
     });

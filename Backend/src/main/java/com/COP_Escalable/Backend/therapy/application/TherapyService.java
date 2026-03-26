@@ -51,7 +51,8 @@ public class TherapyService {
 		var tenant = TenantContextHolder.require();
 
 		Instant startOfDay = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant();
-		long todaySessions = sessionRepository.countByPatientIdAndCreatedAtAfter(patientId, startOfDay);
+		long todaySessions = sessionRepository.countByOrganizationIdAndSiteIdAndPatientIdAndCreatedAtAfter(
+				tenant.organizationId(), tenant.siteId(), patientId, startOfDay);
 		if (todaySessions >= properties.getMaxDailySessions()) {
 			throw new IllegalStateException(
 					"Daily session limit reached (" + properties.getMaxDailySessions() + "). Try again tomorrow.");

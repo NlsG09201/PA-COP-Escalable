@@ -3,56 +3,44 @@ package com.COP_Escalable.Backend.notifications.domain;
 import com.COP_Escalable.Backend.appointments.application.AppointmentLifecycleEvent;
 import com.COP_Escalable.Backend.clinical.application.MedicalAlertNotificationEvent;
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(
-		name = "notification_outbox_messages",
-		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_notification_outbox_appointment_event", columnNames = {"appointment_id", "event_type"})
-		}
-)
+@Document(collection = "notification_outbox_messages")
 public class NotificationOutboxMessage extends TenantScopedEntity {
-	@Column(name = "appointment_id")
+
+	@Field("appointment_id")
 	private UUID appointmentId;
 
-	@Column(name = "patient_id", nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(name = "event_type", nullable = false)
+	@Field("event_type")
 	private String eventType;
 
-	@Column(nullable = false, columnDefinition = "text")
 	private String payload;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Status status;
 
-	@Column(name = "relay_attempt_count", nullable = false)
+	@Field("relay_attempt_count")
 	private int relayAttemptCount;
 
-	@Column(name = "next_relay_attempt_at", nullable = false)
+	@Field("next_relay_attempt_at")
 	private Instant nextRelayAttemptAt;
 
-	@Column(name = "last_published_at")
+	@Field("last_published_at")
 	private Instant lastPublishedAt;
 
-	@Column(name = "relay_error_message")
+	@Field("relay_error_message")
 	private String relayErrorMessage;
 
-	@Column(name = "delivery_retry_at")
+	@Field("delivery_retry_at")
 	private Instant deliveryRetryAt;
 
-	@Column(name = "delivery_error_message")
+	@Field("delivery_error_message")
 	private String deliveryErrorMessage;
 
 	protected NotificationOutboxMessage() {}

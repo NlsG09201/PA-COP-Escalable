@@ -1,65 +1,59 @@
 package com.COP_Escalable.Backend.publicbooking.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "public_bookings")
+@Document(collection = "public_bookings")
 public class PublicBooking extends TenantScopedEntity {
-	@Column(nullable = false)
+
+	@Field("service_id")
 	private String serviceId;
 
-	@Column(nullable = false)
+	@Field("service_name")
 	private String serviceName;
 
-	@Column(nullable = false)
+	@Field("service_category")
 	private String serviceCategory;
 
-	@Column(nullable = false)
+	@Field("patient_name")
 	private String patientName;
 
-	@Column
+	@Field("patient_email")
 	private String patientEmail;
 
-	@Column
+	@Field("patient_phone")
 	private String patientPhone;
 
-	@Column
 	private String notes;
 
-	@Column(nullable = false)
+	@Field("quoted_price")
 	private long quotedPrice;
 
-	@Column(nullable = false)
+	@Field("appointment_start_at")
 	private Instant appointmentStartAt;
 
-	@Column(nullable = false)
+	@Field("appointment_end_at")
 	private Instant appointmentEndAt;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Status status;
 
-	@Column
+	@Field("expires_at")
 	private Instant expiresAt;
 
-	@Column
+	@Field("professional_id")
 	private UUID professionalId;
 
-	@Column
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column
+	@Field("appointment_id")
 	private UUID appointmentId;
 
-	@Column
+	@Field("payment_id")
 	private UUID paymentId;
 
 	protected PublicBooking() {}

@@ -1,35 +1,40 @@
 package com.COP_Escalable.Backend.catalog.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.AuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(name = "service_categories")
+@Document(collection = "service_categories")
 public class ServiceCategory extends AuditableEntity {
 
-	@Column(nullable = false, updatable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column(nullable = false)
 	private String slug;
 
-	@Column(nullable = false)
 	private String name;
 
-	@Column
 	private String description;
 
-	@Column(nullable = false)
 	private String status;
 
-	@Column(nullable = false)
+	@Field("sort_order")
 	private int sortOrder;
 
 	protected ServiceCategory() {}
+
+	public static ServiceCategory create(UUID organizationId, String slug, String name, String description, int sortOrder) {
+		var c = new ServiceCategory();
+		c.organizationId = organizationId;
+		c.slug = slug.trim().toLowerCase();
+		c.name = name.trim();
+		c.description = description;
+		c.status = "ACTIVE";
+		c.sortOrder = sortOrder;
+		return c;
+	}
 
 	public UUID getOrganizationId() {
 		return organizationId;

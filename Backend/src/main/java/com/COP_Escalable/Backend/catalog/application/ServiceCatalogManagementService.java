@@ -1,6 +1,7 @@
 package com.COP_Escalable.Backend.catalog.application;
 
 import com.COP_Escalable.Backend.catalog.domain.CatalogServiceItem;
+import com.COP_Escalable.Backend.catalog.domain.ServiceCategory;
 import com.COP_Escalable.Backend.catalog.domain.ServiceOffering;
 import com.COP_Escalable.Backend.catalog.infrastructure.CatalogServiceItemRepository;
 import com.COP_Escalable.Backend.catalog.infrastructure.ServiceCategoryRepository;
@@ -9,6 +10,7 @@ import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -37,10 +39,35 @@ public class ServiceCatalogManagementService {
 		}
 		String search = (query == null || query.isBlank()) ? "" : query.trim().toLowerCase(Locale.ROOT);
 		String categorySlug = category == null ? null : category.slug();
-		return offerings.searchForManagement(tenant.organizationId(), tenant.siteId(), active, categorySlug, search)
-				.stream()
-				.map(ServiceCatalogManagementService::toView)
+
+		var all = offerings.findByOrganizationIdAndSiteIdOrderByPublicTitleAsc(tenant.organizationId(), tenant.siteId());
+		return all.stream()
+				.filter(o -> active == null || o.isActive() == active)
+				.filter(o -> matchesSearch(o, tenant.organizationId(), search, categorySlug))
+				.sorted(Comparator.comparing(ServiceOffering::getPublicTitle))
+				.map(this::toView)
 				.toList();
+	}
+
+	private boolean matchesSearch(ServiceOffering o, UUID orgId, String q, String categorySlug) {
+		var catalog = catalogServices.findByIdAndOrganizationId(o.getCatalogServiceId(), orgId).orElse(null);
+		if (catalog == null || !catalog.isActive()) {
+			return false;
+		}
+		var cat = categories.findById(catalog.getCategoryId()).orElse(null);
+		if (cat == null) {
+			return false;
+		}
+		if (categorySlug != null && !categorySlug.equalsIgnoreCase(cat.getSlug())) {
+			return false;
+		}
+		if (q.isEmpty()) {
+			return true;
+		}
+		String title = o.getPublicTitle() == null ? "" : o.getPublicTitle().toLowerCase(Locale.ROOT);
+		String cname = catalog.getName() == null ? "" : catalog.getName().toLowerCase(Locale.ROOT);
+		String desc = o.getPublicDescription() == null ? "" : o.getPublicDescription().toLowerCase(Locale.ROOT);
+		return title.contains(q) || cname.contains(q) || desc.contains(q);
 	}
 
 	@Transactional
@@ -91,12 +118,12 @@ public class ServiceCatalogManagementService {
 			throw new IllegalArgumentException("site_id is required in tenant context");
 		}
 		validatePrice(command.price());
-		var offering = offerings.findByIdForManagement(serviceId, tenant.organizationId(), tenant.siteId())
+		var offering = offerings.findByIdAndOrganizationIdAndSiteId(serviceId, tenant.organizationId(), tenant.siteId())
 				.orElseThrow(() -> new IllegalArgumentException("Service not found"));
 
 		var category = categories.findByOrganizationIdAndSlug(tenant.organizationId(), command.category().slug())
 				.orElseThrow(() -> new IllegalArgumentException("Category not configured for organization"));
-		var catalog = catalogServices.findByIdAndOrganizationId(offering.getCatalogService().getId(), tenant.organizationId())
+		var catalog = catalogServices.findByIdAndOrganizationId(offering.getCatalogServiceId(), tenant.organizationId())
 				.orElseThrow(() -> new IllegalArgumentException("Catalog service not found"));
 
 		ensureNameUnique(tenant.organizationId(), category.getId(), command.name(), catalog.getId());
@@ -126,10 +153,11 @@ public class ServiceCatalogManagementService {
 		if (tenant.siteId() == null) {
 			throw new IllegalArgumentException("site_id is required in tenant context");
 		}
-		var offering = offerings.findByIdForManagement(serviceId, tenant.organizationId(), tenant.siteId())
+		var offering = offerings.findByIdAndOrganizationIdAndSiteId(serviceId, tenant.organizationId(), tenant.siteId())
 				.orElseThrow(() -> new IllegalArgumentException("Service not found"));
 		offering.setActive(active);
-		var catalog = offering.getCatalogService();
+		var catalog = catalogServices.findByIdAndOrganizationId(offering.getCatalogServiceId(), tenant.organizationId())
+				.orElseThrow(() -> new IllegalArgumentException("Catalog service not found"));
 		if (active) {
 			catalog.activate();
 		} else {
@@ -145,7 +173,8 @@ public class ServiceCatalogManagementService {
 	}
 
 	private void ensureNameUnique(UUID orgId, UUID categoryId, String name, UUID excludeId) {
-		if (catalogServices.existsByCategoryAndName(orgId, categoryId, name.trim(), excludeId)) {
+		var existing = catalogServices.findByOrganizationIdAndCategoryIdAndNameIgnoreCase(orgId, categoryId, name.trim());
+		if (existing.isPresent() && (excludeId == null || !existing.get().getId().equals(excludeId))) {
 			throw new IllegalArgumentException("Service name must be unique by category");
 		}
 	}
@@ -167,9 +196,10 @@ public class ServiceCatalogManagementService {
 		return category.name().toLowerCase(Locale.ROOT) + "-" + normalized;
 	}
 
-	private static ManagedServiceView toView(ServiceOffering offering) {
-		var catalog = offering.getCatalogService();
-		var slug = catalog.getCategory().getSlug();
+	private ManagedServiceView toView(ServiceOffering offering) {
+		var catalog = catalogServices.findById(offering.getCatalogServiceId()).orElseThrow();
+		var cat = categories.findById(catalog.getCategoryId()).orElseThrow();
+		var slug = cat.getSlug();
 		var category = "psicologia".equalsIgnoreCase(slug)
 				? ServiceCatalogCategory.PSICOLOGIA
 				: ServiceCatalogCategory.ODONTOLOGIA;

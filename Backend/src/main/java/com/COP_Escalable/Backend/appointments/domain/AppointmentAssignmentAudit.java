@@ -1,45 +1,41 @@
 package com.COP_Escalable.Backend.appointments.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "appointment_assignment_audit")
+@Document(collection = "appointment_assignment_audit")
 public class AppointmentAssignmentAudit extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false)
+	@Field("appointment_type")
 	private String appointmentType;
 
-	@Column(nullable = false)
 	private String priority;
 
-	@Column(nullable = false)
+	@Field("requested_start_at")
 	private Instant requestedStartAt;
 
-	@Column(nullable = false)
+	@Field("requested_end_at")
 	private Instant requestedEndAt;
 
-	@Column
+	@Field("winner_professional_id")
 	private UUID winnerProfessionalId;
 
-	@Column
+	@Field("winner_score")
 	private Double winnerScore;
 
-	@Column
+	@Field("candidates_payload")
 	private String candidatesPayload;
 
-	@Column
+	@Field("alternatives_payload")
 	private String alternativesPayload;
 
-	@Column(nullable = false)
 	private String outcome;
 
 	protected AppointmentAssignmentAudit() {}

@@ -1,38 +1,37 @@
 package com.COP_Escalable.Backend.relapse.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "relapse_alerts")
+@Document(collection = "relapse_alerts")
 public class RelapseAlert extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false, precision = 5, scale = 4)
+	@Field("risk_score")
 	private BigDecimal riskScore;
 
-	@Column(nullable = false, length = 20)
+	@Field("risk_level")
 	private String riskLevel;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("factors_json")
 	private String factorsJson;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("actions_json")
 	private String actionsJson;
 
-	@Column(nullable = false)
 	private boolean acknowledged;
 
+	@Field("acknowledged_by")
 	private UUID acknowledgedBy;
 
+	@Field("acknowledged_at")
 	private Instant acknowledgedAt;
 
 	protected RelapseAlert() {}
@@ -57,12 +56,35 @@ public class RelapseAlert extends TenantScopedEntity {
 		this.acknowledgedAt = Instant.now();
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public BigDecimal getRiskScore() { return riskScore; }
-	public String getRiskLevel() { return riskLevel; }
-	public String getFactorsJson() { return factorsJson; }
-	public String getActionsJson() { return actionsJson; }
-	public boolean isAcknowledged() { return acknowledged; }
-	public UUID getAcknowledgedBy() { return acknowledgedBy; }
-	public Instant getAcknowledgedAt() { return acknowledgedAt; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public BigDecimal getRiskScore() {
+		return riskScore;
+	}
+
+	public String getRiskLevel() {
+		return riskLevel;
+	}
+
+	public String getFactorsJson() {
+		return factorsJson;
+	}
+
+	public String getActionsJson() {
+		return actionsJson;
+	}
+
+	public boolean isAcknowledged() {
+		return acknowledged;
+	}
+
+	public UUID getAcknowledgedBy() {
+		return acknowledgedBy;
+	}
+
+	public Instant getAcknowledgedAt() {
+		return acknowledgedAt;
+	}
 }

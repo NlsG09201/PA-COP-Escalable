@@ -44,7 +44,9 @@ export class AppointmentsApiService {
     if (filters?.status) {
       params.set('status', filters.status);
     }
-    const url = `${API_BASE_URL}/api/appointments/page?${params.toString()}`;
+    // Appointments service exposes GET /api/appointments (proxy to legacy),
+    // forwarding all query params (from/to/page/size/etc). There is no /page sub-route.
+    const url = `${API_BASE_URL}/api/appointments?${params.toString()}`;
 
     return this.http.get<unknown>(url).pipe(
       map((raw) => this.mapPage(raw))

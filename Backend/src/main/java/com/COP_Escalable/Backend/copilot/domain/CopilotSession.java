@@ -1,37 +1,36 @@
 package com.COP_Escalable.Backend.copilot.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "copilot_sessions")
+@Document(collection = "copilot_sessions")
 public class CopilotSession extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false)
+	@Field("professional_id")
 	private UUID professionalId;
 
-	@Column(nullable = false, length = 40)
+	@Field("session_type")
 	private String sessionType;
 
+	@Field("started_at")
 	private Instant startedAt;
 
+	@Field("ended_at")
 	private Instant endedAt;
 
-	@Column(columnDefinition = "text")
+	@Field("summary_text")
 	private String summaryText;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("suggestions_json")
 	private String suggestionsJson;
 
-	@Column(nullable = false, length = 20)
 	private String status;
 
 	protected CopilotSession() {}
@@ -73,12 +72,35 @@ public class CopilotSession extends TenantScopedEntity {
 		this.summaryText = summaryText;
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public UUID getProfessionalId() { return professionalId; }
-	public String getSessionType() { return sessionType; }
-	public Instant getStartedAt() { return startedAt; }
-	public Instant getEndedAt() { return endedAt; }
-	public String getSummaryText() { return summaryText; }
-	public String getSuggestionsJson() { return suggestionsJson; }
-	public String getStatus() { return status; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public UUID getProfessionalId() {
+		return professionalId;
+	}
+
+	public String getSessionType() {
+		return sessionType;
+	}
+
+	public Instant getStartedAt() {
+		return startedAt;
+	}
+
+	public Instant getEndedAt() {
+		return endedAt;
+	}
+
+	public String getSummaryText() {
+		return summaryText;
+	}
+
+	public String getSuggestionsJson() {
+		return suggestionsJson;
+	}
+
+	public String getStatus() {
+		return status;
+	}
 }

@@ -1,53 +1,74 @@
 package com.COP_Escalable.Backend.iam.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "refresh_tokens")
+@Document(collection = "refresh_tokens")
+@CompoundIndexes({
+		@CompoundIndex(name = "idx_refresh_user_issued", def = "{'user_id': 1, 'issued_at': -1}")
+})
 public class RefreshToken {
 	@Id
-	@Column(nullable = false, updatable = false)
 	private UUID id;
 
-	@Column(nullable = false, updatable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column
+	@Field("site_id")
 	private UUID siteId;
 
-	@Column(nullable = false, updatable = false)
+	@Field("user_id")
 	private UUID userId;
 
-	@Column(nullable = false, updatable = false)
+	@Indexed(unique = true)
+	@Field("token_hash")
 	private String tokenHash;
 
-	@Column(nullable = false, updatable = false)
+	@Field("issued_at")
 	private Instant issuedAt;
 
-	@Column(nullable = false, updatable = false)
+	@Field("expires_at")
 	private Instant expiresAt;
 
-	@Column
+	@Field("revoked_at")
 	private Instant revokedAt;
 
-	@Column
+	@Field("replaced_by")
 	private UUID replacedBy;
 
-	@Column
 	private String ip;
 
-	@Column
+	@Field("user_agent")
 	private String userAgent;
+
+	/**
+	 * When false, this refresh was issued alongside an access token with {@code mfa_verified=false}
+	 * (MFA enabled, step-up pending). Rotation is blocked until MFA is completed.
+	 * {@code null} on legacy documents: treated as true for backward compatibility.
+	 */
+	@Field("mfa_step_up_complete")
+	private Boolean mfaStepUpComplete;
 
 	protected RefreshToken() {}
 
-	public static RefreshToken issue(UUID organizationId, UUID siteId, UUID userId, String tokenHash, Instant issuedAt, Instant expiresAt, String ip, String userAgent) {
+	public static RefreshToken issue(
+			UUID organizationId,
+			UUID siteId,
+			UUID userId,
+			String tokenHash,
+			Instant issuedAt,
+			Instant expiresAt,
+			String ip,
+			String userAgent,
+			boolean mfaStepUpComplete
+	) {
 		if (organizationId == null) throw new IllegalArgumentException("organizationId is required");
 		if (userId == null) throw new IllegalArgumentException("userId is required");
 		if (tokenHash == null || tokenHash.isBlank()) throw new IllegalArgumentException("tokenHash is required");
@@ -61,6 +82,7 @@ public class RefreshToken {
 		rt.expiresAt = expiresAt;
 		rt.ip = ip;
 		rt.userAgent = userAgent;
+		rt.mfaStepUpComplete = mfaStepUpComplete;
 		return rt;
 	}
 
@@ -104,5 +126,11 @@ public class RefreshToken {
 	public Instant getRevokedAt() {
 		return revokedAt;
 	}
-}
 
+	/**
+	 * @return false if MFA step-up is still required for this session; {@code null} for legacy tokens (treated as complete).
+	 */
+	public Boolean getMfaStepUpComplete() {
+		return mfaStepUpComplete;
+	}
+}

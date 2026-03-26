@@ -2,7 +2,9 @@ package com.COP_Escalable.Backend.iam.service;
 
 import com.COP_Escalable.Backend.iam.config.SecurityProperties;
 import com.COP_Escalable.Backend.iam.domain.RefreshToken;
+import com.COP_Escalable.Backend.iam.domain.UserAccount;
 import com.COP_Escalable.Backend.iam.infrastructure.RefreshTokenRepository;
+import com.COP_Escalable.Backend.iam.infrastructure.UserAccountRepository;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
@@ -25,19 +27,39 @@ public class TokenService {
 	private final JwtEncoder jwtEncoder;
 	private final SecurityProperties securityProperties;
 	private final RefreshTokenRepository refreshTokens;
+	private final UserAccountRepository users;
 
-	public TokenService(JwtEncoder jwtEncoder, SecurityProperties securityProperties, RefreshTokenRepository refreshTokens) {
+	public TokenService(
+			JwtEncoder jwtEncoder,
+			SecurityProperties securityProperties,
+			RefreshTokenRepository refreshTokens,
+			UserAccountRepository users
+	) {
 		this.jwtEncoder = jwtEncoder;
 		this.securityProperties = securityProperties;
 		this.refreshTokens = refreshTokens;
+		this.users = users;
 	}
 
 	public record TokenPair(String accessToken, Instant accessTokenExpiresAt, String refreshToken, Instant refreshTokenExpiresAt) {}
 
 	@Transactional
 	public TokenPair issueFor(CopUserPrincipal principal, java.util.UUID siteId, String ip, String userAgent) {
+		return issueForInternal(principal, siteId, ip, userAgent, false);
+	}
+
+	@Transactional
+	public TokenPair issueForMfaVerified(CopUserPrincipal principal, java.util.UUID siteId, String ip, String userAgent) {
+		return issueForInternal(principal, siteId, ip, userAgent, true);
+	}
+
+	private TokenPair issueForInternal(CopUserPrincipal principal, java.util.UUID siteId, String ip, String userAgent, boolean mfaVerified) {
 		Instant now = Instant.now();
 		Instant accessExp = now.plus(ACCESS_TTL);
+
+		UserAccount user = users.findById(principal.userId()).orElse(null);
+		boolean mfaEnabled = user != null && user.isMfaEnabled();
+		boolean finalMfaVerified = mfaEnabled ? mfaVerified : true;
 
 		var claims = JwtClaimsSet.builder()
 				.issuer(securityProperties.issuer())
@@ -48,6 +70,8 @@ public class TokenService {
 				.claim("organization_id", principal.organizationId().toString())
 				.claim("site_id", siteId == null ? null : siteId.toString())
 				.claim("roles", principal.roles().stream().map(Enum::name).toList())
+				.claim("mfa_enabled", mfaEnabled)
+				.claim("mfa_verified", finalMfaVerified)
 				.build();
 
 		String access = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
@@ -56,7 +80,17 @@ public class TokenService {
 		String refreshHash = sha256Base64Url(refreshPlain);
 		Instant refreshExp = now.plus(REFRESH_TTL);
 
-		refreshTokens.save(RefreshToken.issue(principal.organizationId(), siteId, principal.userId(), refreshHash, now, refreshExp, ip, userAgent));
+		refreshTokens.save(RefreshToken.issue(
+				principal.organizationId(),
+				siteId,
+				principal.userId(),
+				refreshHash,
+				now,
+				refreshExp,
+				ip,
+				userAgent,
+				finalMfaVerified
+		));
 		return new TokenPair(access, accessExp, refreshPlain, refreshExp);
 	}
 
@@ -67,6 +101,13 @@ public class TokenService {
 		var existing = refreshTokens.findByTokenHash(hash).orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 		if (!existing.isActive(now)) {
 			throw new IllegalArgumentException("Refresh token expired or revoked");
+		}
+
+		boolean stepUpComplete = existing.getMfaStepUpComplete() == null || existing.getMfaStepUpComplete();
+		UserAccount user = users.findById(existing.getUserId()).orElse(null);
+		boolean mfaEnabled = user != null && user.isMfaEnabled();
+		if (!stepUpComplete && mfaEnabled) {
+			throw new MfaStepUpRequiredException();
 		}
 
 		var principal = principalLoader.apply(existing.getUserId());

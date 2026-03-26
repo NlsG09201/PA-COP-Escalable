@@ -1,29 +1,42 @@
 package com.COP_Escalable.Backend.iam.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.AuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "users")
+@Document(collection = "users")
+@CompoundIndexes({
+		@CompoundIndex(name = "idx_users_org_username", def = "{'organization_id': 1, 'username': 1}", unique = true)
+})
 public class UserAccount extends AuditableEntity {
 
-	@Column(nullable = false, updatable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column(nullable = false)
+	@Indexed
 	private String username;
 
-	@Column(nullable = false)
+	@Field("password_hash")
 	private String passwordHash;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
+	@Field("mfa_enabled")
+	private boolean mfaEnabled;
+
+	/**
+	 * Encrypted TOTP secret (AES-GCM, base64). Raw secret is never stored.
+	 */
+	@Field("mfa_totp_secret_enc")
+	private String mfaTotpSecretEnc;
+
+	@Field("mfa_totp_secret_set_at")
+	private Instant mfaTotpSecretSetAt;
+
 	private UserStatus status;
 
 	protected UserAccount() {}
@@ -36,6 +49,9 @@ public class UserAccount extends AuditableEntity {
 		this.username = username.trim().toLowerCase();
 		this.passwordHash = passwordHash;
 		this.status = UserStatus.ACTIVE;
+		this.mfaEnabled = false;
+		this.mfaTotpSecretEnc = null;
+		this.mfaTotpSecretSetAt = null;
 	}
 
 	public UUID getOrganizationId() {
@@ -58,5 +74,28 @@ public class UserAccount extends AuditableEntity {
 	public UserStatus getStatus() {
 		return status;
 	}
-}
 
+	public boolean isMfaEnabled() {
+		return mfaEnabled;
+	}
+
+	public String getMfaTotpSecretEnc() {
+		return mfaTotpSecretEnc;
+	}
+
+	public Instant getMfaTotpSecretSetAt() {
+		return mfaTotpSecretSetAt;
+	}
+
+	public void setMfaEnabled(boolean enabled) {
+		this.mfaEnabled = enabled;
+	}
+
+	public void setMfaTotpSecretEnc(String mfaTotpSecretEnc) {
+		this.mfaTotpSecretEnc = mfaTotpSecretEnc;
+	}
+
+	public void setMfaTotpSecretSetAt(Instant mfaTotpSecretSetAt) {
+		this.mfaTotpSecretSetAt = mfaTotpSecretSetAt;
+	}
+}

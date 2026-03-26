@@ -485,7 +485,12 @@ class BudgetPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.generating.set(true);
     this.error.set(null);
 
-    this.budgetApi.generateFromPlan$(pid, '').subscribe({
+    this.budgetApi
+      .generateGeneric$(pid, {
+        name: 'Presupuesto (manual)',
+        phases: [],
+      })
+      .subscribe({
       next: () => {
         this.generating.set(false);
         this.loadBudgets(pid);

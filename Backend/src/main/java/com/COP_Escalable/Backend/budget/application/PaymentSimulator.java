@@ -21,7 +21,7 @@ public class PaymentSimulator {
 				.setScale(2, RoundingMode.HALF_UP);
 
 		var plan = new PaymentPlan(budgetId, "CASH", 1, BigDecimal.ZERO, discounted);
-		var installment = new PaymentInstallment(plan, 1, discounted, LocalDate.now().plusDays(7));
+		var installment = new PaymentInstallment(1, discounted, LocalDate.now().plusDays(7));
 		plan.addInstallment(installment);
 		return plan;
 	}
@@ -53,7 +53,7 @@ public class PaymentSimulator {
 			BigDecimal amount = (i == numInstallments)
 					? totalAmount.subtract(monthlyPayment.multiply(BigDecimal.valueOf(numInstallments - 1)))
 					: monthlyPayment;
-			var installment = new PaymentInstallment(plan, i, amount, dueDate);
+			var installment = new PaymentInstallment(i, amount, dueDate);
 			plan.addInstallment(installment);
 			dueDate = dueDate.plusMonths(1);
 		}
@@ -67,7 +67,7 @@ public class PaymentSimulator {
 		BigDecimal patientCopay = total.subtract(insurancePays);
 
 		var plan = new PaymentPlan(budgetId, "INSURANCE", 1, BigDecimal.ZERO, patientCopay);
-		var installment = new PaymentInstallment(plan, 1, patientCopay, LocalDate.now().plusDays(30));
+		var installment = new PaymentInstallment(1, patientCopay, LocalDate.now().plusDays(30));
 		plan.addInstallment(installment);
 		return plan;
 	}

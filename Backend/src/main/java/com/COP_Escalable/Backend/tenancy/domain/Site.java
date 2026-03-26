@@ -1,29 +1,19 @@
 package com.COP_Escalable.Backend.tenancy.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.AuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(name = "sites")
+@Document(collection = "sites")
 public class Site extends AuditableEntity {
 
-	@Column(nullable = false, updatable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column(nullable = false)
 	private String name;
-
-	@Column(nullable = false)
 	private String timezone;
-
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private SiteStatus status;
 
 	protected Site() {}
@@ -54,4 +44,3 @@ public class Site extends AuditableEntity {
 		return status;
 	}
 }
-

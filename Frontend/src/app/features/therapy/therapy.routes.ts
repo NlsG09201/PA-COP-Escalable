@@ -546,7 +546,7 @@ class TherapyPageComponent implements OnInit, AfterViewInit, OnDestroy {
       error: () => this.loading.set(false)
     });
     this.api.getProgress$(patientId).subscribe(p => {
-      this.progress.set(p);
+      this.progress.set({ ...p, sessionsByCategory: p?.sessionsByCategory ?? {} });
       setTimeout(() => this.renderChart(), 100);
     });
     this.api.getSessions$(patientId).subscribe(s => this.sessions.set(s));

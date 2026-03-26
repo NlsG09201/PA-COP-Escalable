@@ -33,16 +33,6 @@ async def health_check(request: Request) -> dict:
     except Exception:
         logger.debug("MongoDB health-check ping failed", exc_info=True)
 
-    pg_ok = False
-    try:
-        pg_conn = getattr(request.app.state, "pg", None)
-        if pg_conn is not None and not pg_conn.closed:
-            with pg_conn.cursor() as cur:
-                cur.execute("SELECT 1")
-            pg_ok = True
-    except Exception:
-        logger.debug("PostgreSQL health-check failed", exc_info=True)
-
     return {
         "status": "UP",
         "models": {
@@ -58,6 +48,5 @@ async def health_check(request: Request) -> dict:
         "dependencies": {
             "redis": redis_ok,
             "mongodb": mongo_ok,
-            "postgresql": pg_ok,
         },
     }

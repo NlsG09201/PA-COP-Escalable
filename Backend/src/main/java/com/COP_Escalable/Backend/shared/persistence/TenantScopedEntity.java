@@ -1,16 +1,18 @@
 package com.COP_Escalable.Backend.shared.persistence;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.MappedSuperclass;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@MappedSuperclass
+/**
+ * Tenant-scoped MongoDB document (organization + optional site).
+ */
 public abstract class TenantScopedEntity extends AuditableEntity {
-	@Column(nullable = false, updatable = false)
+
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column
+	@Field("site_id")
 	private UUID siteId;
 
 	protected void setTenant(UUID organizationId, UUID siteId) {
@@ -29,4 +31,3 @@ public abstract class TenantScopedEntity extends AuditableEntity {
 		return siteId;
 	}
 }
-

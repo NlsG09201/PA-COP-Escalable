@@ -1,7 +1,8 @@
 package com.COP_Escalable.Backend.budget.domain;
 
-import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -9,66 +10,93 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Entity
-@Table(name = "payment_plans")
+@Document(collection = "payment_plans")
 public class PaymentPlan {
 
 	@Id
-	@GeneratedValue
 	private UUID id;
 
-	@Column(name = "budget_id", nullable = false)
+	@Field("budget_id")
 	private UUID budgetId;
 
-	@Column(name = "plan_type", nullable = false, length = 30)
+	@Field("plan_type")
 	private String planType;
 
-	@Column(name = "num_installments", nullable = false)
+	@Field("num_installments")
 	private int numInstallments;
 
-	@Column(name = "interest_rate", nullable = false, precision = 5, scale = 4)
+	@Field("interest_rate")
 	private BigDecimal interestRate;
 
-	@Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
+	@Field("total_amount")
 	private BigDecimal totalAmount;
 
-	@Column(name = "status", nullable = false, length = 20)
 	private String status;
 
-	@OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
-	@OrderBy("installmentNum ASC")
 	private List<PaymentInstallment> installments = new ArrayList<>();
 
-	@CreationTimestamp
-	@Column(name = "created_at", nullable = false, updatable = false)
+	@Field("created_at")
 	private Instant createdAt;
 
 	protected PaymentPlan() {}
 
 	public PaymentPlan(UUID budgetId, String planType, int numInstallments,
 					   BigDecimal interestRate, BigDecimal totalAmount) {
+		this.id = UUID.randomUUID();
 		this.budgetId = budgetId;
 		this.planType = planType;
 		this.numInstallments = numInstallments;
 		this.interestRate = interestRate;
 		this.totalAmount = totalAmount;
 		this.status = "ACTIVE";
+		this.createdAt = Instant.now();
 	}
 
 	public void addInstallment(PaymentInstallment installment) {
 		this.installments.add(installment);
 	}
 
-	public void complete() { this.status = "COMPLETED"; }
-	public void cancel() { this.status = "CANCELLED"; }
+	public void complete() {
+		this.status = "COMPLETED";
+	}
 
-	public UUID getId() { return id; }
-	public UUID getBudgetId() { return budgetId; }
-	public String getPlanType() { return planType; }
-	public int getNumInstallments() { return numInstallments; }
-	public BigDecimal getInterestRate() { return interestRate; }
-	public BigDecimal getTotalAmount() { return totalAmount; }
-	public String getStatus() { return status; }
-	public List<PaymentInstallment> getInstallments() { return installments; }
-	public Instant getCreatedAt() { return createdAt; }
+	public void cancel() {
+		this.status = "CANCELLED";
+	}
+
+	public UUID getId() {
+		return id;
+	}
+
+	public UUID getBudgetId() {
+		return budgetId;
+	}
+
+	public String getPlanType() {
+		return planType;
+	}
+
+	public int getNumInstallments() {
+		return numInstallments;
+	}
+
+	public BigDecimal getInterestRate() {
+		return interestRate;
+	}
+
+	public BigDecimal getTotalAmount() {
+		return totalAmount;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public List<PaymentInstallment> getInstallments() {
+		return installments;
+	}
+
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
 }

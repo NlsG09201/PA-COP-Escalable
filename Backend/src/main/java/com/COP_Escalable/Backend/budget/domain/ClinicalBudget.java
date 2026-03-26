@@ -1,8 +1,8 @@
 package com.COP_Escalable.Backend.budget.domain;
 
-import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -10,57 +10,48 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Entity
-@Table(name = "clinical_budgets")
+@Document(collection = "clinical_budgets")
 public class ClinicalBudget {
 
 	@Id
-	@GeneratedValue
 	private UUID id;
 
-	@Column(name = "organization_id", nullable = false)
+	@Field("organization_id")
 	private UUID organizationId;
 
-	@Column(name = "site_id", nullable = false)
+	@Field("site_id")
 	private UUID siteId;
 
-	@Column(name = "patient_id", nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(name = "name", nullable = false)
 	private String name;
 
-	@Column(name = "status", nullable = false, length = 20)
 	private String status;
 
-	@Column(name = "total_cost", nullable = false, precision = 12, scale = 2)
+	@Field("total_cost")
 	private BigDecimal totalCost;
 
-	@Column(name = "currency", nullable = false, length = 3)
 	private String currency;
 
-	@Column(name = "estimated_days")
+	@Field("estimated_days")
 	private Integer estimatedDays;
 
-	@Column(name = "notes", columnDefinition = "TEXT")
 	private String notes;
 
-	@OneToMany(mappedBy = "budget", cascade = CascadeType.ALL, orphanRemoval = true)
-	@OrderBy("phaseOrder ASC")
 	private List<BudgetPhase> phases = new ArrayList<>();
 
-	@CreationTimestamp
-	@Column(name = "created_at", nullable = false, updatable = false)
+	@Field("created_at")
 	private Instant createdAt;
 
-	@UpdateTimestamp
-	@Column(name = "updated_at", nullable = false)
+	@Field("updated_at")
 	private Instant updatedAt;
 
 	protected ClinicalBudget() {}
 
 	public ClinicalBudget(UUID organizationId, UUID siteId, UUID patientId,
 						   String name, String currency) {
+		this.id = UUID.randomUUID();
 		this.organizationId = organizationId;
 		this.siteId = siteId;
 		this.patientId = patientId;
@@ -68,11 +59,14 @@ public class ClinicalBudget {
 		this.status = "DRAFT";
 		this.totalCost = BigDecimal.ZERO;
 		this.currency = currency;
+		var now = Instant.now();
+		this.createdAt = now;
+		this.updatedAt = now;
 	}
 
 	public BudgetPhase addPhase(String name, String description, int phaseOrder,
 								BigDecimal cost, Integer durationDays) {
-		var phase = new BudgetPhase(this, name, description, phaseOrder, cost, durationDays);
+		var phase = new BudgetPhase(name, description, phaseOrder, cost, durationDays);
 		this.phases.add(phase);
 		recalculateTotal();
 		return phase;
@@ -107,18 +101,59 @@ public class ClinicalBudget {
 		this.status = "CANCELLED";
 	}
 
-	public UUID getId() { return id; }
-	public UUID getOrganizationId() { return organizationId; }
-	public UUID getSiteId() { return siteId; }
-	public UUID getPatientId() { return patientId; }
-	public String getName() { return name; }
-	public String getStatus() { return status; }
-	public BigDecimal getTotalCost() { return totalCost; }
-	public String getCurrency() { return currency; }
-	public Integer getEstimatedDays() { return estimatedDays; }
-	public String getNotes() { return notes; }
-	public void setNotes(String notes) { this.notes = notes; }
-	public List<BudgetPhase> getPhases() { return phases; }
-	public Instant getCreatedAt() { return createdAt; }
-	public Instant getUpdatedAt() { return updatedAt; }
+	public UUID getId() {
+		return id;
+	}
+
+	public UUID getOrganizationId() {
+		return organizationId;
+	}
+
+	public UUID getSiteId() {
+		return siteId;
+	}
+
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public BigDecimal getTotalCost() {
+		return totalCost;
+	}
+
+	public String getCurrency() {
+		return currency;
+	}
+
+	public Integer getEstimatedDays() {
+		return estimatedDays;
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+
+	public List<BudgetPhase> getPhases() {
+		return phases;
+	}
+
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
+
+	public Instant getUpdatedAt() {
+		return updatedAt;
+	}
 }

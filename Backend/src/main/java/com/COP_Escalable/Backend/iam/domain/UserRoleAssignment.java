@@ -1,27 +1,19 @@
 package com.COP_Escalable.Backend.iam.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.io.Serializable;
 import java.util.UUID;
 
-@Entity
-@Table(name = "user_roles")
-@IdClass(UserRoleAssignment.Key.class)
+@Document(collection = "user_roles")
 public class UserRoleAssignment {
 	@Id
-	@Column(nullable = false, updatable = false)
+	private String id;
+
+	@Field("user_id")
 	private UUID userId;
 
-	@Id
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, updatable = false)
 	private Role role;
 
 	protected UserRoleAssignment() {}
@@ -31,6 +23,15 @@ public class UserRoleAssignment {
 		if (role == null) throw new IllegalArgumentException("role is required");
 		this.userId = userId;
 		this.role = role;
+		this.id = buildId(userId, role);
+	}
+
+	public static String buildId(UUID userId, Role role) {
+		return userId + ":" + role.name();
+	}
+
+	public String getId() {
+		return id;
 	}
 
 	public UUID getUserId() {
@@ -41,6 +42,6 @@ public class UserRoleAssignment {
 		return role;
 	}
 
-	public record Key(UUID userId, Role role) implements Serializable {}
+	/** Kept for API compatibility with code referencing Key.class */
+	public record Key(UUID userId, Role role) implements java.io.Serializable {}
 }
-

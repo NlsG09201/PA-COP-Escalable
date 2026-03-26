@@ -1,37 +1,20 @@
 package com.COP_Escalable.Backend.notifications.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(
-		name = "notification_medical_alert_contacts",
-		uniqueConstraints = @UniqueConstraint(
-				name = "uk_notification_medical_alert_contact_address",
-				columnNames = {"organization_id", "site_id", "audience", "channel", "address"}
-		)
-)
+@Document(collection = "notification_medical_alert_contacts")
 public class MedicalAlertSiteContact extends TenantScopedEntity {
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private AlertAudience audience;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private NotificationDelivery.Channel channel;
 
-	@Column(nullable = false)
 	private String address;
 
-	@Column
 	private String label;
 
 	protected MedicalAlertSiteContact() {}

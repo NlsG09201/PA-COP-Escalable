@@ -1,35 +1,27 @@
 package com.COP_Escalable.Backend.patients.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
-@Entity
-@Table(name = "patients")
+@Document(collection = "patients")
 public class Patient extends TenantScopedEntity {
-	@Column
+	@Field("external_code")
 	private String externalCode;
 
-	@Column(nullable = false)
+	@Field("full_name")
 	private String fullName;
 
-	@Column
+	@Field("birth_date")
 	private LocalDate birthDate;
 
-	@Column
 	private String phone;
 
-	@Column
 	private String email;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private PatientStatus status;
 
 	protected Patient() {}
@@ -72,4 +64,3 @@ public class Patient extends TenantScopedEntity {
 		return status;
 	}
 }
-

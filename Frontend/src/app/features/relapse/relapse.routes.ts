@@ -139,17 +139,17 @@ const RISK_LABELS: Record<string, string> = {
                       </label>
                     </div>
                   }
-                  @if (currentAlert()!.actions.length === 0) {
+                  @if ((currentAlert()!.actions?.length ?? 0) === 0) {
                     <p class="text-muted text-center mb-0">Sin acciones recomendadas</p>
                   }
-                  @if (currentAlert()!.actions.length > 0) {
+                  @if ((currentAlert()!.actions?.length ?? 0) > 0) {
                     <div class="mt-3 pt-2 border-top">
                       <small class="text-muted">
-                        {{ checkedCount() }} de {{ currentAlert()!.actions.length }} completadas
+                        {{ checkedCount() }} de {{ currentAlert()!.actions?.length ?? 0 }} completadas
                       </small>
                       <div class="progress mt-1" style="height: 4px;">
                         <div class="progress-bar bg-success"
-                             [style.width.%]="(checkedCount() / currentAlert()!.actions.length) * 100"></div>
+                             [style.width.%]="(checkedCount() / (currentAlert()!.actions?.length ?? 1)) * 100"></div>
                       </div>
                     </div>
                   }
@@ -235,8 +235,9 @@ class RelapsePageComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.api.getLatestRisk$(patientId).subscribe({
       next: alert => {
-        this.currentAlert.set(alert);
-        this.actionChecks = new Array(alert.actions.length).fill(false);
+        const normalized = { ...alert, actions: alert?.actions ?? [], factors: alert?.factors ?? [] };
+        this.currentAlert.set(normalized);
+        this.actionChecks = new Array(normalized.actions.length).fill(false);
         this.loading.set(false);
       },
       error: () => this.loading.set(false)
@@ -255,8 +256,9 @@ class RelapsePageComponent implements OnInit, OnDestroy {
     this.assessing.set(true);
     this.api.assessRisk$(pid).subscribe({
       next: alert => {
-        this.currentAlert.set(alert);
-        this.actionChecks = new Array(alert.actions.length).fill(false);
+        const normalized = { ...alert, actions: alert?.actions ?? [], factors: alert?.factors ?? [] };
+        this.currentAlert.set(normalized);
+        this.actionChecks = new Array(normalized.actions.length).fill(false);
         this.assessing.set(false);
         this.loadTrend(pid);
       },

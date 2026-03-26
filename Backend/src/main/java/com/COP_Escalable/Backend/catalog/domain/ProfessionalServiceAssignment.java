@@ -1,27 +1,20 @@
 package com.COP_Escalable.Backend.catalog.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(name = "professional_service_assignments")
+@Document(collection = "professional_service_assignments")
 public class ProfessionalServiceAssignment extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("professional_id")
 	private UUID professionalId;
 
-	@ManyToOne(optional = false, fetch = FetchType.LAZY)
-	@JoinColumn(name = "service_offering_id", nullable = false)
-	private ServiceOffering serviceOffering;
+	@Field("service_offering_id")
+	private UUID serviceOfferingId;
 
-	@Column(nullable = false)
 	private boolean active;
 
 	protected ProfessionalServiceAssignment() {}
@@ -30,8 +23,8 @@ public class ProfessionalServiceAssignment extends TenantScopedEntity {
 		return professionalId;
 	}
 
-	public ServiceOffering getServiceOffering() {
-		return serviceOffering;
+	public UUID getServiceOfferingId() {
+		return serviceOfferingId;
 	}
 
 	public boolean isActive() {

@@ -62,7 +62,16 @@ export class BudgetApiService {
   constructor(private readonly http: HttpClient) {}
 
   generateFromPlan$(patientId: string, treatmentPlanId: string): Observable<ClinicalBudget> {
-    return this.http.post<ClinicalBudget>(`${API_BASE_URL}/api/budget/patients/${patientId}/generate`, { treatmentPlanId });
+    // Backend expects treatmentPlanId as a query param on /generate-from-plan
+    return this.http.post<ClinicalBudget>(
+      `${API_BASE_URL}/api/budget/patients/${patientId}/generate-from-plan`,
+      null,
+      { params: { treatmentPlanId } }
+    );
+  }
+
+  generateGeneric$(patientId: string, request: { name: string; phases: any[] }): Observable<ClinicalBudget> {
+    return this.http.post<ClinicalBudget>(`${API_BASE_URL}/api/budget/patients/${patientId}/generate`, request);
   }
 
   getBudgets$(patientId: string): Observable<ClinicalBudget[]> {
@@ -74,7 +83,8 @@ export class BudgetApiService {
   }
 
   approveBudget$(budgetId: string): Observable<ClinicalBudget> {
-    return this.http.post<ClinicalBudget>(`${API_BASE_URL}/api/budget/${budgetId}/approve`, {});
+    // Backend uses PUT for approve.
+    return this.http.put<ClinicalBudget>(`${API_BASE_URL}/api/budget/${budgetId}/approve`, {});
   }
 
   simulatePayment$(budgetId: string, planType: string, installments: number, interestRate: number): Observable<PaymentSimulation> {

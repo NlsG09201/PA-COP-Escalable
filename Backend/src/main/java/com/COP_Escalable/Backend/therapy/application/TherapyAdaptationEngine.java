@@ -49,6 +49,9 @@ public class TherapyAdaptationEngine {
 		if (candidates.isEmpty()) {
 			candidates = moduleRepository.findByActiveTrue();
 		}
+		if (candidates.isEmpty()) {
+			throw new IllegalArgumentException("No active therapy modules available to recommend.");
+		}
 
 		Set<UUID> recentModuleIds = getRecentModuleIds(patientId, tenant.organizationId(), tenant.siteId());
 		List<TherapyModuleEntity> fresh = candidates.stream()

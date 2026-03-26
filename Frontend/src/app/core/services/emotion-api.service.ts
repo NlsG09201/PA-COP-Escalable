@@ -34,12 +34,13 @@ export class EmotionApiService {
 
   analyzeAudio$(patientId: string, file: File): Observable<EmotionAnalysisResult> {
     const formData = new FormData();
-    formData.append('file', file);
+    // Backend compatibility endpoint expects multipart field name "audio"
+    formData.append('audio', file);
     return this.http.post<EmotionAnalysisResult>(`${API_BASE_URL}/api/emotion/patients/${patientId}/analyze`, formData);
   }
 
   getResult$(jobId: string): Observable<EmotionAnalysisResult> {
-    return this.http.get<EmotionAnalysisResult>(`${API_BASE_URL}/api/emotion/jobs/${jobId}`);
+    return this.http.get<EmotionAnalysisResult>(`${API_BASE_URL}/api/emotion/results/${jobId}`);
   }
 
   getResults$(patientId: string): Observable<EmotionAnalysisResult[]> {

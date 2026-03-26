@@ -1,39 +1,33 @@
 package com.COP_Escalable.Backend.shared.persistence;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@MappedSuperclass
+/**
+ * Base for MongoDB documents with audit timestamps (replaces JPA AuditableEntity).
+ */
 public abstract class AuditableEntity {
+
 	@Id
-	@Column(nullable = false, updatable = false)
 	private UUID id;
 
-	@Column(nullable = false)
+	@CreatedDate
+	@Field("created_at")
 	private Instant createdAt;
 
-	@Column(nullable = false)
+	@LastModifiedDate
+	@Field("updated_at")
 	private Instant updatedAt;
 
-	@PrePersist
-	void onCreate() {
-		var now = Instant.now();
+	public void ensureId() {
 		if (id == null) {
 			id = UUID.randomUUID();
 		}
-		createdAt = now;
-		updatedAt = now;
-	}
-
-	@PreUpdate
-	void onUpdate() {
-		updatedAt = Instant.now();
 	}
 
 	public UUID getId() {
@@ -48,4 +42,3 @@ public abstract class AuditableEntity {
 		return updatedAt;
 	}
 }
-

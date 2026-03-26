@@ -1,64 +1,27 @@
 package com.COP_Escalable.Backend.analytics.infrastructure;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.COP_Escalable.Backend.analytics.domain.AnalyticsDailyProfessionalMetric;
+import com.COP_Escalable.Backend.analytics.domain.AnalyticsDailySiteMetric;
+import com.COP_Escalable.Backend.analytics.domain.AnalyticsDailySpecialtyMetric;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Date;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Incremental rollups stored in MongoDB (replaces PostgreSQL upserts).
+ */
 @Repository
 public class AnalyticsRollupRepository {
-	private static final String MERGE_SITE = """
-			insert into analytics_daily_site_metrics (
-			  organization_id, site_id, day,
-			  appointments_created, appointments_confirmed, appointments_cancelled, appointments_completed,
-			  patients_new, revenue_paid_cents, booked_minutes
-			) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			on conflict (organization_id, site_id, day) do update set
-			  appointments_created = analytics_daily_site_metrics.appointments_created + excluded.appointments_created,
-			  appointments_confirmed = analytics_daily_site_metrics.appointments_confirmed + excluded.appointments_confirmed,
-			  appointments_cancelled = analytics_daily_site_metrics.appointments_cancelled + excluded.appointments_cancelled,
-			  appointments_completed = analytics_daily_site_metrics.appointments_completed + excluded.appointments_completed,
-			  patients_new = analytics_daily_site_metrics.patients_new + excluded.patients_new,
-			  revenue_paid_cents = analytics_daily_site_metrics.revenue_paid_cents + excluded.revenue_paid_cents,
-			  booked_minutes = analytics_daily_site_metrics.booked_minutes + excluded.booked_minutes
-			""";
 
-	private static final String MERGE_SPECIALTY = """
-			insert into analytics_daily_specialty_metrics (
-			  organization_id, site_id, day, specialty,
-			  appointments_created, appointments_confirmed, appointments_cancelled, appointments_completed,
-			  revenue_paid_cents, booked_minutes
-			) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			on conflict (organization_id, site_id, day, specialty) do update set
-			  appointments_created = analytics_daily_specialty_metrics.appointments_created + excluded.appointments_created,
-			  appointments_confirmed = analytics_daily_specialty_metrics.appointments_confirmed + excluded.appointments_confirmed,
-			  appointments_cancelled = analytics_daily_specialty_metrics.appointments_cancelled + excluded.appointments_cancelled,
-			  appointments_completed = analytics_daily_specialty_metrics.appointments_completed + excluded.appointments_completed,
-			  revenue_paid_cents = analytics_daily_specialty_metrics.revenue_paid_cents + excluded.revenue_paid_cents,
-			  booked_minutes = analytics_daily_specialty_metrics.booked_minutes + excluded.booked_minutes
-			""";
+	private final MongoTemplate mongo;
 
-	private static final String MERGE_PROFESSIONAL = """
-			insert into analytics_daily_professional_metrics (
-			  organization_id, site_id, day, professional_id,
-			  appointments_created, appointments_confirmed, appointments_cancelled, appointments_completed,
-			  revenue_paid_cents, booked_minutes
-			) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			on conflict (organization_id, site_id, day, professional_id) do update set
-			  appointments_created = analytics_daily_professional_metrics.appointments_created + excluded.appointments_created,
-			  appointments_confirmed = analytics_daily_professional_metrics.appointments_confirmed + excluded.appointments_confirmed,
-			  appointments_cancelled = analytics_daily_professional_metrics.appointments_cancelled + excluded.appointments_cancelled,
-			  appointments_completed = analytics_daily_professional_metrics.appointments_completed + excluded.appointments_completed,
-			  revenue_paid_cents = analytics_daily_professional_metrics.revenue_paid_cents + excluded.revenue_paid_cents,
-			  booked_minutes = analytics_daily_professional_metrics.booked_minutes + excluded.booked_minutes
-			""";
-
-	private final JdbcTemplate jdbc;
-
-	public AnalyticsRollupRepository(JdbcTemplate jdbc) {
-		this.jdbc = jdbc;
+	public AnalyticsRollupRepository(MongoTemplate mongo) {
+		this.mongo = mongo;
 	}
 
 	public void mergeSite(
@@ -73,19 +36,20 @@ public class AnalyticsRollupRepository {
 			long revenuePaidCents,
 			long bookedMinutes
 	) {
-		jdbc.update(
-				MERGE_SITE,
-				organizationId,
-				siteId,
-				Date.valueOf(day),
-				appointmentsCreated,
-				appointmentsConfirmed,
-				appointmentsCancelled,
-				appointmentsCompleted,
-				patientsNew,
-				revenuePaidCents,
-				bookedMinutes
-		);
+		String id = siteDocId(organizationId, siteId, day);
+		Query q = Query.query(Criteria.where("_id").is(id));
+		Update u = new Update()
+				.inc("appointments_created", appointmentsCreated)
+				.inc("appointments_confirmed", appointmentsConfirmed)
+				.inc("appointments_cancelled", appointmentsCancelled)
+				.inc("appointments_completed", appointmentsCompleted)
+				.inc("patients_new", patientsNew)
+				.inc("revenue_paid_cents", revenuePaidCents)
+				.inc("booked_minutes", bookedMinutes)
+				.setOnInsert("organization_id", organizationId)
+				.setOnInsert("site_id", siteId)
+				.setOnInsert("day", day);
+		mongo.upsert(q, u, AnalyticsDailySiteMetric.class);
 	}
 
 	public void mergeSpecialty(
@@ -100,19 +64,20 @@ public class AnalyticsRollupRepository {
 			long revenuePaidCents,
 			long bookedMinutes
 	) {
-		jdbc.update(
-				MERGE_SPECIALTY,
-				organizationId,
-				siteId,
-				Date.valueOf(day),
-				specialty,
-				appointmentsCreated,
-				appointmentsConfirmed,
-				appointmentsCancelled,
-				appointmentsCompleted,
-				revenuePaidCents,
-				bookedMinutes
-		);
+		String id = specialtyDocId(organizationId, siteId, day, specialty);
+		Query q = Query.query(Criteria.where("_id").is(id));
+		Update u = new Update()
+				.inc("appointments_created", appointmentsCreated)
+				.inc("appointments_confirmed", appointmentsConfirmed)
+				.inc("appointments_cancelled", appointmentsCancelled)
+				.inc("appointments_completed", appointmentsCompleted)
+				.inc("revenue_paid_cents", revenuePaidCents)
+				.inc("booked_minutes", bookedMinutes)
+				.setOnInsert("organization_id", organizationId)
+				.setOnInsert("site_id", siteId)
+				.setOnInsert("day", day)
+				.setOnInsert("specialty", specialty);
+		mongo.upsert(q, u, AnalyticsDailySpecialtyMetric.class);
 	}
 
 	public void mergeProfessional(
@@ -127,18 +92,31 @@ public class AnalyticsRollupRepository {
 			long revenuePaidCents,
 			long bookedMinutes
 	) {
-		jdbc.update(
-				MERGE_PROFESSIONAL,
-				organizationId,
-				siteId,
-				Date.valueOf(day),
-				professionalId,
-				appointmentsCreated,
-				appointmentsConfirmed,
-				appointmentsCancelled,
-				appointmentsCompleted,
-				revenuePaidCents,
-				bookedMinutes
-		);
+		String id = professionalDocId(organizationId, siteId, day, professionalId);
+		Query q = Query.query(Criteria.where("_id").is(id));
+		Update u = new Update()
+				.inc("appointments_created", appointmentsCreated)
+				.inc("appointments_confirmed", appointmentsConfirmed)
+				.inc("appointments_cancelled", appointmentsCancelled)
+				.inc("appointments_completed", appointmentsCompleted)
+				.inc("revenue_paid_cents", revenuePaidCents)
+				.inc("booked_minutes", bookedMinutes)
+				.setOnInsert("organization_id", organizationId)
+				.setOnInsert("site_id", siteId)
+				.setOnInsert("day", day)
+				.setOnInsert("professional_id", professionalId);
+		mongo.upsert(q, u, AnalyticsDailyProfessionalMetric.class);
+	}
+
+	static String siteDocId(UUID organizationId, UUID siteId, LocalDate day) {
+		return organizationId + "::" + siteId + "::" + day;
+	}
+
+	static String specialtyDocId(UUID organizationId, UUID siteId, LocalDate day, String specialty) {
+		return organizationId + "::" + siteId + "::" + day + "::s:" + specialty;
+	}
+
+	static String professionalDocId(UUID organizationId, UUID siteId, LocalDate day, UUID professionalId) {
+		return organizationId + "::" + siteId + "::" + day + "::p:" + professionalId;
 	}
 }

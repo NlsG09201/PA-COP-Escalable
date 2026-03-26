@@ -47,11 +47,13 @@ export class FollowupApiService {
   }
 
   generateSurvey$(patientId: string, treatmentType: string, triggerEvent: string): Observable<FollowupSurvey> {
-    return this.http.post<FollowupSurvey>(`${API_BASE_URL}/api/followup/patients/${patientId}/surveys`, { treatmentType, triggerEvent });
+    // Backend endpoint is /patients/{patientId}/generate
+    return this.http.post<FollowupSurvey>(`${API_BASE_URL}/api/followup/patients/${patientId}/generate`, { treatmentType, triggerEvent });
   }
 
   completeSurvey$(surveyId: string, answers: QuestionAnswer[]): Observable<FollowupSurvey> {
-    return this.http.post<FollowupSurvey>(`${API_BASE_URL}/api/followup/surveys/${surveyId}/complete`, { answers });
+    // Backend expects the answers array directly (List<QuestionAnswer>), not wrapped in { answers }.
+    return this.http.post<FollowupSurvey>(`${API_BASE_URL}/api/followup/surveys/${surveyId}/complete`, answers);
   }
 
   getSchedules$(patientId: string): Observable<FollowupSchedule[]> {

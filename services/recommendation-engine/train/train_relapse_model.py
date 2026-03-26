@@ -1,14 +1,14 @@
 """
 Training pipeline for the relapse-prediction model.
 
-Loads patient therapy / emotion / adherence data from PostgreSQL,
+Loads patient therapy / emotion / adherence data from MongoDB when available (legacy PostgreSQL path removed),
 engineers features, trains a VotingClassifier (RandomForest + LogisticRegression),
 tunes hyperparameters via GridSearchCV with Stratified K-Fold,
 and persists the best model + metrics.
 
 Usage:
     python -m train.train_relapse_model          # uses env defaults
-    RECO_POSTGRES_URL=... python -m train.train_relapse_model
+    RECO_MONGODB_URI=... python -m train.train_relapse_model
 """
 
 from __future__ import annotations
@@ -37,60 +37,26 @@ from sklearn.preprocessing import StandardScaler
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("train_relapse_model")
 
-POSTGRES_URL: str = os.getenv("RECO_POSTGRES_URL", "postgresql://cop:cop_dev_password_change_me@localhost:5432/cop")
 MONGODB_URI: str = os.getenv("RECO_MONGODB_URI", "mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin")
 MONGODB_DB: str = os.getenv("RECO_MONGODB_DB", "cop")
 OUTPUT_PATH: str = os.getenv("RECO_RELAPSE_MODEL_PATH", "app/ml/weights/relapse_model.joblib")
 
 
-# ── Data loading ─────────────────────────────────────────────────────────────
+# ── Data loading (MongoDB collections, when present) ───────────────────────────
 
-def _load_therapy_sessions(conn) -> pd.DataFrame:  # noqa: ANN001
-    query = """
-        SELECT
-            patient_id,
-            session_date,
-            session_type,
-            score,
-            duration_min
-        FROM therapy_sessions
-        ORDER BY patient_id, session_date
-    """
-    return pd.read_sql(query, conn)
+def _load_collection(name: str) -> pd.DataFrame:
+    try:
+        from pymongo import MongoClient
 
-
-def _load_emotion_scores(conn) -> pd.DataFrame:  # noqa: ANN001
-    query = """
-        SELECT
-            patient_id,
-            recorded_at,
-            label,
-            score
-        FROM emotion_scores
-        ORDER BY patient_id, recorded_at
-    """
-    return pd.read_sql(query, conn)
-
-
-def _load_adherence(conn) -> pd.DataFrame:  # noqa: ANN001
-    query = """
-        SELECT
-            patient_id,
-            medication_adherence,
-            last_assessment_date
-        FROM patient_adherence
-    """
-    return pd.read_sql(query, conn)
-
-
-def _load_labels(conn) -> pd.DataFrame:  # noqa: ANN001
-    query = """
-        SELECT
-            patient_id,
-            relapsed::int AS relapsed
-        FROM relapse_labels
-    """
-    return pd.read_sql(query, conn)
+        client = MongoClient(MONGODB_URI)
+        db = client[MONGODB_DB]
+        docs = list(db[name].find({}, {"_id": 0}))
+        client.close()
+        if docs:
+            return pd.DataFrame(docs)
+    except Exception:
+        logger.warning("Could not load MongoDB collection %s", name, exc_info=True)
+    return pd.DataFrame()
 
 
 # ── Feature engineering ──────────────────────────────────────────────────────
@@ -232,15 +198,13 @@ def train() -> None:
     y: pd.Series
 
     try:
-        import psycopg2
+        sessions_df = _load_collection("therapy_sessions")
+        emotions_df = _load_collection("emotion_scores")
+        adherence_df = _load_collection("patient_adherence")
+        labels_df = _load_collection("relapse_labels")
 
-        conn = psycopg2.connect(POSTGRES_URL)
-        logger.info("Connected to PostgreSQL")
-
-        sessions_df = _load_therapy_sessions(conn)
-        emotions_df = _load_emotion_scores(conn)
-        adherence_df = _load_adherence(conn)
-        labels_df = _load_labels(conn)
+        if sessions_df.empty or labels_df.empty or "relapsed" not in labels_df.columns:
+            raise ValueError("Missing therapy_sessions or relapse_labels in MongoDB")
 
         features_df = _engineer_features(sessions_df, emotions_df, adherence_df)
         merged = features_df.merge(labels_df, on="patient_id", how="inner")
@@ -253,10 +217,9 @@ def train() -> None:
 
         X = merged[FEATURE_COLS]
         y = merged["relapsed"]
-        conn.close()
 
     except Exception:
-        logger.warning("PostgreSQL unavailable — using synthetic data", exc_info=True)
+        logger.warning("Training data not available — using synthetic data", exc_info=True)
         X, y = _generate_synthetic_data()
 
     logger.info("Training set: %d samples, %.1f%% positive", len(y), 100 * y.mean())

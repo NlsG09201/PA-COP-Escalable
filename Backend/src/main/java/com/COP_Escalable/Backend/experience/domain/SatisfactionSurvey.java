@@ -1,39 +1,39 @@
 package com.COP_Escalable.Backend.experience.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "satisfaction_surveys")
+@Document(collection = "satisfaction_surveys")
 public class SatisfactionSurvey extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false, length = 20)
+	@Field("survey_type")
 	private String surveyType;
 
-	@Column(length = 100)
+	@Field("trigger_event")
 	private String triggerEvent;
 
+	@Field("nps_score")
 	private Integer npsScore;
 
-	@Column(precision = 5, scale = 2)
 	private BigDecimal satisfaction;
 
-	@Column(columnDefinition = "text")
+	@Field("feedback_text")
 	private String feedbackText;
 
-	@Column(nullable = false, length = 20)
 	private String status;
 
+	@Field("sent_at")
 	private Instant sentAt;
+
+	@Field("completed_at")
 	private Instant completedAt;
 
 	protected SatisfactionSurvey() {}
@@ -73,13 +73,39 @@ public class SatisfactionSurvey extends TenantScopedEntity {
 		return "DETRACTOR";
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public String getSurveyType() { return surveyType; }
-	public String getTriggerEvent() { return triggerEvent; }
-	public Integer getNpsScore() { return npsScore; }
-	public BigDecimal getSatisfaction() { return satisfaction; }
-	public String getFeedbackText() { return feedbackText; }
-	public String getStatus() { return status; }
-	public Instant getSentAt() { return sentAt; }
-	public Instant getCompletedAt() { return completedAt; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public String getSurveyType() {
+		return surveyType;
+	}
+
+	public String getTriggerEvent() {
+		return triggerEvent;
+	}
+
+	public Integer getNpsScore() {
+		return npsScore;
+	}
+
+	public BigDecimal getSatisfaction() {
+		return satisfaction;
+	}
+
+	public String getFeedbackText() {
+		return feedbackText;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public Instant getSentAt() {
+		return sentAt;
+	}
+
+	public Instant getCompletedAt() {
+		return completedAt;
+	}
 }

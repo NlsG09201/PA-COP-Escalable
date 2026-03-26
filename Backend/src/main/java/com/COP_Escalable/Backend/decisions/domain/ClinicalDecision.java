@@ -1,33 +1,32 @@
 package com.COP_Escalable.Backend.decisions.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 
-@Entity
-@Table(name = "clinical_decisions")
+@Document(collection = "clinical_decisions")
 public class ClinicalDecision extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false, length = 50)
+	@Field("decision_type")
 	private String decisionType;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("input_json")
 	private String inputJson;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("output_json")
 	private String outputJson;
 
-	@Column(length = 50)
+	@Field("model_version")
 	private String modelVersion;
 
 	private Boolean accepted;
 
+	@Field("accepted_by")
 	private UUID acceptedBy;
 
 	protected ClinicalDecision() {}
@@ -50,11 +49,31 @@ public class ClinicalDecision extends TenantScopedEntity {
 		this.acceptedBy = userId;
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public String getDecisionType() { return decisionType; }
-	public String getInputJson() { return inputJson; }
-	public String getOutputJson() { return outputJson; }
-	public String getModelVersion() { return modelVersion; }
-	public Boolean getAccepted() { return accepted; }
-	public UUID getAcceptedBy() { return acceptedBy; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public String getDecisionType() {
+		return decisionType;
+	}
+
+	public String getInputJson() {
+		return inputJson;
+	}
+
+	public String getOutputJson() {
+		return outputJson;
+	}
+
+	public String getModelVersion() {
+		return modelVersion;
+	}
+
+	public Boolean getAccepted() {
+		return accepted;
+	}
+
+	public UUID getAcceptedBy() {
+		return acceptedBy;
+	}
 }

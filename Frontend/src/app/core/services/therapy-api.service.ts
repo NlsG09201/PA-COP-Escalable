@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface TherapyModule {
@@ -44,11 +44,12 @@ export class TherapyApiService {
   }
 
   startSession$(patientId: string, moduleId: string): Observable<TherapySession> {
-    return this.http.post<TherapySession>(`${API_BASE_URL}/api/therapy/patients/${patientId}/sessions`, { moduleId });
+    return this.http.post<TherapySession>(`${API_BASE_URL}/api/therapy/patients/${patientId}/sessions/start`, { moduleId });
   }
 
   completeExercise$(sessionId: string, responses: Record<string, unknown>): Observable<TherapySession> {
-    return this.http.post<TherapySession>(`${API_BASE_URL}/api/therapy/sessions/${sessionId}/complete`, { responses });
+    // Backend expects the responses object directly (Map), not wrapped in { responses }.
+    return this.http.post<TherapySession>(`${API_BASE_URL}/api/therapy/sessions/${sessionId}/complete`, responses);
   }
 
   abandonSession$(sessionId: string): Observable<TherapySession> {
@@ -64,6 +65,7 @@ export class TherapyApiService {
   }
 
   getRecommendation$(patientId: string): Observable<TherapyModule[]> {
-    return this.http.get<TherapyModule[]>(`${API_BASE_URL}/api/therapy/patients/${patientId}/recommendations`);
+    // Backend returns a single module from /recommend. Keep frontend contract as array for UI simplicity.
+    return this.http.get<TherapyModule>(`${API_BASE_URL}/api/therapy/patients/${patientId}/recommend`).pipe(map((m) => [m]));
   }
 }

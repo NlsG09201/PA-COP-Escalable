@@ -1,51 +1,43 @@
 package com.COP_Escalable.Backend.appointments.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "appointments")
+@Document(collection = "appointments")
 public class Appointment extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("professional_id")
 	private UUID professionalId;
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false)
+	@Field("start_at")
 	private Instant startAt;
 
-	@Column(nullable = false)
+	@Field("end_at")
 	private Instant endAt;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private AppointmentStatus status;
 
-	@Column
 	private String reason;
 
-	@Column(name = "service_offering_id")
+	@Field("service_offering_id")
 	private UUID serviceOfferingId;
 
-	@Column(name = "service_name_snapshot")
+	@Field("service_name_snapshot")
 	private String serviceNameSnapshot;
 
-	@Column(name = "service_category_snapshot")
+	@Field("service_category_snapshot")
 	private String serviceCategorySnapshot;
 
 	@Version
-	@Column(nullable = false)
-	private long version;
+	private Long version;
 
 	protected Appointment() {}
 
@@ -140,4 +132,3 @@ public class Appointment extends TenantScopedEntity {
 		return serviceCategorySnapshot;
 	}
 }
-

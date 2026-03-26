@@ -49,11 +49,11 @@ export class SimulationApiService {
   }
 
   simulateOrthodontics$(simulationId: string): Observable<DentalSimulation> {
-    return this.http.post<DentalSimulation>(`${API_BASE_URL}/api/simulation/${simulationId}/orthodontics`, {});
+    return this.http.post<DentalSimulation>(`${API_BASE_URL}/api/simulation/${simulationId}/simulate-orthodontics`, {});
   }
 
   simulateImplant$(simulationId: string, toothCodes: string[]): Observable<DentalSimulation> {
-    return this.http.post<DentalSimulation>(`${API_BASE_URL}/api/simulation/${simulationId}/implant`, { toothCodes });
+    return this.http.post<DentalSimulation>(`${API_BASE_URL}/api/simulation/${simulationId}/simulate-implant`, { toothCodes });
   }
 
   getSimulations$(patientId: string): Observable<DentalSimulation[]> {

@@ -1,33 +1,31 @@
 package com.COP_Escalable.Backend.experience.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-@Entity
-@Table(name = "churn_predictions")
+@Document(collection = "churn_predictions")
 public class ChurnPrediction extends TenantScopedEntity {
 
-	@Column(nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(nullable = false, precision = 5, scale = 4)
+	@Field("churn_score")
 	private BigDecimal churnScore;
 
-	@Column(nullable = false, length = 20)
+	@Field("risk_level")
 	private String riskLevel;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("factors_json")
 	private String factorsJson;
 
-	@Column(columnDefinition = "jsonb")
+	@Field("actions_json")
 	private String actionsJson;
 
-	@Column(length = 50)
+	@Field("model_version")
 	private String modelVersion;
 
 	protected ChurnPrediction() {}
@@ -46,10 +44,27 @@ public class ChurnPrediction extends TenantScopedEntity {
 		return prediction;
 	}
 
-	public UUID getPatientId() { return patientId; }
-	public BigDecimal getChurnScore() { return churnScore; }
-	public String getRiskLevel() { return riskLevel; }
-	public String getFactorsJson() { return factorsJson; }
-	public String getActionsJson() { return actionsJson; }
-	public String getModelVersion() { return modelVersion; }
+	public UUID getPatientId() {
+		return patientId;
+	}
+
+	public BigDecimal getChurnScore() {
+		return churnScore;
+	}
+
+	public String getRiskLevel() {
+		return riskLevel;
+	}
+
+	public String getFactorsJson() {
+		return factorsJson;
+	}
+
+	public String getActionsJson() {
+		return actionsJson;
+	}
+
+	public String getModelVersion() {
+		return modelVersion;
+	}
 }

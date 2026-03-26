@@ -1,17 +1,8 @@
 services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-cop}
-      POSTGRES_USER: ${POSTGRES_USER:-cop}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cop_dev_password_change_me}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   mongodb:
     image: mongo:7
+    security_opt:
+      - no-new-privileges:true
     environment:
       MONGO_INITDB_DATABASE: cop
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-cop}
@@ -23,35 +14,39 @@ services:
 
   redis:
     image: redis:7-alpine
+    security_opt:
+      - no-new-privileges:true
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
 
   legacy-backend:
     build:
       context: ./Backend
+    security_opt:
+      - no-new-privileges:true
     environment:
       SERVER_PORT: 8080
-      POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cop}
-      POSTGRES_USER: ${POSTGRES_USER:-cop}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cop_dev_password_change_me}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard
+      MONGODB_AUTO_INDEX_CREATION: ${MONGODB_AUTO_INDEX_CREATION:-true}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       SEC_ISSUER: ${SEC_ISSUER:-http://localhost:8080}
+      # TOTP MFA: set APP_SECURITY_MFA_AES_KEY_BASE64 (32-byte key, base64) in production when MFA is used.
+      APP_SECURITY_MFA_AES_KEY_BASE64: ${APP_SECURITY_MFA_AES_KEY_BASE64:-}
+      APP_SECURITY_MFA_ISSUER: ${APP_SECURITY_MFA_ISSUER:-COP}
+      AUTH_MFA_VERIFY_RATE_LIMIT_PER_MIN: ${AUTH_MFA_VERIFY_RATE_LIMIT_PER_MIN:-30}
+      AUTH_MFA_SETUP_RATE_LIMIT_PER_MIN: ${AUTH_MFA_SETUP_RATE_LIMIT_PER_MIN:-10}
       APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
       APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
       PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER: ${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:-SANDBOX}
       PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL: ${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:-http://localhost:5174}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
-      # Dev-friendly schema evolution:
-      # If Flyway fails to apply (e.g. stale jar / missing migration resources), Hibernate will create/update tables.
-      # For production you should set JPA_DDL_AUTO=validate and ensure Flyway runs.
-      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
-      SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED:-true}
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
     depends_on:
-      - postgres
       - mongodb
       - redis
     healthcheck:
@@ -159,11 +154,9 @@ services:
     environment:
       RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
       RECO_MONGODB_DB: cop
-      RECO_POSTGRES_URL: postgresql://${POSTGRES_USER:-cop}:${POSTGRES_PASSWORD:-cop_dev_password_change_me}@postgres:5432/${POSTGRES_DB:-cop}
       RECO_REDIS_HOST: redis
       RECO_REDIS_PORT: 6379
     depends_on:
-      - postgres
       - mongodb
       - redis
     volumes:
@@ -224,7 +217,6 @@ services:
       - api-gateway
 
 volumes:
-  postgres_data:
   mongodb_data:
   models_data:
 

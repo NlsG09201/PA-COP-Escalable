@@ -1,73 +1,56 @@
 package com.COP_Escalable.Backend.notifications.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(
-		name = "notification_deliveries",
-		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_notification_delivery_target", columnNames = {"outbox_message_id", "channel", "audience", "recipient"})
-		}
-)
+@Document(collection = "notification_deliveries")
 public class NotificationDelivery extends TenantScopedEntity {
-	@Column(name = "outbox_message_id", nullable = false)
+
+	@Field("outbox_message_id")
 	private UUID outboxMessageId;
 
-	@Column(name = "appointment_id")
+	@Field("appointment_id")
 	private UUID appointmentId;
 
-	@Column(name = "patient_id", nullable = false)
+	@Field("patient_id")
 	private UUID patientId;
 
-	@Column(name = "event_type", nullable = false)
+	@Field("event_type")
 	private String eventType;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private AlertAudience audience;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Channel channel;
 
-	@Column(nullable = false)
 	private String recipient;
 
-	@Column(name = "template_code", nullable = false)
+	@Field("template_code")
 	private String templateCode;
 
-	@Column
 	private String subject;
 
-	@Column(name = "message_body", nullable = false, columnDefinition = "text")
+	@Field("message_body")
 	private String messageBody;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
 	private Status status;
 
-	@Column(name = "attempt_count", nullable = false)
+	@Field("attempt_count")
 	private int attemptCount;
 
-	@Column(name = "provider_message_id")
+	@Field("provider_message_id")
 	private String providerMessageId;
 
-	@Column(name = "error_message")
+	@Field("error_message")
 	private String errorMessage;
 
-	@Column(name = "next_attempt_at")
+	@Field("next_attempt_at")
 	private Instant nextAttemptAt;
 
-	@Column(name = "sent_at")
+	@Field("sent_at")
 	private Instant sentAt;
 
 	protected NotificationDelivery() {}
