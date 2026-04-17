@@ -1,3 +1,4 @@
+# Contexto pequeño = menos datos al daemon y builds más rápidos
 .idea
 .vscode
 **/*.iml
@@ -5,3 +6,11 @@
 **/*.iws
 **/node_modules
 target/
+.git
+.github
+.cursor
+**/.DS_Store
+*.md
+docs/
+**/surefire-reports
+**/test-ids

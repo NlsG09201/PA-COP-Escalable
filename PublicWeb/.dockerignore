@@ -5,4 +5,11 @@ playwright-report
 test-results
 blob-report
 .git
+.github
 .cursor
+.vscode
+.idea
+**/.DS_Store
+*.md
+coverage
+e2e

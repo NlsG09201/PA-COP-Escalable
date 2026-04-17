@@ -1,3 +1,5 @@
+# Builds: se recomienda BuildKit (Docker Desktop lo trae activo). Cache de Maven/npm/pip acelera rebuilds.
+# Si subes imágenes a un registry, construye solo lo cambiado: docker compose build legacy-backend dashboard
 services:
   mongodb-keyfile:
     image: alpine:3.20

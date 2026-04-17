@@ -4,3 +4,12 @@ __pycache__
 .venv
 *.egg-info
 .git
+.github
+.cursor
+.vscode
+.idea
+**/.DS_Store
+*.md
+.pytest_cache
+.ruff_cache
+htmlcov

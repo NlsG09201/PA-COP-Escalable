@@ -1,9 +1,11 @@
-# Multi-stage: no requiere `mvn package` en el host antes de `docker compose build`.
+# syntax=docker/dockerfile:1
+# Cache de ~/.m2 entre builds (BuildKit). Exporta DOCKER_BUILDKIT=1 si tu Docker es antiguo.
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 COPY pom.xml .
 COPY src ./src
-RUN mvn -q -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -q -DskipTests package
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app

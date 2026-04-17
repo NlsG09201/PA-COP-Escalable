@@ -2,3 +2,15 @@ node_modules
 dist
 .angular
 npm-debug.log
+.git
+.github
+.cursor
+.vscode
+.idea
+**/.DS_Store
+*.md
+coverage
+playwright-report
+test-results
+blob-report
+e2e
