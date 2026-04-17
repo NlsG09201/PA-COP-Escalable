@@ -70,11 +70,14 @@ services:
   legacy-backend:
     build:
       context: ./Backend
+      dockerfile: Dockerfile
     security_opt:
       - no-new-privileges:true
     environment:
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      # Evita que spring-boot-docker-compose intente levantar servicios desde el JAR en contenedor.
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
       MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard&replicaSet=rs0&retryWrites=true
       MONGODB_AUTO_INDEX_CREATION: ${MONGODB_AUTO_INDEX_CREATION:-true}
       REDIS_HOST: redis
@@ -249,6 +252,7 @@ services:
   dashboard:
     build:
       context: ./Frontend
+      dockerfile: Dockerfile
       args:
         API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
     ports:

@@ -21,8 +21,10 @@ const EMOTION_COLORS: Record<string, string> = {
   JOY: '#fbbf24'
 };
 
-function getEmotionColor(emotion: string): string {
-  return EMOTION_COLORS[emotion.toUpperCase()] ?? '#6b7280';
+function getEmotionColor(emotion: string | null | undefined): string {
+  const key = (emotion ?? '').trim().toUpperCase();
+  if (!key) return EMOTION_COLORS['NEUTRAL'] ?? '#6b7280';
+  return EMOTION_COLORS[key] ?? '#6b7280';
 }
 
 @Component({
@@ -123,10 +125,10 @@ function getEmotionColor(emotion: string): string {
               <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body text-center py-4">
                   <div class="primary-emotion-badge d-inline-flex align-items-center gap-2 px-4 py-3 rounded-pill mb-2"
-                       [style.background]="getEmotionBg(analysisResult()!.primaryEmotion)"
-                       [style.color]="getEmotionColor(analysisResult()!.primaryEmotion)">
+                       [style.background]="getEmotionBg(analysisResult()?.primaryEmotion)"
+                       [style.color]="getEmotionColor(analysisResult()?.primaryEmotion)">
                     <i class="bi bi-emoji-expressionless fs-3"></i>
-                    <span class="fs-4 fw-bold">{{ analysisResult()!.primaryEmotion }}</span>
+                    <span class="fs-4 fw-bold">{{ analysisResult()?.primaryEmotion?.trim() || 'Sin clasificar' }}</span>
                   </div>
                   <p class="text-muted small mt-2 mb-0">Emoción Predominante</p>
                 </div>
@@ -248,7 +250,7 @@ function getEmotionColor(emotion: string): string {
                           <span class="badge rounded-pill px-3 py-1"
                                 [style.background]="getEmotionBg(r.primaryEmotion)"
                                 [style.color]="getEmotionColor(r.primaryEmotion)">
-                            {{ r.primaryEmotion }}
+                            {{ r.primaryEmotion?.trim() || '—' }}
                           </span>
                         </td>
                         <td>{{ r.audioDurationSec | number:'1.1-1' }}s</td>
@@ -415,11 +417,11 @@ class VoiceAnalysisPageComponent implements OnInit, OnDestroy {
     return `${m}:${s}`;
   }
 
-  getEmotionColor(emotion: string): string {
+  getEmotionColor(emotion: string | null | undefined): string {
     return getEmotionColor(emotion);
   }
 
-  getEmotionBg(emotion: string): string {
+  getEmotionBg(emotion: string | null | undefined): string {
     const hex = getEmotionColor(emotion);
     return hex + '20';
   }

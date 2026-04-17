@@ -1,8 +1,15 @@
+# Multi-stage: no requiere `mvn package` en el host antes de `docker compose build`.
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package
+
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN addgroup --system app && adduser --system --ingroup app app
-COPY target/Backend-0.0.1-SNAPSHOT.jar /app/app.jar
+COPY --from=build /workspace/target/Backend-0.0.1-SNAPSHOT.jar /app/app.jar
 USER app
 EXPOSE 8080
 ENV JAVA_OPTS=""

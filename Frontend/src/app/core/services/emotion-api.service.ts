@@ -20,7 +20,8 @@ export interface ProsodyFeatures {
 export interface EmotionAnalysisResult {
   jobId: string;
   status: string;
-  primaryEmotion: string;
+  /** Puede faltar o venir vacío según versión del servicio de emoción. */
+  primaryEmotion?: string;
   allEmotions: EmotionPrediction[];
   prosody: ProsodyFeatures;
   audioDurationSec: number;

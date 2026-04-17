@@ -23,10 +23,12 @@ services:
   backend:
     build:
       context: .
+      dockerfile: Dockerfile
     security_opt:
       - no-new-privileges:true
     environment:
       - SERVER_PORT=8080
+      - SPRING_DOCKER_COMPOSE_ENABLED=false
       - PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER=${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:-SANDBOX}
       - PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL=${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:-http://localhost:5174}
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard&replicaSet=rs0&retryWrites=true
