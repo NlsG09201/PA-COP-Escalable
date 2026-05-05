@@ -57,38 +57,25 @@ public class LegacyAuthProxyController {
 			return null;
 		}
 
-		// Expected payload (from frontend):
-		// {"refreshToken":"<token>"}
-		//
-		// Observed failure in logs:
-		// {"refreshToken":...} arrives with backslashes before quotes (invalid JSON),
-		// e.g. {\"refreshToken\":\"...\"}. We normalize it before parsing.
+		// Normalize body: sometimes it arrives as a raw string, sometimes as JSON,
+		// and sometimes double-escaped from the gateway/frontend.
 		String normalized = body.trim();
-
-		// If the body arrived with backslashes before quotes, normalize it first:
-		// {\"refreshToken\":\"...\"} -> {"refreshToken":"..."}
-		String normalizedQuotes = normalized.replace("\\\"", "\"");
-
-		// Match: "refreshToken" : "<token>"
-		// JWT/refresh tokens are opaque strings and typically do not contain unescaped quotes.
-		// This keeps the endpoint robust even without Jackson on the classpath.
-		String candidate = normalizedQuotes;
-		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-				"\"refreshToken\"\\s*:\\s*\"([^\"]*)\""
-		);
-		java.util.regex.Matcher matcher = pattern.matcher(candidate);
-		if (matcher.find()) {
-			return matcher.group(1);
+		
+		// If it's a JSON object {"refreshToken":"..."}
+		if (normalized.contains("\"refreshToken\"")) {
+			// Normalize backslashes before quotes
+			String cleanJson = normalized.replace("\\\"", "\"");
+			java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+					"\"refreshToken\"\\s*:\\s*\"([^\"]*)\""
+			);
+			java.util.regex.Matcher matcher = pattern.matcher(cleanJson);
+			if (matcher.find()) {
+				return matcher.group(1);
+			}
 		}
-
-		// Fallback: sometimes tokens could be wrapped/escaped by extra quotes.
-		candidate = normalizedQuotes.replaceAll("^\"|\"$", "");
-		matcher = pattern.matcher(candidate);
-		if (matcher.find()) {
-			return matcher.group(1);
-		}
-
-		return null;
+		
+		// If it's just a raw token or a quoted token "token"
+		return normalized.replaceAll("^\"|\"$", "");
 	}
 
 	private ResponseEntity<String> forwardJson(String path, Object body, HttpServletRequest incoming) {

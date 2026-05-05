@@ -1,5 +1,6 @@
 package com.COP_Escalable.Backend.patients.application;
 
+import com.COP_Escalable.Backend.patients.application.PatientRegisteredEvent;
 import com.COP_Escalable.Backend.patients.domain.Patient;
 import com.COP_Escalable.Backend.patients.infrastructure.PatientRepository;
 import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;

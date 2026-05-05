@@ -166,6 +166,8 @@ public class PublicBookingService {
 				now.plusSeconds(HOLD_MINUTES * 60L),
 				resolved.professional().getId()
 		);
+		// Force ID generation before saving if needed or rely on ensureId
+		booking.ensureId();
 		var saved = bookings.save(booking);
 		var payment = createPaymentIntentInternal(
 				saved,
@@ -178,7 +180,12 @@ public class PublicBookingService {
 
 	@Transactional(readOnly = true)
 	public BookingSummary getBooking(UUID bookingId) {
-		var booking = bookings.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+		var booking = bookings.findById(bookingId).orElse(null);
+		if (booking == null) {
+			// Fallback to searching by ID in the specific organization if needed, 
+			// though findById should suffice if the ID is global.
+			throw new IllegalArgumentException("Booking not found");
+		}
 		expireBookingIfNeeded(booking);
 		var payment = booking.getPaymentId() == null ? null : payments.findById(booking.getPaymentId()).orElse(null);
 		var site = requireSite(booking.getSiteId());

@@ -1,0 +1,22 @@
+.env*
+*.log
+
+# Java / Maven
+**/target/
+**/*.class
+
+# Node / Angular
+**/node_modules/
+**/dist/
+**/.angular/
+
+# Python
+**/__pycache__/
+**/*.pyc
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+Thumbs.db

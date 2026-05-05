@@ -91,10 +91,12 @@ spring:
               predicates:
                 - Path=/api/odontology/**
 
-            - id: diagnosis
-              uri: ${LEGACY_URI:http://legacy-backend:8080}
+            - id: ai-diagnosis
+              uri: ${AI_DIAGNOSIS_URI:http://ai-diagnosis-service:8090}
               predicates:
-                - Path=/api/diagnosis/**
+                - Path=/api/ai-diagnosis/**
+              filters:
+                - StripPrefix=1
 
             - id: emotion
               uri: ${EMOTION_ANALYSIS_URI:http://emotion-analysis-service:8091}
