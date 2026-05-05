@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 # Cache de ~/.m2 entre builds (BuildKit). Exporta DOCKER_BUILDKIT=1 si tu Docker es antiguo.
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY pom.xml .
 COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -q -DskipTests package
+    mvn -B -DskipTests package
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN addgroup --system app && adduser --system --ingroup app app
