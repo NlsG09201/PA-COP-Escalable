@@ -17,6 +17,7 @@ import { J48ScoringModule } from './modules/j48-scoring/j48-scoring.module';
 import { AnalyticsDashboardModule } from './modules/analytics-dashboard/analytics-dashboard.module';
 import { PublicSiteModule } from './modules/public-site/public-site.module';
 import { ServicesModule } from './modules/services/services.module';
+import { OdontologyModule } from './modules/odontology/odontology.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ServicesModule } from './modules/services/services.module';
     AnalyticsDashboardModule,
     PublicSiteModule,
     ServicesModule,
+    OdontologyModule,
   ],
   controllers: [HealthController],
 })
