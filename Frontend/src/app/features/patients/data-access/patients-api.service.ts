@@ -23,8 +23,8 @@ export class PatientsApiService {
 
   private mapPatient(entry: Record<string, unknown>): PatientVm {
     return {
-      id: String(entry['id'] ?? entry['patientId'] ?? crypto.randomUUID()),
-      name: String(entry['name'] ?? entry['fullName'] ?? 'Paciente sin nombre'),
+      id: String(entry['id'] ?? entry['_id'] ?? entry['patientId'] ?? crypto.randomUUID()),
+      name: String(entry['name'] ?? entry['fullName'] ?? entry['full_name'] ?? 'Paciente sin nombre'),
       document: String(entry['document'] ?? entry['documentNumber'] ?? '-'),
       lastVisit: String(entry['lastVisit'] ?? entry['updatedAt'] ?? '-'),
       status: String(entry['status'] ?? 'Activo')

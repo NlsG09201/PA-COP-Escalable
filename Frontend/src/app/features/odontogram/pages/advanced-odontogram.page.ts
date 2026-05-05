@@ -283,7 +283,23 @@ function buildDefaultRecords(): ToothStateVm[] {
                 <h3 class="h6 mb-0">Vista 3D interactiva</h3>
                 <span class="text-muted small">Three.js</span>
               </div>
-              <canvas #arch3d class="arch-3d" aria-label="Modelo 3D de dentición"></canvas>
+              <div class="arch-3d-wrap">
+                <canvas #arch3d class="arch-3d" aria-label="Modelo 3D de dentición"></canvas>
+
+                @if (glbLoading()) {
+                  <div class="glb-overlay" role="status" aria-live="polite">
+                    <div class="glb-overlay-title">Cargando reconstrucción 3D</div>
+                    <div class="glb-progress" aria-label="Progreso de carga">
+                      <div class="glb-progress-fill" [style.width.%]="glbProgress()"></div>
+                    </div>
+                    <div class="small text-muted mt-2">{{ glbProgress().toFixed(0) }}%</div>
+                  </div>
+                }
+
+                @if (!glbLoading() && glbError()) {
+                  <div class="glb-error" role="alert">{{ glbError() }}</div>
+                }
+              </div>
               <p class="text-muted small mt-2 mb-0">
                 Arrastra para orbitar. El tiempo de simulación interpola poses entre keyframes clínicos.
               </p>
@@ -559,6 +575,55 @@ function buildDefaultRecords(): ToothStateVm[] {
       background: #f1f3f5;
       border: 1px solid #e9ecef;
     }
+    .arch-3d-wrap {
+      position: relative;
+    }
+    .glb-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      background: rgba(248, 250, 252, 0.88);
+      border-radius: 16px;
+      z-index: 5;
+      text-align: center;
+      padding: 0.75rem;
+      border: 1px solid rgba(233, 236, 239, 0.9);
+    }
+    .glb-overlay-title {
+      font-weight: 800;
+      color: #334155;
+      font-size: 0.95rem;
+    }
+    .glb-progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: #e9ecef;
+      overflow: hidden;
+      border: 1px solid #dee2e6;
+    }
+    .glb-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1971c2, #4dabf7);
+    }
+    .glb-error {
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.9rem;
+      z-index: 6;
+      background: rgba(248, 250, 252, 0.95);
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      padding: 0.55rem 0.7rem;
+      color: #495057;
+      font-weight: 700;
+    }
     .damage-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -588,6 +653,13 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   private readonly destroyRef = inject(DestroyRef);
 
   private scene3d: Dentition3dScene | null = null;
+
+  protected readonly glbLoading = signal(false);
+  protected readonly glbProgress = signal(0);
+  protected readonly glbError = signal<string | null>(null);
+  private loadedGlbUrl: string | null = null;
+  private requestedGlbUrl: string | null = null;
+  private glbLoadSeq = 0;
 
   protected readonly toothPath = TOOTH_PATH;
   protected readonly statusStyles = STATUS_STYLES;
@@ -838,6 +910,56 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     const kfs = this.workingKeyframes().length ? this.workingKeyframes() : this.simulation()?.keyframes ?? [];
     this.scene3d.setKeyframes(kfs.map((k) => ({ t: k.t, poses: k.toothPoses })));
     this.scene3d.setSimulationT(this.simulationT());
+    this.maybeLoadGlb();
+  }
+
+  private maybeLoadGlb(): void {
+    if (!this.scene3d) return;
+    const scene3d = this.scene3d;
+
+    const url = this.simulation()?.glbUrl ?? null;
+    if (!url) {
+      this.loadedGlbUrl = null;
+      this.requestedGlbUrl = null;
+      this.glbLoading.set(false);
+      this.glbProgress.set(0);
+      this.glbError.set(null);
+      scene3d.clearGlb();
+      return;
+    }
+
+    if (this.loadedGlbUrl === url) return;
+    if (this.requestedGlbUrl === url && this.glbLoading()) return;
+
+    this.requestedGlbUrl = url;
+    const seq = ++this.glbLoadSeq;
+
+    this.glbLoading.set(true);
+    this.glbProgress.set(0);
+    this.glbError.set(null);
+
+    this.scene3d
+      .loadGlb(url, {
+        onProgress: (pct) => {
+          if (seq !== this.glbLoadSeq) return;
+          this.glbProgress.set(pct);
+        }
+      })
+      .then(() => {
+        if (seq !== this.glbLoadSeq) return;
+        this.loadedGlbUrl = url;
+        this.glbLoading.set(false);
+        this.glbProgress.set(100);
+      })
+      .catch(() => {
+        if (seq !== this.glbLoadSeq) return;
+        this.loadedGlbUrl = null;
+        this.requestedGlbUrl = null;
+        this.glbLoading.set(false);
+        this.glbProgress.set(0);
+        this.glbError.set('No se pudo cargar la reconstrucción 3D. Se muestra la vista paramétrica.');
+        scene3d.clearGlb();
+      });
   }
 
   private buildVisuals(order: string[], row: 'upper' | 'lower'): ToothVisual[] {

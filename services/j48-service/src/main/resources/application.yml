@@ -1,0 +1,14 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+j48:
+  arffPath: ${J48_ARFF_PATH:/data/relapse_risk_j48.arff}
+  modelPath: ${J48_MODEL_PATH:/models/j48.model}
+  autoTrain: ${J48_AUTO_TRAIN:true}
+

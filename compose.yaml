@@ -3,6 +3,7 @@
 services:
   mongodb-keyfile:
     image: alpine:3.20
+    profiles: ["core","legacy","nest","ai"]
     security_opt:
       - no-new-privileges:true
     environment:
@@ -24,6 +25,7 @@ services:
 
   mongodb:
     image: mongo:7
+    profiles: ["core","legacy","nest","ai"]
     security_opt:
       - no-new-privileges:true
     command: ["mongod","--replSet","rs0","--bind_ip_all","--keyFile","/etc/mongo-keyfile/mongo-keyfile"]
@@ -48,6 +50,7 @@ services:
 
   mongodb-init:
     image: mongo:7
+    profiles: ["core","legacy","nest","ai"]
     depends_on:
       mongodb:
         condition: service_started
@@ -63,47 +66,94 @@ services:
 
   redis:
     image: redis:7-alpine
+    profiles: ["core","legacy","nest","ai"]
     security_opt:
       - no-new-privileges:true
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
 
-  legacy-backend:
+  nest-backend:
     build:
-      context: ./Backend
+      context: ./nest-migration
       dockerfile: Dockerfile
+    profiles: ["core","nest"]
     security_opt:
       - no-new-privileges:true
     environment:
-      SERVER_PORT: 8080
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      # Evita que spring-boot-docker-compose intente levantar servicios desde el JAR en contenedor.
-      SPRING_DOCKER_COMPOSE_ENABLED: "false"
-      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&uuidRepresentation=standard&replicaSet=rs0&retryWrites=true
-      MONGODB_AUTO_INDEX_CREATION: ${MONGODB_AUTO_INDEX_CREATION:-true}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      SEC_ISSUER: ${SEC_ISSUER:-http://localhost:8080}
-      # TOTP MFA: set APP_SECURITY_MFA_AES_KEY_BASE64 (32-byte key, base64) in production when MFA is used.
-      APP_SECURITY_MFA_AES_KEY_BASE64: ${APP_SECURITY_MFA_AES_KEY_BASE64:-}
-      APP_SECURITY_MFA_ISSUER: ${APP_SECURITY_MFA_ISSUER:-COP}
-      AUTH_MFA_VERIFY_RATE_LIMIT_PER_MIN: ${AUTH_MFA_VERIFY_RATE_LIMIT_PER_MIN:-30}
-      AUTH_MFA_SETUP_RATE_LIMIT_PER_MIN: ${AUTH_MFA_SETUP_RATE_LIMIT_PER_MIN:-10}
+      PORT: 8080
+      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&replicaSet=rs0&retryWrites=true
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change_me}
       APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
       APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
-      PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER: ${PUBLIC_BOOKING_PAYMENTS_DEFAULT_PROVIDER:-SANDBOX}
-      PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL: ${PUBLIC_BOOKING_SANDBOX_CHECKOUT_BASE_URL:-http://localhost:5174}
-      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
-      APP_DIAGNOSIS_SERVICE_URL: http://ai-diagnosis-service:8090
-      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
-      MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
+      APP_BOOTSTRAP_ADMIN_ORG_ID: ${APP_BOOTSTRAP_ADMIN_ORG_ID:-be7f4015-67ad-472b-9cf7-aadcd8b0d604}
+      APP_BOOTSTRAP_ADMIN_RESET: ${APP_BOOTSTRAP_ADMIN_RESET:-true}
+      ORTHO_AI_URL: http://ortho-ai:8000
+      # External Image→3D provider (job/polling).
+      # Defaults are safe “placeholders”; override via environment when deploying.
+      ORTHO_IMAGE_TO_3D_BASE_URL: ${ORTHO_IMAGE_TO_3D_BASE_URL:-http://image-to-3d:8000}
+      ORTHO_IMAGE_TO_3D_CREATE_PATH: ${ORTHO_IMAGE_TO_3D_CREATE_PATH:-/openapi/v1/image-to-3d}
+      ORTHO_IMAGE_TO_3D_POLL_PATH_TEMPLATE: ${ORTHO_IMAGE_TO_3D_POLL_PATH_TEMPLATE:-/openapi/v1/image-to-3d/{id}}
+      ORTHO_IMAGE_TO_3D_INPUT_IMAGE_FIELD: ${ORTHO_IMAGE_TO_3D_INPUT_IMAGE_FIELD:-image_url}
+      ORTHO_IMAGE_TO_3D_INPUT_IMAGES_FIELD: ${ORTHO_IMAGE_TO_3D_INPUT_IMAGES_FIELD:-images}
+      ORTHO_IMAGE_TO_3D_API_KEY: ${ORTHO_IMAGE_TO_3D_API_KEY:-}
+      ORTHO_IMAGE_TO_3D_API_KEY_HEADER: ${ORTHO_IMAGE_TO_3D_API_KEY_HEADER:-Authorization}
+      ORTHO_IMAGE_TO_3D_API_KEY_PREFIX: ${ORTHO_IMAGE_TO_3D_API_KEY_PREFIX:-Bearer }
+      ORTHO_IMAGE_TO_3D_POLL_METHOD: ${ORTHO_IMAGE_TO_3D_POLL_METHOD:-GET}
+      # Local storage for downloaded GLB files.
+      ORTHO_3D_STORAGE_DIR: ${ORTHO_3D_STORAGE_DIR:-/app/uploads/ortho-3d}
+      # If set, returned glbUrl will use this base. Otherwise it uses request host/protocol.
+      ORTHO_3D_PUBLIC_BASE_URL: ${ORTHO_3D_PUBLIC_BASE_URL:-}
+      ORTHO_3D_DOWNLOAD_RESULTS: ${ORTHO_3D_DOWNLOAD_RESULTS:-true}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongodb-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ./services/gateway
+    profiles: ["core"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      nest-backend:
+        condition: service_started
+      j48-service:
+        condition: service_started
+    # Gateway is intentionally lightweight: it can start before all downstreams are healthy.
+
+  j48-service:
+    build:
+      context: ./services/j48-service
+    profiles: ["core"]
+    security_opt:
+      - no-new-privileges:true
+    user: "0:0"
+    environment:
+      SERVER_PORT: 8080
+      J48_ARFF_PATH: /data/relapse_risk_j48.arff
+      J48_MODEL_PATH: /models/j48.model
+      J48_AUTO_TRAIN: ${J48_AUTO_TRAIN:-true}
+    volumes:
+      - ./datasets/relapse_risk_j48.arff:/data/relapse_risk_j48.arff:ro
+      - j48_models:/models
 
   ortho-ai:
     build:
       context: ./ortho_system
       dockerfile: Dockerfile
+    profiles: ["ai"]
     security_opt:
       - no-new-privileges:true
     ports:
@@ -117,72 +167,10 @@ services:
       mongodb:
         condition: service_healthy
 
-  iam-service:
-    build:
-      context: ./services/iam-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  tenancy-service:
-    build:
-      context: ./services/tenancy-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  patients-service:
-    build:
-      context: ./services/patients-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  appointments-service:
-    build:
-      context: ./services/appointments-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  clinical-service:
-    build:
-      context: ./services/clinical-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  odontogram-service:
-    build:
-      context: ./services/odontogram-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
-  psych-tests-service:
-    build:
-      context: ./services/psych-tests-service
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_BASE_URL: http://legacy-backend:8080
-    depends_on:
-      - legacy-backend
-
   ai-diagnosis-service:
     build:
       context: ./services/ai-diagnosis-service
+    profiles: ["ai"]
     environment:
       DIAG_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
       DIAG_MONGODB_DB: cop
@@ -190,72 +178,46 @@ services:
       DIAG_REDIS_PORT: 6379
       DIAG_MODEL_DEVICE: cpu
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - models_data:/app/app/ml/weights
 
   emotion-analysis-service:
     build:
       context: ./services/emotion-analysis-service
+    profiles: ["ai"]
     environment:
       EMOTION_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
       EMOTION_MONGODB_DB: cop
       EMOTION_REDIS_HOST: redis
       EMOTION_REDIS_PORT: 6379
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - models_data:/app/app/ml/weights
 
   recommendation-engine:
     build:
       context: ./services/recommendation-engine
+    profiles: ["ai"]
     environment:
       RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
       RECO_MONGODB_DB: cop
       RECO_REDIS_HOST: redis
       RECO_REDIS_PORT: 6379
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - models_data:/app/app/ml/weights
-
-  api-gateway:
-    build:
-      context: ./services/api-gateway
-    environment:
-      SERVER_PORT: 8080
-      LEGACY_URI: http://legacy-backend:8080
-      AI_DIAGNOSIS_URI: http://ai-diagnosis-service:8090
-      EMOTION_ANALYSIS_URI: http://emotion-analysis-service:8091
-      RECOMMENDATION_ENGINE_URI: http://recommendation-engine:8092
-      ORTHO_AI_URI: http://ortho-ai:8000
-    ports:
-      - "8080:8080"
-    depends_on:
-      legacy-backend:
-        condition: service_healthy
-      iam-service:
-        condition: service_started
-      patients-service:
-        condition: service_started
-      appointments-service:
-        condition: service_started
-      clinical-service:
-        condition: service_started
-      odontogram-service:
-        condition: service_started
-      psych-tests-service:
-        condition: service_started
-      ai-diagnosis-service:
-        condition: service_started
-      emotion-analysis-service:
-        condition: service_started
-      recommendation-engine:
-        condition: service_started
 
   dashboard:
     build:
@@ -263,10 +225,12 @@ services:
       dockerfile: Dockerfile
       args:
         API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+    profiles: ["core"]
     ports:
       - "5173:80"
     depends_on:
-      - api-gateway
+      gateway:
+        condition: service_started
 
   publicweb:
     build:
@@ -274,13 +238,17 @@ services:
       args:
         API_BASE_URL: ${PUBLICWEB_API_BASE_URL:-http://localhost:8080}
         DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:5173}
+    profiles: ["core"]
     ports:
       - "5174:80"
     depends_on:
-      - api-gateway
+      gateway:
+        condition: service_started
 
 volumes:
   mongodb_data:
   models_data:
   mongodb_keyfile:
+  ortho_3d_data:
+  j48_models:
 

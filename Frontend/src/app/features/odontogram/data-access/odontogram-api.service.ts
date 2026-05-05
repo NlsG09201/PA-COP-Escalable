@@ -43,6 +43,11 @@ export interface OrthodonticSimulationVm {
   plannedDurationMonths: number;
   notes: string;
   keyframes: SimulationKeyframeVm[];
+  /**
+   * Optional reconstructed 3D model (GLB/GLTF) URL.
+   * When present, the UI should prefer the mesh and fall back to procedural simulation if missing/failing.
+   */
+  glbUrl?: string | null;
 }
 
 export interface ToothStateVm {
@@ -181,6 +186,8 @@ export class OdontogramApiService {
     if (raw == null || typeof raw !== 'object') return null;
     const o = this.toObject(raw);
     const kfs = Array.isArray(o['keyframes']) ? o['keyframes'] : [];
+    const glbUrlRaw = (o as Record<string, unknown>)['glbUrl'] ?? (o as Record<string, unknown>)['glb_url'] ?? (o as Record<string, unknown>)['glbPublicUrl'] ?? (o as Record<string, unknown>)['glbPublicURL'];
+    const glbUrl = glbUrlRaw == null ? null : String(glbUrlRaw);
     const keyframes: SimulationKeyframeVm[] = kfs
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
       .map((kf) => {
@@ -204,7 +211,8 @@ export class OdontogramApiService {
     return {
       plannedDurationMonths: Number(o['plannedDurationMonths'] ?? 18),
       notes: String(o['notes'] ?? ''),
-      keyframes
+      keyframes,
+      glbUrl: glbUrl?.trim() ? glbUrl : null
     };
   }
 

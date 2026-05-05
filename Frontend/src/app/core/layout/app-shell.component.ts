@@ -6,6 +6,7 @@ import { UserRole } from '../models/user-role.model';
 import { AuthService } from '../services/auth.service';
 import { AuthApiService } from '../services/auth-api.service';
 import { selectSelectedPatient } from '../../store/patients.selectors';
+import { PUBLIC_SITE_URL } from '../config/public-site.config';
 
 type NavItem = {
   label: string;
@@ -58,6 +59,14 @@ type NavItem = {
               <span class="footer-label">Paciente activo</span>
               <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion' }}</strong>
             </div>
+            <a
+              class="btn btn-outline-primary btn-sm"
+              [href]="publicSiteUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="open-public-site">
+              Sitio público
+            </a>
             <button class="btn btn-outline-secondary btn-sm" data-testid="logout-button" (click)="logout()">Salir</button>
           </div>
         </header>
@@ -203,6 +212,7 @@ type NavItem = {
 })
 export class AppShellComponent {
   private readonly store = inject(Store);
+  protected readonly publicSiteUrl = PUBLIC_SITE_URL;
   private readonly allItems: NavItem[] = [
     { label: 'Dashboard', path: '/app/dashboard', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Catalogo de Servicios', path: '/app/services', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },

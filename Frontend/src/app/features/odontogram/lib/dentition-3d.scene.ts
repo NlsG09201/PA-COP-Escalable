@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export type ToothStatus3d = 'HEALTHY' | 'CARIES' | 'RESTORATION' | 'EXTRACTION' | 'TREATMENT';
 
@@ -42,16 +43,22 @@ export class Dentition3dScene {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly controls: OrbitControls;
   private readonly root = new THREE.Group();
+  private readonly proceduralRoot = new THREE.Group();
+  private readonly glbRoot = new THREE.Group();
   private readonly toothGroups = new Map<string, THREE.Group>();
   private readonly resizeObserver: ResizeObserver;
   private raf = 0;
   private keyframes: SimulationKeyframe3d[] = [];
   private simulationT = 0;
+  private glbLoadToken = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.shadowMap.enabled = true;
 
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 200);
     this.camera.position.set(0, 18, 48);
@@ -61,10 +68,18 @@ export class Dentition3dScene {
     this.controls.target.set(0, 4, 0);
 
     this.scene.background = new THREE.Color(0xf8fafc);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.25));
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.1));
     const dir = new THREE.DirectionalLight(0xffffff, 0.85);
     dir.position.set(20, 40, 20);
+    dir.castShadow = true;
+    dir.shadow.mapSize.width = 2048;
+    dir.shadow.mapSize.height = 2048;
     this.scene.add(dir);
+
+    const fill = new THREE.PointLight(0x93c5fd, 0.35, 200, 2);
+    fill.position.set(-25, 22, 0);
+    this.scene.add(fill);
 
     const grid = new THREE.GridHelper(80, 40, 0xdee2e6, 0xe9ecef);
     grid.position.y = -6;
@@ -72,6 +87,9 @@ export class Dentition3dScene {
 
     this.root.position.set(0, 0, 0);
     this.scene.add(this.root);
+    this.root.add(this.proceduralRoot);
+    this.root.add(this.glbRoot);
+    this.glbRoot.visible = false;
 
     const loop = () => {
       this.raf = requestAnimationFrame(loop);
@@ -109,6 +127,7 @@ export class Dentition3dScene {
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.disposeTeethMeshes();
+    this.clearGlb();
     this.renderer.dispose();
   }
 
@@ -122,7 +141,7 @@ export class Dentition3dScene {
 
   private disposeTeethMeshes(): void {
     for (const g of this.toothGroups.values()) {
-      this.root.remove(g);
+      this.proceduralRoot.remove(g);
       g.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
@@ -178,7 +197,7 @@ export class Dentition3dScene {
     g.lookAt(new THREE.Vector3(0, row === 'upper' ? 2 : -4, 0));
     g.userData['baseQuat'] = g.quaternion.clone();
     g.userData['basePos'] = g.position.clone();
-    this.root.add(g);
+    this.proceduralRoot.add(g);
     this.toothGroups.set(fdi, g);
   }
 
@@ -240,5 +259,170 @@ export class Dentition3dScene {
 
   private zeroPose(): ToothPose3d {
     return { rotX: 0, rotY: 0, rotZ: 0, offsetMmX: 0, offsetMmY: 0, offsetMmZ: 0 };
+  }
+
+  clearGlb(): void {
+    this.glbRoot.visible = false;
+    this.proceduralRoot.visible = true;
+
+    const children = [...this.glbRoot.children];
+    for (const child of children) {
+      this.glbRoot.remove(child);
+      this.disposeObject3D(child);
+    }
+  }
+
+  /**
+   * Loads a GLB/GLTF model and normalizes it to the scene coordinate system:
+   * - auto-orient (heuristic)
+   * - center at origin
+   * - scale to a consistent max dimension
+   * - align to a base Y (so it sits above the grid)
+   * - fit camera/orbit target
+   */
+  async loadGlb(glbUrl: string, opts?: { onProgress?: (percent: number) => void }): Promise<void> {
+    const token = ++this.glbLoadToken;
+    // Keep procedural fallback visible while loading.
+    this.proceduralRoot.visible = true;
+    this.glbRoot.visible = false;
+    this.clearGlb();
+
+    const onProgress = opts?.onProgress;
+    const manager = new THREE.LoadingManager();
+    manager.onProgress = (_url, itemsLoaded, itemsTotal) => {
+      if (!itemsTotal) return;
+      const pct = Math.max(0, Math.min(100, (itemsLoaded / itemsTotal) * 100));
+      onProgress?.(pct);
+    };
+    manager.onLoad = () => onProgress?.(100);
+
+    const loader = new GLTFLoader(manager);
+    loader.setCrossOrigin('anonymous');
+
+    const gltf: any = await new Promise((resolve, reject) => {
+      loader.load(
+        glbUrl,
+        (data) => resolve(data),
+        undefined,
+        (err) => reject(err)
+      );
+    });
+
+    const model: THREE.Object3D | undefined = gltf?.scene ?? gltf?.scenes?.[0];
+    if (!model) throw new Error('GLB loaded but no scene found');
+    if (token !== this.glbLoadToken) {
+      // A newer load was started; dispose what we just loaded and do not mutate the scene.
+      this.disposeObject3D(model);
+      return;
+    }
+
+    model.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+
+      const assignMaterial = (current: THREE.Material): THREE.Material => {
+        const anyMat = current as any;
+        // Keep standard/physical materials, but fix texture color spaces for correct PBR.
+        if (anyMat?.isMeshStandardMaterial || anyMat?.isMeshPhysicalMaterial) {
+          if (anyMat.map?.isTexture) anyMat.map.colorSpace = THREE.SRGBColorSpace;
+          if (anyMat.emissiveMap?.isTexture) anyMat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+          // Clamp extreme values to keep the look stable across sources.
+          if (typeof anyMat.metalness === 'number') anyMat.metalness = Math.min(0.6, Math.max(0, anyMat.metalness));
+          if (typeof anyMat.roughness === 'number') anyMat.roughness = Math.min(1, Math.max(0.02, anyMat.roughness));
+          return current;
+        }
+
+        // Convert common legacy materials to MeshStandardMaterial for consistent lighting.
+        if (anyMat?.isMeshPhongMaterial) {
+          const phong = anyMat as THREE.MeshPhongMaterial;
+          const std = new THREE.MeshStandardMaterial({
+            color: phong.color,
+            map: phong.map ?? undefined,
+            normalMap: phong.normalMap ?? undefined,
+            roughnessMap: phong.specularMap ?? undefined,
+            emissive: (phong as any).emissive ?? new THREE.Color(0x000000),
+            metalness: 0.05,
+            roughness: 0.55
+          });
+          if (std.map?.isTexture) std.map.colorSpace = THREE.SRGBColorSpace;
+          return std;
+        }
+
+        return current;
+      };
+
+      if (Array.isArray(obj.material)) {
+        obj.material = obj.material.map(assignMaterial);
+      } else {
+        obj.material = assignMaterial(obj.material);
+      }
+    });
+
+    // Put it under glbRoot for deterministic transforms & disposal.
+    this.glbRoot.add(model);
+    this.normalizeAndFitModel(model);
+    this.glbRoot.visible = true;
+    this.proceduralRoot.visible = false;
+  }
+
+  private normalizeAndFitModel(model: THREE.Object3D): void {
+    // Heuristic: if model's Y dimension is tiny compared to X/Z, it may be Z-up.
+    const bbox0 = new THREE.Box3().setFromObject(model);
+    const size0 = bbox0.getSize(new THREE.Vector3());
+    const likelyZUp = size0.y < size0.x * 0.25 && size0.y < size0.z * 0.25;
+    if (likelyZUp) model.rotateX(-Math.PI / 2);
+
+    // Compute bbox after orientation correction.
+    const bbox1 = new THREE.Box3().setFromObject(model);
+    const center1 = bbox1.getCenter(new THREE.Vector3());
+    model.position.sub(center1);
+
+    const bbox2 = new THREE.Box3().setFromObject(model);
+    const size2 = bbox2.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size2.x, size2.y, size2.z);
+    const targetMaxDim = 44; // consistent with the procedural arch radius.
+    if (maxDim > 1e-6) {
+      const scale = targetMaxDim / maxDim;
+      model.scale.multiplyScalar(scale);
+    }
+
+    const bbox3 = new THREE.Box3().setFromObject(model);
+    const baseMinY = -6; // sits nicely above the grid plane.
+    model.position.y += baseMinY - bbox3.min.y;
+
+    const finalBbox = new THREE.Box3().setFromObject(model);
+    this.fitCameraToBox(finalBbox);
+  }
+
+  private fitCameraToBox(bbox: THREE.Box3): void {
+    const size = bbox.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim <= 1e-6) return;
+
+    const center = bbox.getCenter(new THREE.Vector3());
+    this.controls.target.copy(center);
+
+    const fovRad = THREE.MathUtils.degToRad(this.camera.fov);
+    const distance = (maxDim / 2) / Math.tan(fovRad / 2);
+
+    const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+    const pad = 1.35;
+    this.camera.position.copy(this.controls.target).add(dir.multiplyScalar(distance * pad));
+
+    // Update clipping planes for the new model scale.
+    this.camera.near = Math.max(0.01, distance / 1000);
+    this.camera.far = Math.max(200, distance * 50);
+    this.camera.updateProjectionMatrix();
+  }
+
+  private disposeObject3D(obj: THREE.Object3D): void {
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose();
+        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+        else child.material?.dispose();
+      }
+    });
   }
 }

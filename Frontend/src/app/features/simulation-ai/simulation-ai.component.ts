@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { API_BASE_URL } from '../../core/config/api.config';
 
 @Component({
   selector: 'app-simulation-ai',
@@ -57,8 +58,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 })
 export class SimulationAiComponent implements OnInit {
   safeUrl: SafeResourceUrl | null = null;
-  // En Docker, el servicio ortho-ai se expone en el puerto 8001
-  private readonly baseUrl = 'http://localhost:8001/';
+  // Always go through the API gateway so CORS/env switching is consistent.
+  private readonly baseUrl = `${API_BASE_URL}/ortho-ai/`;
 
   constructor(private sanitizer: DomSanitizer) {}
 
