@@ -10,6 +10,15 @@ let showBrackets = true;
 
 // Configuración inicial de Three.js
 function init3D() {
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+    
+    // Asegurar que el contenedor sea visible
+    if (container.clientWidth === 0) {
+        container.style.width = '100vw';
+        container.style.height = '100vh';
+    }
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a);
 
@@ -82,7 +91,7 @@ async function reconstruct() {
     formData.append('file', fileInput.files[0]);
 
     try {
-        const response = await fetch('http://localhost:8000/api/reconstruct', {
+        const response = await fetch('api/reconstruct', {
             method: 'POST',
             body: formData
         });
@@ -127,7 +136,7 @@ async function prepareDefaultSimulation() {
         target_ry: -obj.rotation.y * 1.0 // Corregir rotación
     }));
 
-    const response = await fetch('http://localhost:8000/api/simulate', {
+    const response = await fetch('api/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initial_state, adjustments, months: 12 })

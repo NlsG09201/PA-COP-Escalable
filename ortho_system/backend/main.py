@@ -9,7 +9,7 @@ import os
 
 # Importar módulos locales
 from ia.processor import ToothProcessor
-from simulator import OrthoSimulator
+from .simulator import OrthoSimulator
 
 app = FastAPI(title="Orthodontic AI Platform API", version="1.0.0")
 

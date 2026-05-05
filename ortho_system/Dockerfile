@@ -8,12 +8,13 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# El backend servirá el frontend también
+# Exponer el puerto
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+# Ejecutar desde el directorio raíz para que los imports funcionen
+CMD ["python", "-m", "backend.main"]

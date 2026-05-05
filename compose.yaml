@@ -101,7 +101,7 @@ services:
 
   ortho-ai:
     build:
-      context: ./ortho_system/backend
+      context: ./ortho_system
       dockerfile: Dockerfile
     security_opt:
       - no-new-privileges:true
@@ -231,6 +231,7 @@ services:
       AI_DIAGNOSIS_URI: http://ai-diagnosis-service:8090
       EMOTION_ANALYSIS_URI: http://emotion-analysis-service:8091
       RECOMMENDATION_ENGINE_URI: http://recommendation-engine:8092
+      ORTHO_AI_URI: http://ortho-ai:8000
     ports:
       - "8080:8080"
     depends_on:

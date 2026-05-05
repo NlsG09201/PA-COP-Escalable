@@ -146,6 +146,13 @@ spring:
               predicates:
                 - Path=/api/portal/**
 
+            - id: ortho-ai
+              uri: ${ORTHO_AI_URI:http://ortho-ai:8000}
+              predicates:
+                - Path=/ortho-ai/**
+              filters:
+                - StripPrefix=1
+
             - id: files
               uri: ${LEGACY_URI:http://legacy-backend:8080}
               predicates:

@@ -58,7 +58,8 @@ import { Routes } from '@angular/router';
 })
 export class SimulationAiComponent implements OnInit {
   safeUrl: SafeResourceUrl | null = null;
-  private readonly baseUrl = 'http://localhost:8001/';
+  // Acceso a través del API Gateway para evitar problemas de CORS y puertos
+  private readonly baseUrl = 'http://localhost:8080/ortho-ai/';
 
   constructor(private sanitizer: DomSanitizer) {}
 
