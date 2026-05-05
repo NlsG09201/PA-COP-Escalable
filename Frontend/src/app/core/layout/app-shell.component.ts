@@ -211,6 +211,7 @@ export class AppShellComponent {
     { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Diagnostico IA', path: '/app/diagnosis', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Simulacion 3D', path: '/app/simulation', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Simulador IA (Nuevo)', path: '/app/simulation-ai', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Presupuestos', path: '/app/budget', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Seguimiento', path: '/app/followup', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Historial Clinico', path: '/app/clinical-history', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },

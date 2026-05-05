@@ -98,19 +98,23 @@ services:
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-false}
+
+  ortho-ai:
+    build:
+      context: ./ortho_system/backend
+      dockerfile: Dockerfile
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       mongodb:
         condition: service_healthy
-      mongodb-init:
-        condition: service_completed_successfully
-      redis:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 120s
 
   iam-service:
     build:

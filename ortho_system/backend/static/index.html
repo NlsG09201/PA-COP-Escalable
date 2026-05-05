@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orthodontic AI 3D Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background-color: #1a1a1a; color: white; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        #ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; border: 1px solid #444; width: 300px; }
+        h2 { margin-top: 0; color: #00d2ff; font-size: 1.2em; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        button { background: #00d2ff; border: none; padding: 10px 15px; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.3s; }
+        button:hover { background: #00a8cc; }
+        #stats { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; font-size: 0.8em; border-radius: 5px; }
+        .loading { color: #f39c12; }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay">
+        <h2>Simulación Ortodóntica</h2>
+        
+        <div class="control-group">
+            <label>Subir Radiografía / Foto:</label>
+            <input type="file" id="imageInput" accept="image/*">
+            <button id="reconstructBtn">Generar Modelo 3D</button>
+        </div>
+
+        <div id="simulationControls" style="display:none;">
+            <div class="control-group">
+                <label>Línea de Tiempo (Meses): <span id="monthVal">0</span></label>
+                <input type="range" id="timeline" min="0" max="12" value="0">
+            </div>
+            <button id="toggleBrackets">Ocultar/Mostrar Brackets</button>
+            <button id="compareBtn">Comparar Antes/Después</button>
+        </div>
+
+        <div id="statusMsg" class="loading"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div id="stats">Orthodontic AI v1.0 | WebGL Renderer</div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

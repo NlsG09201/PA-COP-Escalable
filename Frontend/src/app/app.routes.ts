@@ -74,6 +74,12 @@ export const routes: Routes = [
         data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
+        path: 'simulation-ai',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/simulation-ai/simulation-ai.routes').then((m) => m.SIMULATION_AI_ROUTES),
+        data: { roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
         path: 'budget',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/budget/budget.routes').then((m) => m.BUDGET_ROUTES),
@@ -127,6 +133,7 @@ export const routes: Routes = [
   { path: 'psych-tests', pathMatch: 'full', redirectTo: 'app/psych-tests' },
   { path: 'diagnosis', pathMatch: 'full', redirectTo: 'app/diagnosis' },
   { path: 'simulation', pathMatch: 'full', redirectTo: 'app/simulation' },
+  { path: 'simulation-ai', pathMatch: 'full', redirectTo: 'app/simulation-ai' },
   { path: 'budget', pathMatch: 'full', redirectTo: 'app/budget' },
   { path: 'followup', pathMatch: 'full', redirectTo: 'app/followup' },
   { path: 'therapy', pathMatch: 'full', redirectTo: 'app/therapy' },
