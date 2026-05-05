@@ -1,5 +1,6 @@
 package com.COP_Escalable.Backend.diagnosis.application;
 
+import com.COP_Escalable.Backend.diagnosis.application.DiagnosisProperties;
 import com.COP_Escalable.Backend.diagnosis.domain.DiagnosisResult;
 import com.COP_Escalable.Backend.diagnosis.domain.DiagnosticImage;
 import com.COP_Escalable.Backend.diagnosis.domain.Finding;

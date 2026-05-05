@@ -87,6 +87,7 @@ public abstract class RedisStreamEventConsumer {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private void readAndProcess() {
 		List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream().read(
 				Consumer.from(consumerGroup, consumerName),

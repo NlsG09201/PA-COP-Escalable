@@ -4,7 +4,6 @@ import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 

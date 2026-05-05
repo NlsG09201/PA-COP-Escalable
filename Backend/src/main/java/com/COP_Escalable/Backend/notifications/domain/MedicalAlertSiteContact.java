@@ -2,7 +2,6 @@ package com.COP_Escalable.Backend.notifications.domain;
 
 import com.COP_Escalable.Backend.shared.persistence.TenantScopedEntity;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.UUID;
 

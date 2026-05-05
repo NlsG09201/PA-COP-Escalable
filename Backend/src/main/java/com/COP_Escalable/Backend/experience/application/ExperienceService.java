@@ -6,8 +6,6 @@ import com.COP_Escalable.Backend.experience.infrastructure.ChurnPredictionReposi
 import com.COP_Escalable.Backend.experience.infrastructure.SatisfactionSurveyRepository;
 import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +20,6 @@ import java.util.UUID;
 
 @Service
 public class ExperienceService {
-
-	private static final Logger log = LoggerFactory.getLogger(ExperienceService.class);
 
 	private final SatisfactionSurveyRepository surveyRepository;
 	private final ChurnPredictionRepository churnRepository;
@@ -130,7 +126,6 @@ public class ExperienceService {
 			factors.put("no_visits_90_days", true);
 		}
 
-		boolean decliningSatisfaction = false;
 		List<SatisfactionSurvey> completedSurveys = surveys.stream()
 				.filter(s -> "COMPLETED".equals(s.getStatus()) && s.getNpsScore() != null)
 				.toList();
@@ -138,7 +133,6 @@ public class ExperienceService {
 			int latestScore = completedSurveys.get(0).getNpsScore();
 			int previousScore = completedSurveys.get(1).getNpsScore();
 			if (latestScore < previousScore) {
-				decliningSatisfaction = true;
 				score += 0.2;
 				factors.put("declining_satisfaction", true);
 			}

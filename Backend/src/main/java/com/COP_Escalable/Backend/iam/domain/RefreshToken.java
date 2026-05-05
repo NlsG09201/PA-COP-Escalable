@@ -43,6 +43,7 @@ public class RefreshToken {
 	@Field("replaced_by")
 	private UUID replacedBy;
 
+	@Field("ip")
 	private String ip;
 
 	@Field("user_agent")

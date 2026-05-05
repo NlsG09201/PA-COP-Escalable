@@ -1,5 +1,7 @@
 package com.COP_Escalable.Backend.publicbooking.application;
 
+import com.COP_Escalable.Backend.publicbooking.application.PublicChannelNotificationSender;
+import com.COP_Escalable.Backend.publicbooking.application.PublicNotificationAdapter;
 import com.COP_Escalable.Backend.publicbooking.domain.PublicNotificationLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

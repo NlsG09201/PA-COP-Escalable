@@ -84,6 +84,7 @@ public class RedisNotificationConsumer {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private List<MapRecord<String, Object, Object>> readNewMessages() {
 		return redisTemplate.opsForStream().read(
 				Consumer.from(properties.redis().consumerGroup(), properties.redis().consumerName()),

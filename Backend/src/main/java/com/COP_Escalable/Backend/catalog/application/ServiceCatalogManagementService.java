@@ -1,7 +1,6 @@
 package com.COP_Escalable.Backend.catalog.application;
 
 import com.COP_Escalable.Backend.catalog.domain.CatalogServiceItem;
-import com.COP_Escalable.Backend.catalog.domain.ServiceCategory;
 import com.COP_Escalable.Backend.catalog.domain.ServiceOffering;
 import com.COP_Escalable.Backend.catalog.infrastructure.CatalogServiceItemRepository;
 import com.COP_Escalable.Backend.catalog.infrastructure.ServiceCategoryRepository;

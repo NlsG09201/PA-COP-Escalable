@@ -1,5 +1,7 @@
 package com.COP_Escalable.Backend.diagnosis.application;
 
+import com.COP_Escalable.Backend.diagnosis.application.DiagnosisProperties;
+import com.COP_Escalable.Backend.diagnosis.application.DiagnosisService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -92,6 +94,7 @@ public class DiagnosisResultConsumer {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private List<MapRecord<String, Object, Object>> readNewMessages() {
 		var rs = properties.getRedisStream();
 		return redisTemplate.opsForStream().read(

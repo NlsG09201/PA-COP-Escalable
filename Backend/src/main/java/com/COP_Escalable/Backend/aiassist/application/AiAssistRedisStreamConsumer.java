@@ -47,7 +47,6 @@ public class AiAssistRedisStreamConsumer {
 			return;
 		}
 		try {
-			var rs = properties.getRedisStream();
 			ensureConsumerGroup();
 			processClaimedMessages();
 			processRecords(readNewMessages());
@@ -97,6 +96,7 @@ public class AiAssistRedisStreamConsumer {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private List<MapRecord<String, Object, Object>> readNewMessages() {
 		var rs = properties.getRedisStream();
 		return redisTemplate.opsForStream().read(

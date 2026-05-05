@@ -1,10 +1,8 @@
 package com.COP_Escalable.Backend.analytics.infrastructure;
 
 import com.COP_Escalable.Backend.analytics.domain.AnalyticsDailySiteMetric;
-import com.COP_Escalable.Backend.analytics.domain.AnalyticsDailySpecialtyMetric;
 import com.COP_Escalable.Backend.appointments.domain.Appointment;
 import com.COP_Escalable.Backend.appointments.domain.AppointmentStatus;
-import com.COP_Escalable.Backend.tenancy.domain.Professional;
 import com.COP_Escalable.Backend.tenancy.infrastructure.ProfessionalRepository;
 import org.bson.Document;
 import org.springframework.data.domain.Sort;

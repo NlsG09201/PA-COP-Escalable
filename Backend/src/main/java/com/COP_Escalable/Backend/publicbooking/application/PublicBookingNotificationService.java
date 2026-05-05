@@ -1,5 +1,7 @@
 package com.COP_Escalable.Backend.publicbooking.application;
 
+import com.COP_Escalable.Backend.publicbooking.application.PublicNotificationAdapter;
+import com.COP_Escalable.Backend.publicbooking.application.PublicNotificationProperties;
 import com.COP_Escalable.Backend.publicbooking.domain.PublicBooking;
 import com.COP_Escalable.Backend.publicbooking.domain.PublicNotificationLog;
 import com.COP_Escalable.Backend.publicbooking.infrastructure.PublicNotificationLogRepository;

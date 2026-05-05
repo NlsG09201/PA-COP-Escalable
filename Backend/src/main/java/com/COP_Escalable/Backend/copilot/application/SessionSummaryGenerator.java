@@ -4,7 +4,6 @@ import com.COP_Escalable.Backend.copilot.domain.CopilotSession;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 @Component
