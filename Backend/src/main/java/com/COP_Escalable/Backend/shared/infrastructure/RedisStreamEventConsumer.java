@@ -70,16 +70,15 @@ public abstract class RedisStreamEventConsumer {
 	}
 
 	private void reclaimStale() {
-		var pending = redisTemplate.opsForStream().pending(
+		PendingMessages pending = redisTemplate.opsForStream().pending(
 				streamKey, consumerGroup,
 				org.springframework.data.domain.Range.unbounded(),
-				batchSize,
-				Duration.ofMillis(claimIdleTimeMs)
+				batchSize
 		);
 		if (pending == null || pending.isEmpty()) return;
 
-		for (var msg : pending) {
-			var claimed = redisTemplate.opsForStream().claim(
+		for (PendingMessage msg : pending) {
+			List<MapRecord<String, Object, Object>> claimed = redisTemplate.opsForStream().claim(
 					streamKey, consumerGroup, consumerName,
 					Duration.ofMillis(claimIdleTimeMs), msg.getId()
 			);

@@ -157,7 +157,8 @@ public class SecurityConfig {
 			PasswordEncoder encoder,
 			ApplicationEventPublisher eventPublisher
 	) {
-		var provider = new DaoAuthenticationProvider(uds);
+		var provider = new DaoAuthenticationProvider();
+		provider.setUserDetailsService(uds);
 		provider.setPasswordEncoder(encoder);
 		AuthenticationEventPublisher authEvents = new DefaultAuthenticationEventPublisher(eventPublisher);
 		var manager = new ProviderManager(provider);
