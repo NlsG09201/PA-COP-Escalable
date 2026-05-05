@@ -1,18 +1,32 @@
 .env*
+.env.local
+.env.*.local
 *.log
 
 # Java / Maven
 **/target/
 **/*.class
 
-# Node / Angular
+# Node / Angular / frontend tooling
 **/node_modules/
 **/dist/
 **/.angular/
+**/.cache/
+**/coverage/
+**/.turbo/
+**/.next/
 
 # Python
 **/__pycache__/
 **/*.pyc
+**/.pytest_cache/
+**/venv/
+**/.venv/
+
+# Logs / local dumps (never commit)
+**/legacy-backend.log
+**/legacy_logs.txt
+**/full_legacy_logs.txt
 
 # IDE / OS
 .idea/
