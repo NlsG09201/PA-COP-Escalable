@@ -116,6 +116,7 @@ public class PublicBookingNotificationService {
 					result.errorMessage() == null ? "Notification delivery failed" : result.errorMessage(),
 					attemptCount
 			);
+			default -> throw new IllegalArgumentException("Unknown status: " + result.status());
 		};
 	}
 

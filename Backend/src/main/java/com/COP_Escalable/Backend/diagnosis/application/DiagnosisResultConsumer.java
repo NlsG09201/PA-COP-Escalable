@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.PendingMessage;
+import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -40,7 +42,6 @@ public class DiagnosisResultConsumer {
 			return;
 		}
 		try {
-			DiagnosisProperties.RedisStream rs = properties.getRedisStream();
 			ensureConsumerGroup();
 			processClaimedMessages();
 			processRecords(readNewMessages());
@@ -66,20 +67,19 @@ public class DiagnosisResultConsumer {
 
 	private void processClaimedMessages() {
 		DiagnosisProperties.RedisStream rs = properties.getRedisStream();
-		var pending = redisTemplate.opsForStream().pending(
+		PendingMessages pending = redisTemplate.opsForStream().pending(
 				rs.getResultsKey(),
 				rs.getConsumerGroup(),
 				org.springframework.data.domain.Range.unbounded(),
-				rs.getBatchSize(),
-				java.time.Duration.ofMillis(rs.getClaimIdleTimeMs())
+				rs.getBatchSize()
 		);
 
 		if (pending == null || pending.isEmpty()) {
 			return;
 		}
 
-		for (var pendingMessage : pending) {
-			var claimed = redisTemplate.opsForStream().claim(
+		for (PendingMessage pendingMessage : pending) {
+			List<MapRecord<String, Object, Object>> claimed = redisTemplate.opsForStream().claim(
 					rs.getResultsKey(),
 					rs.getConsumerGroup(),
 					consumerName,

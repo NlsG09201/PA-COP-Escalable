@@ -137,6 +137,21 @@ public class Odontogram {
 		markUpdated();
 	}
 
+	public void updateToothBracesState(String tooth, boolean braces) {
+		if (tooth == null || tooth.isBlank()) return;
+		var key = tooth.trim();
+		if (clinicalTeeth == null) clinicalTeeth = new LinkedHashMap<>();
+		var state = clinicalTeeth.get(key);
+		if (state == null) {
+			state = new ToothClinicalState();
+			state.setStatus(normalizeStatusToken(teeth.getOrDefault(key, ToothClinicalStatus.HEALTHY.name())));
+			clinicalTeeth.put(key, state);
+		}
+		state.setBraces(braces);
+		state.setUpdatedAt(Instant.now());
+		markUpdated();
+	}
+
 	public void markUpdated() {
 		updatedAt = Instant.now();
 	}

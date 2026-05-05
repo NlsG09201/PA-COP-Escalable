@@ -2,123 +2,95 @@ import cv2
 import numpy as np
 from typing import List, Dict, Any
 
-class ToothProcessor:
+class AdvancedToothProcessor:
     """
-    Clase especializada en el procesamiento de imágenes dentales (radiografías/fotos)
-    para segmentación y reconstrucción 3D.
+    Pipeline de visión por computador para reconstrucción 3D desde radiografías.
+    Responsabilidad: Segmentación, clasificación FDI y proyección parabólica.
     """
-    
     def __init__(self):
-        # Parámetros de calibración (estimados para este MVP)
-        self.pixel_to_mm = 0.1  # 1 pixel = 0.1mm (ajustable con marcador)
-        self.depth_factor = 1.2  # Factor de profundidad para reconstrucción 3D
-        
-    def segment_teeth(self, image_bytes: bytes) -> List[Dict[str, Any]]:
+        self.pixel_to_mm = 0.15 
+        # En producción se cargaría un modelo de Deep Learning aquí
+        # self.model = torch.load('weights/tooth_seg_v2.pth')
+
+    def reconstruct_3d_from_image(self, image_data: bytes) -> List[Dict[str, Any]]:
         """
-        Detecta y segmenta piezas dentales usando procesamiento de imágenes avanzado.
+        Segmenta piezas dentales y genera primitivas geométricas orientadas en un arco parabólico.
         """
-        # Decodificar imagen
-        nparr = np.frombuffer(image_bytes, np.uint8)
+        nparr = np.frombuffer(image_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
-            raise ValueError("No se pudo decodificar la imagen.")
-            
+            return []
+        
+        # Pipeline de pre-procesamiento avanzado
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # Mejora de contraste (CLAHE - Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        # Mejora de contraste adaptativa (CLAHE)
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
         enhanced = clahe.apply(gray)
         
-        # Umbralización adaptativa para separar dientes del fondo
-        thresh = cv2.adaptiveThreshold(enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                      cv2.THRESH_BINARY_INV, 11, 2)
+        # Filtro bilateral para reducir ruido preservando bordes críticos
+        denoised = cv2.bilateralFilter(enhanced, 11, 85, 85)
         
-        # Operaciones morfológicas para limpiar ruido
-        kernel = np.ones((3,3), np.uint8)
-        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
-        sure_bg = cv2.dilate(opening, kernel, iterations=3)
+        # Segmentación por umbralización de Otsu
+        _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # Encontrar contornos
-        contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Operaciones morfológicas para limpiar la máscara
+        kernel = np.ones((5,5), np.uint8)
+        morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
         
-        detected_teeth = []
+        # Encontrar contornos de piezas dentales
+        contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        reconstruction = []
         for i, cnt in enumerate(contours):
             area = cv2.contourArea(cnt)
-            if area < 500: # Filtrar objetos pequeños que no son dientes
-                continue
-                
-            # Calcular bounding box y centroide
-            x, y, w, h = cv2.boundingRect(cnt)
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-            else:
-                cx, cy = x + w//2, y + h//2
-                
-            # Generar datos de reconstrucción 3D simplificados (mapeo de profundidad)
-            # En un sistema real, esto usaría una red neuronal de estimación de profundidad
-            z_est = (h / w) * self.depth_factor # Estimación heurística de profundidad basada en aspecto
+            if area < 400: continue # Filtrar ruido pequeño
             
-            detected_teeth.append({
-                "id": f"tooth_{i+1}",
-                "pos_2d": {"x": cx, "y": cy},
-                "dimensions": {"w": w, "h": h},
-                "area": area,
-                "reconstruction": {
-                    "pos_3d": {"x": (cx - img.shape[1]/2) * self.pixel_to_mm, 
-                              "y": (img.shape[0]/2 - cy) * self.pixel_to_mm, 
-                              "z": z_est},
-                    "scale": {"x": w * self.pixel_to_mm, "y": h * self.pixel_to_mm, "z": w * self.pixel_to_mm}
+            x, y, w, h = cv2.boundingRect(cnt)
+            cx, cy = x + w//2, y + h//2
+            
+            # Cálculo de Arco Dental (Parábola de Regresión)
+            # Normalizamos X al rango [-1, 1]
+            norm_x = (cx - img.shape[1]/2) / (img.shape[1]/2)
+            # Z aumenta (profundidad) siguiendo una curva parabólica anatómica
+            z_depth = (norm_x ** 2) * 28.0 
+            
+            # Clasificación FDI automática basada en cuadrantes
+            fdi_code = self._estimate_fdi_code(cx, cy, img.shape)
+            
+            reconstruction.append({
+                "id": f"tooth_{fdi_code}_{i}",
+                "fdi": fdi_code,
+                "pos_3d": {
+                    "x": (cx - img.shape[1]/2) * self.pixel_to_mm,
+                    "y": (img.shape[0]/2 - cy) * self.pixel_to_mm,
+                    "z": z_arch_val := float(z_depth)
+                },
+                "dimensions": {
+                    "w": float(w * self.pixel_to_mm), 
+                    "h": float(h * self.pixel_to_mm),
+                    "d": float(w * self.pixel_to_mm * 0.8) # Profundidad estimada
+                },
+                "rotation": {
+                    "x": 0.1, # Inclinación base
+                    "y": float(-norm_x * 0.85), # Rotación tangencial al arco
+                    "z": 0
                 }
             })
             
-        return detected_teeth
+        # Ordenar por código FDI para consistencia clínica
+        return sorted(reconstruction, key=lambda x: x["fdi"])
 
-    def correct_perspective(self, image: np.ndarray) -> np.ndarray:
+    def _estimate_fdi_code(self, x, y, shape):
         """
-        Corrige la perspectiva y orientación de la imagen usando detección de bordes y 
-        transformación de perspectiva para estandarizar la vista.
+        Lógica heurística para asignación de códigos FDI basada en posición espacial.
+        En producción esto se reemplazaría por una red neuronal de clasificación.
         """
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
+        is_upper = y < shape[0] / 2
+        is_right = x > shape[1] / 2
         
-        # Encontrar el contorno más grande (que debería ser el arco dental o el marco de la radiografía)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            return image
-            
-        c = max(contours, key=cv2.contourArea)
-        rect = cv2.minAreaRect(c)
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        
-        # Ordenar puntos: top-left, top-right, bottom-right, bottom-left
-        pts = np.zeros((4, 2), dtype="float32")
-        s = box.sum(axis=1)
-        pts[0] = box[np.argmin(s)]
-        pts[2] = box[np.argmax(s)]
-        diff = np.diff(box, axis=1)
-        pts[1] = box[np.argmin(diff)]
-        pts[3] = box[np.argmax(diff)]
-        
-        (tl, tr, br, bl) = pts
-        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-        maxWidth = max(int(widthA), int(widthB))
-        
-        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-        maxHeight = max(int(heightA), int(heightB))
-        
-        dst = np.array([
-            [0, 0],
-            [maxWidth - 1, 0],
-            [maxWidth - 1, maxHeight - 1],
-            [0, maxHeight - 1]], dtype="float32")
-            
-        M = cv2.getPerspectiveTransform(pts, dst)
-        warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
-        
-        return warped
+        # Simplificación para el MVP
+        if is_upper:
+            return "11" if is_right else "21"
+        else:
+            return "41" if is_right else "31"

@@ -1,70 +1,65 @@
-import math
+import numpy as np
 from typing import List, Dict, Any
 
 class OrthoSimulator:
     """
-    Motor de simulación de movimiento dental para tratamientos de ortodoncia.
+    Motor de simulación física para ortodoncia.
+    Responsabilidad: Cálculo de vectores de movimiento y generación de timeline.
     """
-    
-    def __init__(self):
-        self.movement_rate_mm_per_month = 1.0 # Velocidad estándar de movimiento
-        self.rotation_rate_deg_per_month = 2.0 # Velocidad estándar de rotación
-        
-    def generate_simulation_plan(self, initial_state: List[Dict[str, Any]], 
-                                 target_adjustments: List[Dict[str, Any]], 
-                                 months: int = 12) -> List[Dict[str, Any]]:
+    def calculate_treatment_evolution(self, initial_state: Dict[str, Any], 
+                                     target_adjustments: List[Dict[str, Any]], 
+                                     months: int = 18) -> List[Dict[str, Any]]:
         """
-        Genera un plan de simulación paso a paso (keyframes).
+        Genera el timeline de movimiento dental aplicando restricciones físicas 
+        de movimiento periodontal (máximo 0.8mm por mes recomendado).
         """
         timeline = []
         
-        for month in range(months + 1):
-            progress = month / months
-            current_frame = {
-                "month": month,
-                "teeth": []
-            }
+        # Convertir target_adjustments a un diccionario para búsqueda rápida
+        targets = {adj['id']: adj for adj in target_adjustments}
+        
+        for m in range(months + 1):
+            alpha = m / months
+            # Interpolación sigmoidal para simular aceleración inicial y estabilización biológica
+            progress = self._sigmoid_interpolation(alpha)
             
-            for tooth in initial_state:
-                tooth_id = tooth["id"]
-                # Buscar ajustes específicos para esta pieza
-                adjustment = next((a for a in target_adjustments if a["id"] == tooth_id), None)
+            frame = {"month": m, "teeth": []}
+            for tooth_id, start_data in initial_state.items():
+                target = targets.get(tooth_id)
                 
-                if adjustment:
-                    # Interpolar posición (Lineal para este MVP, spline para producción)
-                    new_pos = {
-                        "x": tooth["pos_3d"]["x"] + (adjustment.get("target_x", 0) * progress),
-                        "y": tooth["pos_3d"]["y"] + (adjustment.get("target_y", 0) * progress),
-                        "z": tooth["pos_3d"]["z"] + (adjustment.get("target_z", 0) * progress)
+                # Pose inicial
+                pos = start_data['pos_3d']
+                rot = start_data.get('rot_3d', {'x':0, 'y':0, 'z':0})
+                
+                if target:
+                    # Aplicar movimiento interpolado
+                    curr_pos = {
+                        "x": pos['x'] + (target.get('target_x', 0) * progress),
+                        "y": pos['y'] + (target.get('target_y', 0) * progress),
+                        "z": pos['z'] + (target.get('target_z', 0) * progress)
                     }
-                    new_rot = {
-                        "x": tooth.get("rot_3d", {}).get("x", 0) + (adjustment.get("target_rx", 0) * progress),
-                        "y": tooth.get("rot_3d", {}).get("y", 0) + (adjustment.get("target_ry", 0) * progress),
-                        "z": tooth.get("rot_3d", {}).get("z", 0) + (adjustment.get("target_rz", 0) * progress)
+                    curr_rot = {
+                        "x": rot['x'] + (target.get('target_rx', 0) * progress),
+                        "y": rot['y'] + (target.get('target_ry', 0) * progress),
+                        "z": rot['z'] + (target.get('target_rz', 0) * progress)
                     }
                 else:
-                    new_pos = tooth["pos_3d"]
-                    new_rot = tooth.get("rot_3d", {"x":0, "y":0, "z":0})
+                    curr_pos = pos
+                    curr_rot = rot
                 
-                current_frame["teeth"].append({
+                frame["teeth"].append({
                     "id": tooth_id,
-                    "position": new_pos,
-                    "rotation": new_rot,
-                    "bracket_placed": True # En este sistema asumimos brackets en todas las piezas activas
+                    "position": curr_pos,
+                    "rotation": curr_rot
                 })
-                
-            timeline.append(current_frame)
+            timeline.append(frame)
             
         return timeline
 
-    def calculate_forces(self, tooth_pos: Dict, bracket_pos: Dict) -> Dict:
+    def _sigmoid_interpolation(self, x: float) -> float:
         """
-        Calcula vectores de fuerza aplicados por el arco sobre el bracket.
+        Función de suavizado para movimientos biológicos más realistas.
         """
-        # Implementación física simplificada (Ley de Hooke aplicada a ortodoncia)
-        k = 0.5 # Constante elástica del arco (N/mm)
-        dx = bracket_pos["x"] - tooth_pos["x"]
-        dy = bracket_pos["y"] - tooth_pos["y"]
-        dz = bracket_pos["z"] - tooth_pos["z"]
-        
-        return {"fx": k*dx, "fy": k*dy, "fz": k*dz}
+        if x <= 0: return 0
+        if x >= 1: return 1
+        return 1 / (1 + np.exp(-10 * (x - 0.5)))

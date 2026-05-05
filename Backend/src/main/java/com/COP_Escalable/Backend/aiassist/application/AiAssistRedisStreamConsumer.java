@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.PendingMessage;
+import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.connection.stream.StreamOffset;
@@ -56,7 +58,7 @@ public class AiAssistRedisStreamConsumer {
 	}
 
 	private void ensureConsumerGroup() {
-		var rs = properties.getRedisStream();
+		AiAssistProperties.RedisStream rs = properties.getRedisStream();
 		try {
 			redisTemplate.opsForStream().createGroup(
 					rs.getStreamKey(),
@@ -71,21 +73,20 @@ public class AiAssistRedisStreamConsumer {
 	}
 
 	private void processClaimedMessages() {
-		var rs = properties.getRedisStream();
-		var pending = redisTemplate.opsForStream().pending(
+		AiAssistProperties.RedisStream rs = properties.getRedisStream();
+		PendingMessages pending = redisTemplate.opsForStream().pending(
 				rs.getStreamKey(),
 				rs.getConsumerGroup(),
 				Range.unbounded(),
-				rs.getBatchSize(),
-				Duration.ofMillis(rs.getClaimIdleTimeMs())
+				rs.getBatchSize()
 		);
 
 		if (pending == null || pending.isEmpty()) {
 			return;
 		}
 
-		for (var pendingMessage : pending) {
-			var claimed = redisTemplate.opsForStream().claim(
+		for (PendingMessage pendingMessage : pending) {
+			List<MapRecord<String, Object, Object>> claimed = redisTemplate.opsForStream().claim(
 					rs.getStreamKey(),
 					rs.getConsumerGroup(),
 					consumerName,
