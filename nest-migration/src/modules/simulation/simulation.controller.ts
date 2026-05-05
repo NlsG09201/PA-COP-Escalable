@@ -14,6 +14,13 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 export class SimulationController {
   constructor(private readonly simulationService: SimulationService) {}
 
+  /** Lists simulations for a patient (legacy Spring path). Not yet wired to persistence. */
+  @Get('patients/:patientId')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  async listByPatient(@Param('patientId') _patientId: string) {
+    return [];
+  }
+
   @Get(':id')
   @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
   async getSimulation(@Param('id') id: string) {

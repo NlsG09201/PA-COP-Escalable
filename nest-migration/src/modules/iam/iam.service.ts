@@ -1,11 +1,18 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { UUID } from 'bson';
+import * as crypto from 'crypto';
+import Redis from 'ioredis';
 import { Model } from 'mongoose';
+import { Connection } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { UserAccount } from './user-account.schema';
 import { RefreshToken } from './schemas/refresh-token.schema';
 import { LoginDto } from './dto/login.dto';
+import { RegisterPublicDto } from './dto/register-public.dto';
+import { Inject } from '@nestjs/common';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class IamService {
@@ -13,7 +20,78 @@ export class IamService {
     @InjectModel(UserAccount.name) private userModel: Model<UserAccount>,
     @InjectModel(RefreshToken.name) private refreshModel: Model<RefreshToken>,
     private jwtService: JwtService,
+    @InjectConnection() private readonly connection: Connection,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
+
+  private asUuid(value?: string): UUID | undefined {
+    if (!value) return undefined;
+    try {
+      return new UUID(String(value));
+    } catch {
+      return undefined;
+    }
+  }
+
+  private asStringId(value: any): string {
+    if (!value) return '';
+    try {
+      return typeof value === 'string' ? value : value.toString();
+    } catch {
+      return String(value);
+    }
+  }
+
+  async registerPublicPatient(dto: RegisterPublicDto, ip?: string, userAgent?: string) {
+    const siteUuid = this.asUuid(dto.siteId);
+    if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
+
+    const email = String(dto.email ?? '').trim().toLowerCase();
+    const username = email;
+    const fullName = String(dto.fullName ?? '').trim();
+    const phone = String(dto.phone ?? '').trim();
+
+    const site = await this.connection.collection<any>('sites').findOne({ _id: siteUuid as any } as any);
+    if (!site) throw new BadRequestException('siteId not found');
+
+    // Create patient in legacy `patients` collection (UUID binary ids).
+    const patientId = new UUID(crypto.randomUUID());
+    const patientDoc: any = {
+      _id: patientId,
+      organization_id: site.organization_id,
+      site_id: site._id,
+      external_code: null,
+      full_name: fullName,
+      birth_date: dto.birthDate ? new Date(`${dto.birthDate}T00:00:00.000Z`) : null,
+      gender: dto.gender ?? null,
+      phone: phone || null,
+      email: email || null,
+      status: 'ACTIVE',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    if (patientDoc.birth_date && Number.isNaN(patientDoc.birth_date.getTime())) {
+      throw new BadRequestException('birthDate must be YYYY-MM-DD');
+    }
+
+    // Ensure no existing user for email.
+    const existing = await this.userModel.findOne({ username }).exec();
+    if (existing) throw new BadRequestException('user already exists');
+
+    await this.connection.collection<any>('patients').insertOne(patientDoc);
+
+    const password_hash = await bcrypt.hash(dto.password, 12);
+    const user = await this.userModel.create({
+      organization_id: this.asStringId(site.organization_id),
+      username,
+      password_hash,
+      patient_id: this.asStringId(patientId),
+      roles: ['PACIENTE'],
+      mfa_enabled: false,
+    } as any);
+
+    return this.generateTokenPair(user, this.asStringId(site._id), ip, userAgent);
+  }
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const user = await this.userModel.findOne({ username: dto.username.toLowerCase() }).exec();
@@ -23,6 +101,95 @@ export class IamService {
     }
 
     return this.generateTokenPair(user, dto.siteId, ip, userAgent);
+  }
+
+  async logout(authorization?: string) {
+    const token = String(authorization ?? '').startsWith('Bearer ') ? String(authorization).slice('Bearer '.length).trim() : '';
+    if (!token) throw new UnauthorizedException('Missing token');
+
+    const payload: any = this.jwtService.decode(token);
+    if (!payload?.jti || !payload?.exp) throw new UnauthorizedException('Invalid token');
+
+    const ttlSeconds = Math.max(1, Number(payload.exp) - Math.floor(Date.now() / 1000));
+    await this.redis.set(`bl:${String(payload.jti)}`, '1', 'EX', ttlSeconds);
+    return { ok: true };
+  }
+
+  async getMyProfile(user: any) {
+    const roles = Array.isArray(user?.roles) ? user.roles : [];
+    const username = String(user?.username ?? '');
+
+    const account = await this.userModel.findOne({ username }).exec();
+    const base = {
+      id: account?._id ?? user?.userId,
+      username,
+      roles,
+      organization_id: String(user?.organization_id ?? ''),
+      site_id: user?.site_id ? String(user.site_id) : undefined,
+    };
+
+    const patientIdStr = account?.patient_id ? String(account.patient_id) : '';
+    const patientUuid = this.asUuid(patientIdStr);
+    if (!patientUuid) return { ...base, profile: null };
+
+    const patient = await this.connection.collection<any>('patients').findOne({ _id: patientUuid as any } as any);
+    if (!patient) return { ...base, profile: null };
+
+    return {
+      ...base,
+      profile: {
+        patientId: patientIdStr,
+        fullName: patient.full_name ?? null,
+        email: patient.email ?? null,
+        phone: patient.phone ?? null,
+        birthDate: patient.birth_date ? new Date(patient.birth_date).toISOString().slice(0, 10) : null,
+        gender: patient.gender ?? null,
+      },
+    };
+  }
+
+  async updateMyProfile(user: any, dto: UpdateProfileDto) {
+    const username = String(user?.username ?? '');
+    const account = await this.userModel.findOne({ username }).exec();
+    if (!account) throw new UnauthorizedException('User not found');
+
+    const patientIdStr = account.patient_id ? String(account.patient_id) : '';
+    const patientUuid = this.asUuid(patientIdStr);
+    if (!patientUuid) throw new BadRequestException('Profile not linked to a patient');
+
+    const patch: any = { updated_at: new Date() };
+    if (dto.fullName !== undefined) patch.full_name = String(dto.fullName ?? '').trim();
+    if (dto.phone !== undefined) patch.phone = String(dto.phone ?? '').trim() || null;
+    if (dto.email !== undefined) patch.email = String(dto.email ?? '').trim().toLowerCase() || null;
+    if (dto.gender !== undefined) patch.gender = dto.gender ?? null;
+    if (dto.birthDate !== undefined) {
+      if (!dto.birthDate) patch.birth_date = null;
+      else {
+        const d = new Date(`${dto.birthDate}T00:00:00.000Z`);
+        if (Number.isNaN(d.getTime())) throw new BadRequestException('birthDate must be YYYY-MM-DD');
+        patch.birth_date = d;
+      }
+    }
+
+    await this.connection.collection<any>('patients').updateOne({ _id: patientUuid as any } as any, { $set: patch });
+
+    // If email changed: update username too (we use email as username).
+    if (dto.email) {
+      const newUsername = String(dto.email).trim().toLowerCase();
+      if (newUsername && newUsername !== account.username) {
+        const exists = await this.userModel.findOne({ username: newUsername }).exec();
+        if (exists) throw new BadRequestException('email already in use');
+        account.username = newUsername;
+      }
+    }
+
+    if (dto.password) {
+      account.password_hash = await bcrypt.hash(dto.password, 12);
+    }
+
+    await account.save();
+
+    return this.getMyProfile({ ...user, username: account.username });
   }
 
   async refreshToken(token: string, ip?: string, userAgent?: string) {
@@ -42,12 +209,14 @@ export class IamService {
   }
 
   private async generateTokenPair(user: UserAccount, siteId?: string, ip?: string, userAgent?: string) {
+    const jti = crypto.randomUUID();
     const payload = {
       sub: user.username,
       user_id: user._id,
       organization_id: user.organization_id,
       site_id: siteId,
       roles: user.roles,
+      jti,
     };
 
     const accessToken = this.jwtService.sign(payload);

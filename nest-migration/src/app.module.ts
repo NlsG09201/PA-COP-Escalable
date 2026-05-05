@@ -18,6 +18,7 @@ import { AnalyticsDashboardModule } from './modules/analytics-dashboard/analytic
 import { PublicSiteModule } from './modules/public-site/public-site.module';
 import { ServicesModule } from './modules/services/services.module';
 import { OdontologyModule } from './modules/odontology/odontology.module';
+import { ApiCompatModule } from './modules/api-compat/api-compat.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { OdontologyModule } from './modules/odontology/odontology.module';
     PublicSiteModule,
     ServicesModule,
     OdontologyModule,
+    ApiCompatModule,
   ],
   controllers: [HealthController],
 })

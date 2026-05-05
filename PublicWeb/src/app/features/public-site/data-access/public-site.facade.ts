@@ -5,6 +5,8 @@ import { DOCUMENT } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import type { MeResponse } from '../../../core/auth/auth.models';
 import {
   PublicAvailabilitySlotVm,
   PublicBookingQuoteVm,
@@ -18,6 +20,7 @@ import {
 @Injectable()
 export class PublicSiteFacade {
   private readonly bookingService = inject(PublicBookingService);
+  private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
@@ -216,6 +219,18 @@ export class PublicSiteFacade {
           this.services.set([]);
           this.availabilitySlots.set([]);
         }
+
+        if (this.auth.isLoggedIn()) {
+          this.auth
+            .loadMe$()
+            .pipe(
+              catchError(() => of(null)),
+              takeUntilDestroyed(this.destroyRef),
+            )
+            .subscribe((me) => {
+              if (me) this.patchBookingFromProfile(me);
+            });
+        }
       });
   }
 
@@ -337,6 +352,33 @@ export class PublicSiteFacade {
     this.bookingQuote.set(null);
     this.reservationSuccess.set(null);
     this.pageError.set('');
+  }
+
+  /** Si hay sesión, usa datos del paciente solo donde los controles siguen vacíos. */
+  private patchBookingFromProfile(me: MeResponse): void {
+    const sites = this.sites();
+    const jwtSite = String(me.site_id ?? '').trim();
+
+    const profile = me.profile;
+    const emailFromProfile = String(profile?.email ?? me.username ?? '').trim();
+
+    const patchText = (
+      control: typeof this.bookingForm.controls.patientName,
+      value?: string | null,
+    ): void => {
+      const next = String(value ?? '').trim();
+      if (!next) return;
+      const cur = String(control.value ?? '').trim();
+      if (!cur) control.setValue(next);
+    };
+
+    patchText(this.bookingForm.controls.patientName, profile?.fullName);
+    patchText(this.bookingForm.controls.email, emailFromProfile || null);
+    patchText(this.bookingForm.controls.phone, profile?.phone);
+
+    if (jwtSite && sites.some((s) => s.id === jwtSite)) {
+      this.bookingForm.controls.siteId.setValue(jwtSite);
+    }
   }
 
   private openCheckoutUrl(checkoutUrl: string): void {

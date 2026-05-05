@@ -122,6 +122,7 @@ function buildDefaultRecords(): ToothStateVm[] {
                   <g
                     class="tooth-group"
                     [class.active]="selectedTooth() === tooth.tooth"
+                    [class.hovered]="hoveredTooth() === tooth.tooth"
                     [attr.transform]="'translate(' + tooth.x + ' ' + tooth.y + ')'">
                     <text x="30" y="-12" text-anchor="middle" class="tooth-number">{{ tooth.tooth }}</text>
                     <path
@@ -191,6 +192,8 @@ function buildDefaultRecords(): ToothStateVm[] {
                       fill="#000"
                       opacity="0"
                       class="tooth-hitbox"
+                      (pointerenter)="setHoveredTooth(tooth.tooth)"
+                      (pointerleave)="setHoveredTooth(null)"
                       (pointerdown)="$event.preventDefault(); $event.stopPropagation(); selectTooth(tooth.tooth)"></rect>
                   </g>
                 }
@@ -199,6 +202,7 @@ function buildDefaultRecords(): ToothStateVm[] {
                   <g
                     class="tooth-group"
                     [class.active]="selectedTooth() === tooth.tooth"
+                    [class.hovered]="hoveredTooth() === tooth.tooth"
                     [attr.transform]="'translate(' + tooth.x + ' ' + tooth.y + ')'">
                     <path
                       [attr.d]="toothPath"
@@ -268,6 +272,8 @@ function buildDefaultRecords(): ToothStateVm[] {
                       fill="#000"
                       opacity="0"
                       class="tooth-hitbox"
+                      (pointerenter)="setHoveredTooth(tooth.tooth)"
+                      (pointerleave)="setHoveredTooth(null)"
                       (pointerdown)="$event.preventDefault(); $event.stopPropagation(); selectTooth(tooth.tooth)"></rect>
                   </g>
                 }
@@ -285,6 +291,10 @@ function buildDefaultRecords(): ToothStateVm[] {
               </div>
               <div class="arch-3d-wrap">
                 <canvas #arch3d class="arch-3d" aria-label="Modelo 3D de dentición"></canvas>
+
+                @if (reconstructionQualityHint(); as hint) {
+                  <div class="recon-quality-hint" role="status">{{ hint }}</div>
+                }
 
                 @if (glbLoading()) {
                   <div class="glb-overlay" role="status" aria-live="polite">
@@ -505,6 +515,10 @@ function buildDefaultRecords(): ToothStateVm[] {
       cursor: pointer;
       filter: none;
     }
+    .tooth-group {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
     .tooth-group text {
       pointer-events: none;
     }
@@ -521,8 +535,13 @@ function buildDefaultRecords(): ToothStateVm[] {
     .tooth-hitbox {
       touch-action: manipulation;
     }
-    .tooth-group:hover {
-      transform: scale(1.04);
+    /* Hover should be visually stable (avoid SVG transform jitter). */
+    .tooth-group.hovered path:nth-of-type(1) {
+      stroke-width: 4;
+      filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+    }
+    .tooth-group.hovered .tooth-number {
+      fill: #1d4ed8;
     }
     .tooth-group.active path:nth-of-type(1) {
       stroke-width: 5;
@@ -624,6 +643,21 @@ function buildDefaultRecords(): ToothStateVm[] {
       color: #495057;
       font-weight: 700;
     }
+    .recon-quality-hint {
+      position: absolute;
+      left: 0.5rem;
+      right: 0.5rem;
+      top: 0.5rem;
+      z-index: 5;
+      background: rgba(255, 251, 235, 0.97);
+      border: 1px solid #ffe066;
+      border-radius: 10px;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: #5c4d00;
+      font-weight: 600;
+    }
     .damage-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -670,6 +704,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   private readonly patientId = signal<string | null>(null);
   private readonly toothRecords = signal<ToothStateVm[]>(buildDefaultRecords());
   protected readonly selectedTooth = signal<string>('11');
+  protected readonly hoveredTooth = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly simSaving = signal(false);
   protected readonly selectedDamages = signal<DamageFinding[]>([]);
@@ -683,6 +718,27 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   protected readonly selectedRecord = computed(
     () => this.toothRecords().find((record) => record.tooth === this.selectedTooth()) ?? null
   );
+
+  /** Aviso cuando el fallback ortho-ai reporta baja confianza o pocos dientes */
+  protected readonly reconstructionQualityHint = computed(() => {
+    const m = this.simulation()?.reconstructionMeta;
+    if (!m || m.source !== 'ortho-ai-local') return null;
+    const parts: string[] = [];
+    if (m.meanConfidence != null && m.meanConfidence < 0.52) {
+      parts.push(
+        'La detección automática tiene confianza media baja. Mejore luz y encuadre, o repita la foto intraoral si el modelo 3D no refleja bien la boca.'
+      );
+    }
+    if ((m.teethPosed ?? 0) < 4 && (m.teethDetected ?? 0) < 6) {
+      parts.push('Se detectaron pocas piezas; compruebe foco, contraste y que los dientes ocupen buena parte del encuadre.');
+    }
+    if ((m.excludedBelowThreshold ?? 0) > 0) {
+      parts.push(
+        `Se excluyeron ${m.excludedBelowThreshold} detección(es) por debajo del umbral de confianza configurado en el servidor.`
+      );
+    }
+    return parts.length ? parts.join(' ') : null;
+  });
 
   protected readonly upperTeeth = computed(() => this.buildVisuals(UPPER_TEETH, 'upper'));
   protected readonly lowerTeeth = computed(() => this.buildVisuals(LOWER_TEETH, 'lower'));
@@ -766,6 +822,11 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     this.syncForm();
   }
 
+  protected setHoveredTooth(tooth: string | null): void {
+    if (this.hoveredTooth() === tooth) return;
+    this.hoveredTooth.set(tooth);
+  }
+
   protected toggleDamage(id: DamageFinding, ev: Event): void {
     const checked = (ev.target as HTMLInputElement).checked;
     const cur = new Set(this.selectedDamages());
@@ -814,7 +875,9 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     const payload: OrthodonticSimulationVm = {
       plannedDurationMonths: base?.plannedDurationMonths ?? 18,
       notes: base?.notes ?? '',
-      keyframes: (this.workingKeyframes().length ? this.workingKeyframes() : this.simulation()?.keyframes) ?? []
+      keyframes: (this.workingKeyframes().length ? this.workingKeyframes() : this.simulation()?.keyframes) ?? [],
+      glbUrl: base?.glbUrl ?? null,
+      reconstructionMeta: base?.reconstructionMeta ?? undefined
     };
     this.simSaving.set(true);
     this.odontogramApi

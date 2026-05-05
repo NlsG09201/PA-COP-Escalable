@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -63,6 +63,15 @@ class SimulationRequest(BaseModel):
 async def root():
     return FileResponse(os.path.join(static_dir, "index.html"))
 
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Evita 404 en consola cuando el navegador pide el icono en la raíz del origen."""
+    path = os.path.join(static_dir, "favicon.ico")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="image/x-icon")
+    return Response(status_code=204)
+
 @app.post("/api/reconstruct")
 async def reconstruct_3d(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
@@ -100,4 +109,5 @@ async def run_simulation(request: SimulationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001) # Cambiado a 8001 para evitar conflictos
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

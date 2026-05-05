@@ -61,17 +61,30 @@ import {
                   @if (loadingAvailability) {
                     <div class="empty-panel">Consultando agenda disponible...</div>
                   } @else {
-                    <div class="slot-grid" data-testid="public-slot-grid">
-                      @for (slot of slots; track slot.startAt) {
-                        <button
-                          type="button"
-                          class="slot-chip"
-                          data-testid="public-slot-option"
-                          [class.slot-chip-active]="slot.startAt === selectedSlotStartAt"
-                          (click)="slotSelected.emit(slot.startAt)">
-                          <strong>{{ slot.startAt | date: 'EEE d MMM, h:mm a' }}</strong>
-                          <span>{{ slot.professionalName }}</span>
-                        </button>
+                    <div class="calendar" data-testid="public-slot-calendar">
+                      @for (day of calendarDays; track day.key) {
+                        <section class="calendar-day" [attr.data-day]="day.key">
+                          <header class="calendar-day-head">
+                            <div class="calendar-day-title">{{ day.label }}</div>
+                            <div class="calendar-day-count">{{ day.slots.length }}</div>
+                          </header>
+
+                          <div class="calendar-day-body">
+                            @for (slot of day.slots; track slot.startAt) {
+                              <button
+                                type="button"
+                                class="calendar-slot"
+                                data-testid="public-slot-option"
+                                [class.calendar-slot-active]="slot.startAt === selectedSlotStartAt"
+                                (click)="slotSelected.emit(slot.startAt)">
+                                <strong class="calendar-slot-time">{{ slot.startAt | date: 'h:mm a' }}</strong>
+                                <span class="calendar-slot-pro text-truncate">{{ slot.professionalName }}</span>
+                              </button>
+                            } @empty {
+                              <div class="calendar-empty">Sin cupos</div>
+                            }
+                          </div>
+                        </section>
                       } @empty {
                         <div class="empty-panel">No hay cupos disponibles para la combinacion seleccionada.</div>
                       }
@@ -241,14 +254,34 @@ import {
               <div class="booking-list" data-testid="public-recent-bookings">
                 @for (booking of bookings; track booking.id) {
                   <article class="booking-item">
-                    <div class="d-flex justify-content-between gap-2">
-                      <strong>{{ booking.serviceName }}</strong>
-                      <span class="badge rounded-pill text-bg-warning">{{ booking.status }}</span>
+                    <div class="booking-item-head">
+                      <div class="booking-item-title">
+                        <strong class="text-truncate d-block">{{ booking.serviceName }}</strong>
+                        <span class="text-muted small text-truncate d-block">{{ booking.patientName }}</span>
+                      </div>
+                      <div class="booking-item-badges">
+                        <span class="status-badge" [attr.data-status]="booking.status">{{ booking.status }}</span>
+                        <span class="payment-badge" [attr.data-payment]="booking.payment?.status ?? 'NONE'">
+                          {{ booking.payment?.status ?? 'SIN PAGO' }}
+                        </span>
+                      </div>
                     </div>
-                    <p class="mb-1">{{ booking.patientName }} · {{ booking.quotedPrice | currency: 'COP':'symbol':'1.0-0' }}</p>
-                    <p class="mb-1 small text-muted">Pago: {{ booking.payment?.status ?? 'SIN INTENCION' }}</p>
-                    <p class="mb-0 text-muted small">{{ booking.appointmentStartAt | date: 'short' }}</p>
-                    <a [routerLink]="['/booking/confirmation', booking.id]" class="stretched-link mt-2 small fw-semibold text-decoration-none">
+
+                    <div class="booking-item-meta">
+                      <div class="meta-pill">
+                        <span class="meta-label">Fecha</span>
+                        <strong>{{ booking.appointmentStartAt | date: 'EEE d MMM, h:mm a' }}</strong>
+                      </div>
+                      <div class="meta-pill">
+                        <span class="meta-label">Valor</span>
+                        <strong>{{ booking.quotedPrice | currency: 'COP':'symbol':'1.0-0' }}</strong>
+                      </div>
+                    </div>
+
+                    <a
+                      [routerLink]="['/booking/confirmation', booking.id]"
+                      class="stretched-link booking-item-link"
+                      aria-label="Ver estado de la reserva">
                       Ver estado
                     </a>
                   </article>
@@ -304,34 +337,116 @@ import {
       flex-direction: column;
     }
 
-    .slot-grid,
+    .booking-list,
+    .calendar,
     .booking-list {
       display: grid;
       gap: 0.85rem;
     }
 
-    .slot-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .calendar {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
     }
 
-    .slot-chip {
-      text-align: left;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 1rem;
-      padding: 0.85rem;
-      background: #fff;
+    .calendar-day {
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+      min-height: 260px;
       display: grid;
-      gap: 0.25rem;
+      grid-template-rows: auto 1fr;
     }
 
-    .slot-chip span {
-      color: #64748b;
+    .calendar-day-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 0.95rem;
+      background: linear-gradient(180deg, #eff6ff 0%, rgba(239, 246, 255, 0.35) 100%);
+      border-bottom: 1px solid rgba(147, 197, 253, 0.6);
+    }
+
+    .calendar-day-title {
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      color: #0f172a;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+    }
+
+    .calendar-day-count {
+      min-width: 2rem;
+      height: 1.65rem;
+      padding: 0 0.55rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.78rem;
+      color: #1d4ed8;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(147, 197, 253, 0.85);
+      flex-shrink: 0;
+    }
+
+    .calendar-day-body {
+      padding: 0.85rem;
+      display: grid;
+      gap: 0.55rem;
+      align-content: start;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .calendar-slot {
+      width: 100%;
+      text-align: left;
+      border-radius: 1rem;
+      padding: 0.75rem 0.85rem;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      display: grid;
+      gap: 0.1rem;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .calendar-slot:hover {
+      transform: translateY(-1px);
+      border-color: rgba(37, 99, 235, 0.24);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .calendar-slot-time {
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+      color: #0f172a;
+    }
+
+    .calendar-slot-pro {
       font-size: 0.85rem;
+      color: #64748b;
     }
 
-    .slot-chip-active {
+    .calendar-slot-active {
       border-color: #2563eb;
       background: #eff6ff;
+      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
+    }
+
+    .calendar-empty {
+      border-radius: 1rem;
+      padding: 0.85rem;
+      background: #f8fafc;
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      color: #64748b;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
     }
 
     .summary-metric {
@@ -351,10 +466,141 @@ import {
 
     .booking-item {
       border-radius: 1rem;
-      padding: 0.9rem;
-      background: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.12);
+      padding: 1rem;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid rgba(148, 163, 184, 0.14);
       position: relative;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      overflow: hidden;
+    }
+
+    .booking-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(37, 99, 235, 0.22);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .booking-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+
+    .booking-item-title {
+      min-width: 0;
+      display: grid;
+      gap: 0.15rem;
+    }
+
+    .booking-item-badges {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .status-badge,
+    .payment-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-badge[data-status="CONFIRMED"] {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: rgba(5, 150, 105, 0.25);
+    }
+    .status-badge[data-status="PENDING_PAYMENT"] {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: rgba(37, 99, 235, 0.25);
+    }
+    .status-badge[data-status="REQUESTED"] {
+      background: #f8fafc;
+      color: #334155;
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+    .status-badge[data-status="EXPIRED"],
+    .status-badge[data-status="CANCELLED"] {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .payment-badge[data-payment="PAID"] {
+      background: #ecfdf5;
+      color: #065f46;
+      border-color: rgba(5, 150, 105, 0.18);
+    }
+    .payment-badge[data-payment="REQUIRES_ACTION"],
+    .payment-badge[data-payment="PENDING"],
+    .payment-badge[data-payment="NONE"] {
+      background: #fff7ed;
+      color: #9a3412;
+      border-color: rgba(234, 88, 12, 0.22);
+    }
+    .payment-badge[data-payment="FAILED"],
+    .payment-badge[data-payment="CANCELLED"] {
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+
+    .booking-item-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+
+    .meta-pill {
+      border-radius: 0.9rem;
+      padding: 0.65rem 0.75rem;
+      background: rgba(248, 250, 252, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      display: grid;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+
+    .meta-label {
+      color: #64748b;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .booking-item-link {
+      display: inline-flex;
+      margin-top: 0.75rem;
+      font-weight: 800;
+      text-decoration: none;
+      color: #2563eb;
+    }
+
+    @media (max-width: 575px) {
+      .booking-item-meta {
+        grid-template-columns: 1fr;
+      }
+      .booking-item-badges {
+        align-items: flex-start;
+      }
+      .booking-item-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
     }
 
     .checkout-box {
@@ -416,7 +662,13 @@ import {
     }
 
     @media (max-width: 991px) {
-      .slot-grid {
+      .calendar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 575px) {
+      .calendar {
         grid-template-columns: 1fr;
       }
     }
@@ -444,4 +696,26 @@ export class PublicBookingFlowComponent {
   @Output() readonly submitBooking = new EventEmitter<void>();
   @Output() readonly prepareCheckout = new EventEmitter<void>();
   @Output() readonly payNow = new EventEmitter<void>();
+
+  get calendarDays(): Array<{ key: string; label: string; slots: PublicAvailabilitySlotVm[] }> {
+    const byDay = new Map<string, PublicAvailabilitySlotVm[]>();
+
+    for (const slot of this.slots ?? []) {
+      const d = new Date(slot.startAt);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = d.toISOString().slice(0, 10); // yyyy-mm-dd
+      const arr = byDay.get(key) ?? [];
+      arr.push(slot);
+      byDay.set(key, arr);
+    }
+
+    const dayKeys = Array.from(byDay.keys()).sort();
+    const fmt = new Intl.DateTimeFormat('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+
+    return dayKeys.map((key) => {
+      const d = new Date(key + 'T00:00:00');
+      const slots = (byDay.get(key) ?? []).slice().sort((a, b) => a.startAt.localeCompare(b.startAt));
+      return { key, label: fmt.format(d).toUpperCase(), slots };
+    });
+  }
 }

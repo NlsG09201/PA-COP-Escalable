@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { IamService } from './iam.service';
 import { IamController } from './iam.controller';
+import { UsersController } from './users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -12,6 +13,7 @@ import { BootstrapAdminService } from './bootstrap-admin.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserAccount, UserAccountSchema } from './user-account.schema';
 import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
@@ -29,8 +31,19 @@ import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema
       inject: [ConfigService],
     }),
   ],
-  controllers: [IamController],
-  providers: [IamService, JwtStrategy, JwtAuthGuard, RolesGuard, BootstrapAdminService],
+  controllers: [IamController, UsersController],
+  providers: [
+    IamService,
+    JwtStrategy,
+    JwtAuthGuard,
+    RolesGuard,
+    BootstrapAdminService,
+    {
+      provide: 'REDIS_CLIENT',
+      useFactory: (configService: ConfigService) => new Redis(configService.get<string>('REDIS_URL')),
+      inject: [ConfigService],
+    },
+  ],
   exports: [IamService, JwtAuthGuard, RolesGuard],
 })
 export class IamModule {}

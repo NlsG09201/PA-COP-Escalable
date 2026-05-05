@@ -16,6 +16,10 @@ export class UserAccount extends Document {
   @Prop({ required: true })
   password_hash: string;
 
+  // Link to `patients._id` (UUID stored as string in token/user collection).
+  @Prop()
+  patient_id?: string;
+
   @Prop({ type: [String], default: [] })
   roles: string[];
 

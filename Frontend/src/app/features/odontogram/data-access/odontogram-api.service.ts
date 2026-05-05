@@ -32,6 +32,19 @@ export interface ToothPoseVm {
   offsetMmX: number;
   offsetMmY: number;
   offsetMmZ: number;
+  /** 0–1 desde ortho-ai / fallback local; ausente = sin atenuación en UI */
+  confidence?: number;
+}
+
+/** Metadatos opcionales cuando la simulación viene de reconstrucción automática */
+export interface ReconstructionMetaVm {
+  source?: string;
+  teethDetected?: number;
+  teethPosed?: number;
+  meanConfidence?: number | null;
+  minConfidence?: number | null;
+  excludedBelowThreshold?: number;
+  confidenceThreshold?: number | null;
 }
 
 export interface SimulationKeyframeVm {
@@ -48,6 +61,7 @@ export interface OrthodonticSimulationVm {
    * When present, the UI should prefer the mesh and fall back to procedural simulation if missing/failing.
    */
   glbUrl?: string | null;
+  reconstructionMeta?: ReconstructionMetaVm | null;
 }
 
 export interface ToothStateVm {
@@ -128,7 +142,11 @@ export class OdontogramApiService {
         keyframes: simulation.keyframes.map((k) => ({
           t: k.t,
           toothPoses: k.toothPoses
-        }))
+        })),
+        ...(simulation.glbUrl != null && String(simulation.glbUrl).trim() !== ''
+          ? { glbUrl: simulation.glbUrl }
+          : {}),
+        ...(simulation.reconstructionMeta != null ? { reconstructionMeta: simulation.reconstructionMeta } : {})
       }
     };
     return this.http.patch<unknown>(`${API_BASE_URL}/api/odontogram/${patientId}`, body).pipe(
@@ -196,23 +214,54 @@ export class OdontogramApiService {
         if (posesRaw && typeof posesRaw === 'object') {
           for (const [fdi, pr] of Object.entries(posesRaw as Record<string, unknown>)) {
             const p = this.toObject(pr);
+            const confRaw = p['confidence'];
+            const conf =
+              confRaw != null && confRaw !== '' && Number.isFinite(Number(confRaw))
+                ? Math.max(0, Math.min(1, Number(confRaw)))
+                : undefined;
             poses[fdi] = {
               rotX: Number(p['rotX'] ?? 0),
               rotY: Number(p['rotY'] ?? 0),
               rotZ: Number(p['rotZ'] ?? 0),
               offsetMmX: Number(p['offsetMmX'] ?? 0),
               offsetMmY: Number(p['offsetMmY'] ?? 0),
-              offsetMmZ: Number(p['offsetMmZ'] ?? 0)
+              offsetMmZ: Number(p['offsetMmZ'] ?? 0),
+              ...(conf !== undefined ? { confidence: conf } : {})
             };
           }
         }
         return { t: Number(kf['t'] ?? 0), toothPoses: poses };
       });
+    const metaRaw = o['reconstructionMeta'] ?? o['reconstruction_meta'];
+    let reconstructionMeta: ReconstructionMetaVm | null = null;
+    if (metaRaw != null && typeof metaRaw === 'object') {
+      const m = metaRaw as Record<string, unknown>;
+      reconstructionMeta = {
+        source: m['source'] != null ? String(m['source']) : undefined,
+        teethDetected: m['teethDetected'] != null ? Number(m['teethDetected']) : undefined,
+        teethPosed: m['teethPosed'] != null ? Number(m['teethPosed']) : undefined,
+        meanConfidence:
+          m['meanConfidence'] != null && Number.isFinite(Number(m['meanConfidence']))
+            ? Number(m['meanConfidence'])
+            : null,
+        minConfidence:
+          m['minConfidence'] != null && Number.isFinite(Number(m['minConfidence']))
+            ? Number(m['minConfidence'])
+            : null,
+        excludedBelowThreshold:
+          m['excludedBelowThreshold'] != null ? Number(m['excludedBelowThreshold']) : undefined,
+        confidenceThreshold:
+          m['confidenceThreshold'] != null && Number.isFinite(Number(m['confidenceThreshold']))
+            ? Number(m['confidenceThreshold'])
+            : null
+      };
+    }
     return {
       plannedDurationMonths: Number(o['plannedDurationMonths'] ?? 18),
       notes: String(o['notes'] ?? ''),
       keyframes,
-      glbUrl: glbUrl?.trim() ? glbUrl : null
+      glbUrl: glbUrl?.trim() ? glbUrl : null,
+      reconstructionMeta
     };
   }
 

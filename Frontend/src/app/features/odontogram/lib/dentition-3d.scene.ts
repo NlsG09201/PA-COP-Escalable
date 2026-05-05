@@ -11,6 +11,7 @@ export interface ToothPose3d {
   offsetMmX: number;
   offsetMmY: number;
   offsetMmZ: number;
+  confidence?: number;
 }
 
 export interface ToothSceneState {
@@ -203,6 +204,9 @@ export class Dentition3dScene {
 
   private applyPosesFromSimulation(): void {
     const pose = this.interpolatePoses(this.simulationT);
+    const opacityFromConfidence = (c: number) =>
+      THREE.MathUtils.clamp(0.26 + 0.74 * ((c - 0.22) / 0.63), 0.18, 1);
+
     for (const [fdi, g] of this.toothGroups) {
       const baseQ = g.userData['baseQuat'] as THREE.Quaternion | undefined;
       const baseP = g.userData['basePos'] as THREE.Vector3 | undefined;
@@ -215,6 +219,20 @@ export class Dentition3dScene {
         const e = new THREE.Euler(p.rotX, p.rotY, p.rotZ, 'XYZ');
         g.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
       }
+
+      let opacity = 1;
+      let transparent = false;
+      if (p && typeof p.confidence === 'number' && !Number.isNaN(p.confidence)) {
+        opacity = opacityFromConfidence(p.confidence);
+        transparent = opacity < 0.995;
+      }
+      g.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+          obj.material.transparent = transparent;
+          obj.material.opacity = opacity;
+          obj.material.depthWrite = opacity > 0.92;
+        }
+      });
     }
   }
 
@@ -245,7 +263,7 @@ export class Dentition3dScene {
     for (const fdi of keys) {
       const A = from[fdi] ?? this.zeroPose();
       const B = to[fdi] ?? this.zeroPose();
-      out[fdi] = {
+      const next: ToothPose3d = {
         rotX: THREE.MathUtils.lerp(A.rotX, B.rotX, k),
         rotY: THREE.MathUtils.lerp(A.rotY, B.rotY, k),
         rotZ: THREE.MathUtils.lerp(A.rotZ, B.rotZ, k),
@@ -253,6 +271,14 @@ export class Dentition3dScene {
         offsetMmY: THREE.MathUtils.lerp(A.offsetMmY, B.offsetMmY, k),
         offsetMmZ: THREE.MathUtils.lerp(A.offsetMmZ, B.offsetMmZ, k)
       };
+      const ac = A.confidence;
+      const bc = B.confidence;
+      if (ac != null || bc != null) {
+        const av = ac ?? bc!;
+        const bv = bc ?? ac!;
+        next.confidence = THREE.MathUtils.lerp(av, bv, k);
+      }
+      out[fdi] = next;
     }
     return out;
   }

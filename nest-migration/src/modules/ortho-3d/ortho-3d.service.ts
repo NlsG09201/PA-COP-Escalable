@@ -13,6 +13,7 @@ type ReconstructResponse = {
   data: Array<{
     id?: string;
     fdi?: string;
+    confidence?: number;
     pos_3d?: { x: number; y: number; z: number };
     rotation?: { x?: number; y?: number; z?: number };
     dimensions?: { w?: number; h?: number; d?: number };
@@ -35,6 +36,8 @@ export class Ortho3dService {
   private readonly downloadResults: boolean;
   private readonly storageDir: string;
   private readonly publicBaseUrlOverride?: string;
+  /** Si está definido (0–1), se descartan piezas con `confidence` por debajo antes de generar poses. */
+  private readonly reconstructMinConfidence?: number;
 
   constructor(
     config: ConfigService,
@@ -53,6 +56,14 @@ export class Ortho3dService {
     this.downloadResults = (config.get<string>('ORTHO_3D_DOWNLOAD_RESULTS') ?? 'true') !== 'false';
     this.storageDir = path.resolve(config.get<string>('ORTHO_3D_STORAGE_DIR') ?? './uploads/ortho-3d');
     this.publicBaseUrlOverride = config.get<string>('ORTHO_3D_PUBLIC_BASE_URL') ?? undefined;
+
+    const confRaw = config.get<string>('ORTHO_RECONSTRUCT_MIN_CONFIDENCE');
+    if (confRaw != null && String(confRaw).trim() !== '') {
+      const n = Number(confRaw);
+      if (!Number.isNaN(n) && n >= 0 && n <= 1) {
+        this.reconstructMinConfidence = n;
+      }
+    }
   }
 
   async createExternalJobAndPersist(
@@ -230,15 +241,38 @@ export class Ortho3dService {
 
   private async buildFallbackSimulationFromLocalAi(image: any): Promise<any> {
     const reconstructed = await this.callLocalReconstruct(image);
-    const poses = this.toToothPoses(reconstructed?.data ?? []);
+    const raw = reconstructed?.data ?? [];
+    const filtered = this.filterRawTeethByConfidence(raw);
+    const poses = this.toToothPoses(filtered);
+    const confVals = raw
+      .map((t) => t.confidence)
+      .filter((c): c is number => typeof c === 'number' && !Number.isNaN(c));
+    const meanConfidence = confVals.length ? confVals.reduce((a, b) => a + b, 0) / confVals.length : null;
+    const minConfidence = confVals.length ? Math.min(...confVals) : null;
     return {
       plannedDurationMonths: 18,
-      notes: 'Reconstrucción paramétrica (radiografía) fallback v1',
+      notes: 'Reconstrucción paramétrica desde imagen intraoral (fallback ortho-ai)',
+      reconstructionMeta: {
+        source: 'ortho-ai-local',
+        teethDetected: raw.length,
+        teethPosed: Object.keys(poses).length,
+        meanConfidence,
+        minConfidence,
+        excludedBelowThreshold: raw.length - filtered.length,
+        confidenceThreshold:
+          this.reconstructMinConfidence !== undefined ? this.reconstructMinConfidence : null,
+      },
       keyframes: [
         { t: 0, toothPoses: poses },
         { t: 1, toothPoses: poses },
       ],
     };
+  }
+
+  private filterRawTeethByConfidence(raw: ReconstructResponse['data']): ReconstructResponse['data'] {
+    if (this.reconstructMinConfidence === undefined) return raw;
+    const t = this.reconstructMinConfidence;
+    return raw.filter((x) => (x.confidence ?? 1) >= t);
   }
 
   private toToothPoses(raw: ReconstructResponse['data']): Record<string, any> {
@@ -260,17 +294,19 @@ export class Ortho3dService {
           const fdi = (t.fdi && String(t.fdi).length === 2 ? String(t.fdi) : slice[idx]) ?? slice[idx] ?? String(t.id ?? `t${idx}`);
           const p = t.pos_3d ?? { x: 0, y: 0, z: 0 };
           const r = t.rotation ?? {};
-          return [
-            fdi,
-            {
-              rotX: Number(r.x ?? 0),
-              rotY: Number(r.y ?? 0),
-              rotZ: Number(r.z ?? 0),
-              offsetMmX: Number(p.x ?? 0),
-              offsetMmY: Number(p.y ?? 0),
-              offsetMmZ: Number(p.z ?? 0),
-            },
-          ];
+          const conf = t.confidence;
+          const pose: Record<string, number> = {
+            rotX: Number(r.x ?? 0),
+            rotY: Number(r.y ?? 0),
+            rotZ: Number(r.z ?? 0),
+            offsetMmX: Number(p.x ?? 0),
+            offsetMmY: Number(p.y ?? 0),
+            offsetMmZ: Number(p.z ?? 0),
+          };
+          if (typeof conf === 'number' && !Number.isNaN(conf)) {
+            pose.confidence = Math.max(0, Math.min(1, conf));
+          }
+          return [fdi, pose];
         }),
       );
     };
