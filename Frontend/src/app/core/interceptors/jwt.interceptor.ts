@@ -39,14 +39,24 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const token = authService.getToken();
 
-  if (!token) {
-    return next(req);
-  }
-
   // Public endpoints must remain accessible even if the client still has an old/invalid token.
   // Otherwise Spring Security returns 401 when Authorization: Bearer <invalid> is present.
-  const isPublicEndpoint =
-    req.url.startsWith('/public') || req.url.includes('/public/');
+  const isPublicEndpoint = req.url.startsWith('/public') || req.url.includes('/public/');
+
+  // If there's no token and we get 401 on a protected route, force re-login.
+  // This avoids silent loops where the UI keeps fetching without credentials.
+  if (!token) {
+    if (isPublicEndpoint) return next(req);
+    return next(req).pipe(
+      catchError((error: { status?: number }) => {
+        if (error.status === 401) {
+          tokenStorage.clear();
+          void router.navigateByUrl('/login');
+        }
+        return throwError(() => error);
+      })
+    );
+  }
 
   if (isPublicEndpoint) {
     return next(req);

@@ -66,6 +66,12 @@ public class AppointmentAssignmentAudit extends TenantScopedEntity {
 		audit.candidatesPayload = candidatesPayload;
 		audit.alternativesPayload = alternativesPayload;
 		audit.outcome = outcome;
+		
+		// Ensure fields are used to avoid unused field warnings if the IDE doesn't track them correctly
+		// in static factory methods for some reason (though they are used above).
 		return audit;
 	}
+
+	public String getPriority() { return priority; }
+	public String getOutcome() { return outcome; }
 }

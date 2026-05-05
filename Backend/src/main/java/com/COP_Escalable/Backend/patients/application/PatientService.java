@@ -1,16 +1,17 @@
 package com.COP_Escalable.Backend.patients.application;
 
-import com.COP_Escalable.Backend.patients.application.PatientRegisteredEvent;
-import com.COP_Escalable.Backend.patients.domain.Patient;
-import com.COP_Escalable.Backend.patients.infrastructure.PatientRepository;
-import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
+import com.COP_Escalable.Backend.patients.domain.Patient;
+import com.COP_Escalable.Backend.patients.infrastructure.PatientRepository;
+import com.COP_Escalable.Backend.patients.application.PatientRegisteredEvent;
+import com.COP_Escalable.Backend.shared.tenancy.TenantContextHolder;
 
 @Service
 public class PatientService {
