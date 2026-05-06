@@ -79,6 +79,42 @@ services:
       retries: 30
       start_period: 5s
 
+  # Stub Image→3D compatible with nest Ortho3dService (instant demo GLB download).
+  # Producción: sustituir por Meshy/Tripo/Replicate y apuntar ORTHO_IMAGE_TO_3D_* al proveedor real.
+  image-to-3d:
+    build:
+      context: ./services/image-to-3d-stub
+    profiles: ["core", "nest", "ai"]
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8010:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # CBCT DICOM (ZIP) → GLB (basic segmentation + marching cubes).
+  dicom-to-glb:
+    build:
+      context: ./services/dicom-to-glb
+    profiles: ["core", "nest", "ai"]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Umbral HU aproximado para hueso/diente; ajuste según escáner (vía .env).
+      DICOM_TO_GLB_THRESHOLD: ${DICOM_TO_GLB_THRESHOLD:-350}
+    ports:
+      - "8020:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   nest-backend:
     build:
       context: ./nest-migration
@@ -86,11 +122,17 @@ services:
     profiles: ["core","nest"]
     security_opt:
       - no-new-privileges:true
+    volumes:
+      # GLB descargados del stub/proveedor; sin volumen el archivo puede perderse al recrear el contenedor.
+      - ortho_3d_data:/app/uploads/ortho-3d
     environment:
       PORT: 8080
       MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&replicaSet=rs0&retryWrites=true
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change_me}
+      # Mayor TTL en dev reduce tormentas de refresh paralelas; producción puede acortarlo vía .env.
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-45m}
+      # Usuario de pruebas: recibe roles SUPER_ADMIN + ADMIN (superadmin pasa cualquier @Roles).
       APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
       APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
       APP_BOOTSTRAP_ADMIN_ORG_ID: ${APP_BOOTSTRAP_ADMIN_ORG_ID:-be7f4015-67ad-472b-9cf7-aadcd8b0d604}
@@ -107,17 +149,31 @@ services:
       ORTHO_IMAGE_TO_3D_API_KEY_HEADER: ${ORTHO_IMAGE_TO_3D_API_KEY_HEADER:-Authorization}
       ORTHO_IMAGE_TO_3D_API_KEY_PREFIX: ${ORTHO_IMAGE_TO_3D_API_KEY_PREFIX:-Bearer }
       ORTHO_IMAGE_TO_3D_POLL_METHOD: ${ORTHO_IMAGE_TO_3D_POLL_METHOD:-GET}
+      # External DICOM→3D provider (CBCT ZIP → GLB).
+      ORTHO_DICOM_TO_3D_BASE_URL: ${ORTHO_DICOM_TO_3D_BASE_URL:-http://dicom-to-glb:8000}
+      ORTHO_DICOM_TO_3D_CREATE_PATH: ${ORTHO_DICOM_TO_3D_CREATE_PATH:-/openapi/v1/dicom-to-3d}
+      ORTHO_DICOM_TO_3D_POLL_PATH_TEMPLATE: ${ORTHO_DICOM_TO_3D_POLL_PATH_TEMPLATE:-/openapi/v1/dicom-to-3d/{id}}
+      ORTHO_DICOM_TO_3D_API_KEY: ${ORTHO_DICOM_TO_3D_API_KEY:-}
+      ORTHO_DICOM_TO_3D_API_KEY_HEADER: ${ORTHO_DICOM_TO_3D_API_KEY_HEADER:-Authorization}
+      ORTHO_DICOM_TO_3D_API_KEY_PREFIX: ${ORTHO_DICOM_TO_3D_API_KEY_PREFIX:-Bearer }
+      ORTHO_DICOM_TO_3D_POLL_METHOD: ${ORTHO_DICOM_TO_3D_POLL_METHOD:-GET}
       # Local storage for downloaded GLB files.
       ORTHO_3D_STORAGE_DIR: ${ORTHO_3D_STORAGE_DIR:-/app/uploads/ortho-3d}
       # If set, returned glbUrl will use this base. Otherwise it uses request host/protocol.
       ORTHO_3D_PUBLIC_BASE_URL: ${ORTHO_3D_PUBLIC_BASE_URL:-}
       ORTHO_3D_DOWNLOAD_RESULTS: ${ORTHO_3D_DOWNLOAD_RESULTS:-true}
+      # Tamaño máximo por archivo multipart (MB); alinear con client_max_body_size del gateway.
+      ORTHO_MULTIPART_MAX_FILE_MB: ${ORTHO_MULTIPART_MAX_FILE_MB:-500}
     depends_on:
       mongodb:
         condition: service_healthy
       mongodb-init:
         condition: service_completed_successfully
       redis:
+        condition: service_healthy
+      image-to-3d:
+        condition: service_healthy
+      dicom-to-glb:
         condition: service_healthy
 
   gateway:
@@ -153,7 +209,8 @@ services:
     build:
       context: ./ortho_system
       dockerfile: Dockerfile
-    profiles: ["ai"]
+    # Incluido en core para que el fallback /reconstruct del pipeline 3D funcione sin --profile ai.
+    profiles: ["core", "nest", "ai"]
     security_opt:
       - no-new-privileges:true
     ports:

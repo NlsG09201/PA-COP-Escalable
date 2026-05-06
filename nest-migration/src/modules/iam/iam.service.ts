@@ -193,7 +193,12 @@ export class IamService {
   }
 
   async refreshToken(token: string, ip?: string, userAgent?: string) {
-    const hash = this.hashToken(token);
+    const trimmed = typeof token === 'string' ? token.trim() : '';
+    if (!trimmed) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const hash = this.hashToken(trimmed);
     const storedToken = await this.refreshModel.findOne({ token_hash: hash }).exec();
 
     if (!storedToken || storedToken.expires_at < new Date()) {

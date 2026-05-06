@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { UserAccount } from './user-account.schema';
+import { SUPER_ADMIN_ROLE } from './roles.constants';
 
 @Injectable()
 export class BootstrapAdminService implements OnModuleInit {
@@ -24,23 +25,26 @@ export class BootstrapAdminService implements OnModuleInit {
     const username = usernameRaw.toLowerCase().trim();
     if (!username) return;
 
+    const bootstrapRoles = [SUPER_ADMIN_ROLE, 'ADMIN'];
+
     const existing = await this.users.findOne({ username }).exec();
     if (existing) {
       if (reset) {
         // Avoid optimistic concurrency/versionKey mismatches with legacy documents.
         const password_hash = await bcrypt.hash(password, 10);
+        const merged = new Set<string>([...(Array.isArray(existing.roles) ? existing.roles : []), ...bootstrapRoles]);
         await this.users.updateOne(
           { username },
           {
             $set: {
               password_hash,
               organization_id: orgId,
-              roles: Array.isArray(existing.roles) && existing.roles.length > 0 ? existing.roles : ['ADMIN'],
+              roles: Array.from(merged),
               mfa_enabled: false,
             },
           },
         ).exec();
-        this.logger.warn(`Bootstrap admin password reset: ${username}`);
+        this.logger.warn(`Bootstrap admin password reset (${SUPER_ADMIN_ROLE}): ${username}`);
       } else {
         this.logger.log(`Bootstrap admin exists: ${username}`);
       }
@@ -54,7 +58,7 @@ export class BootstrapAdminService implements OnModuleInit {
         $setOnInsert: {
           username,
           organization_id: orgId,
-          roles: ['ADMIN'],
+          roles: bootstrapRoles,
           mfa_enabled: false,
         },
         $set: {
@@ -63,7 +67,7 @@ export class BootstrapAdminService implements OnModuleInit {
       },
       { upsert: true },
     ).exec();
-    this.logger.log(`Bootstrap admin created: ${username}`);
+    this.logger.log(`Bootstrap admin created (${SUPER_ADMIN_ROLE}): ${username}`);
   }
 }
 

@@ -16,30 +16,81 @@ class OrthoEngine {
     }
 
     _initScene() {
-        this.scene.background = new THREE.Color(0x121212);
+        // Look close to the reference: light background with dark wire overlay.
+        this.scene.background = new THREE.Color(0xffffff);
         
-        const aspect = this.container.clientWidth / this.container.clientHeight;
+        const aspect = this.container.clientWidth / Math.max(this.container.clientHeight, 1);
         this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
         this.camera.position.set(0, 15, 60);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+        const rendererOpts = [
+            { antialias: true, logarithmicDepthBuffer: true, failIfMajorPerformanceCaveat: false, powerPreference: 'default' },
+            { antialias: false, logarithmicDepthBuffer: false, failIfMajorPerformanceCaveat: false, powerPreference: 'low-power' },
+            { antialias: false, failIfMajorPerformanceCaveat: false }
+        ];
+        let lastErr;
+        for (const opts of rendererOpts) {
+            try {
+                this.renderer = new THREE.WebGLRenderer(opts);
+                break;
+            } catch (e) {
+                lastErr = e;
+                this.renderer = null;
+            }
+        }
+        if (!this.renderer) {
+            console.error('WebGL no disponible:', lastErr);
+            this.container.innerHTML = '<p style="padding:1rem;color:#c92a2a;font-family:sans-serif;">WebGL no disponible. Active la aceleración por hardware en el navegador o use un equipo sin restricciones RDP/sandbox.</p>';
+            return;
+        }
         this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setClearColor(0xffffff, 1);
         this.container.appendChild(this.renderer.domElement);
 
-        // Iluminación PBR (Physically Based Rendering)
-        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-        const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-        directional.position.set(10, 20, 15);
-        directional.castShadow = true;
-        this.scene.add(ambient, directional);
+        // Iluminación suave tipo “studio” (similar al wireframe de referencia)
+        const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+        const key = new THREE.DirectionalLight(0xffffff, 0.65);
+        key.position.set(18, 30, 18);
+        key.castShadow = true;
+        const fill = new THREE.DirectionalLight(0xffffff, 0.25);
+        fill.position.set(-18, 16, -10);
+        this.scene.add(ambient, key, fill);
 
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         
         window.addEventListener('resize', () => this.onResize());
         this._animate();
+
+        // Base gum/arch to look more like an actual jaw mesh.
+        this._ensureGumBase();
+    }
+
+    _ensureGumBase() {
+        if (this.gumBase) return;
+        const geo = new THREE.TorusGeometry(18, 4.2, 24, 90, Math.PI * 1.25);
+        geo.rotateX(Math.PI / 2);
+        geo.rotateZ(Math.PI / 2);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xe9ecef, roughness: 0.7, metalness: 0.02 });
+        const gum = new THREE.Mesh(geo, mat);
+        gum.position.set(0, -6, 0);
+        gum.castShadow = false;
+        gum.receiveShadow = true;
+        this.scene.add(gum);
+
+        // Wire overlay for gum base
+        const wf = new THREE.LineSegments(
+            new THREE.WireframeGeometry(geo),
+            new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55 })
+        );
+        wf.position.copy(gum.position);
+        wf.rotation.copy(gum.rotation);
+        wf.scale.copy(gum.scale);
+        this.scene.add(wf);
+        this.gumBase = gum;
+        this.gumWire = wf;
     }
 
     /**
@@ -47,28 +98,48 @@ class OrthoEngine {
      */
     addTooth(data) {
         const group = new THREE.Group();
-        
-        // Geometría Anatómica (Esmalte)
-        const toothGeom = new THREE.SphereGeometry(1, 32, 32);
-        const toothMat = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff, 
-            roughness: 0.1, 
-            metalness: 0.05, 
-            emissive: 0x222222, 
-            emissiveIntensity: 0.1 
-        });
-        
-        const tooth = new THREE.Mesh(toothGeom, toothMat);
-        // Escala basada en dimensiones reales
-        tooth.scale.set(data.dimensions.w/2, data.dimensions.h/2, data.dimensions.d/2);
-        tooth.castShadow = true;
-        group.add(tooth);
 
-        // Bracket Metálico
-        const bracketGroup = this._createBracket(data.dimensions.w);
-        bracketGroup.position.z = (data.dimensions.d / 2) + 0.1;
-        bracketGroup.name = "bracket";
-        group.add(bracketGroup);
+        // “Tooth-like” geometry: capsule-ish (r128 has no THREE.CapsuleGeometry).
+        const w = Math.max(0.8, (data.dimensions?.w ?? 2) / 2);
+        const h = Math.max(1.2, (data.dimensions?.h ?? 3) / 2);
+        const d = Math.max(0.8, (data.dimensions?.d ?? 2) / 2);
+        const toothMat = new THREE.MeshStandardMaterial({
+            color: 0xe9ecef,
+            roughness: 0.65,
+            metalness: 0.02,
+        });
+
+        // Build a capsule-like tooth from primitives so it works on three r128.
+        const radius = 0.9;
+        const bodyLen = 1.6;
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.92, bodyLen, 20, 1), toothMat);
+        cyl.castShadow = true;
+        cyl.receiveShadow = true;
+        const top = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 16), toothMat);
+        top.position.y = bodyLen / 2;
+        top.castShadow = true;
+        top.receiveShadow = true;
+        const bottom = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.98, 20, 16), toothMat);
+        bottom.position.y = -bodyLen / 2;
+        bottom.castShadow = true;
+        bottom.receiveShadow = true;
+
+        const toothParts = new THREE.Group();
+        toothParts.add(cyl, top, bottom);
+        toothParts.scale.set(w, h, d);
+        group.add(toothParts);
+
+        // Wireframe overlay like the reference image
+        const wfMat = new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.85 });
+        toothParts.traverse((obj) => {
+            if (!obj.isMesh) return;
+            const wf = new THREE.LineSegments(new THREE.WireframeGeometry(obj.geometry), wfMat);
+            wf.renderOrder = 999;
+            wf.position.copy(obj.position);
+            wf.rotation.copy(obj.rotation);
+            wf.scale.copy(obj.scale);
+            toothParts.add(wf);
+        });
 
         // Posición y Rotación inicial
         group.position.set(data.pos_3d.x, data.pos_3d.y, data.pos_3d.z);
@@ -124,13 +195,15 @@ class OrthoEngine {
     }
 
     onResize() {
-        this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+        if (!this.renderer || !this.camera) return;
+        this.camera.aspect = this.container.clientWidth / Math.max(this.container.clientHeight, 1);
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     }
 
     _animate() {
         requestAnimationFrame(() => this._animate());
+        if (!this.renderer || !this.scene || !this.camera) return;
         if (this.controls) this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }

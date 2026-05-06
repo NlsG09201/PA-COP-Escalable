@@ -17,6 +17,7 @@ import { Store } from '@ngrx/store';
 import { Subscription } from 'rxjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { createWebGLRenderer } from '../../core/three/create-webgl-renderer';
 import { selectSelectedPatientId } from '../../store/patients.selectors';
 import {
   SimulationApiService,
@@ -293,7 +294,9 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly zone = inject(NgZone);
   private sub?: Subscription;
   private animFrameId = 0;
+  private glRendering = true;
   private threeJsInitialized = false;
+  private webglInitFailed = false;
   private initRetryCount = 0;
 
   // Three.js objects
@@ -337,8 +340,26 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.zone.runOutsideAngular(() => this.initThreeJs());
   }
 
+  private readonly onCanvasGlLost = (ev: Event): void => {
+    ev.preventDefault();
+    this.glRendering = false;
+    cancelAnimationFrame(this.animFrameId);
+    this.animFrameId = 0;
+  };
+
+  private readonly onCanvasGlRestore = (): void => {
+    this.glRendering = true;
+    this.onWindowResize();
+    this.animate();
+  };
+
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    const c = this.canvasRef?.nativeElement;
+    if (c) {
+      c.removeEventListener('webglcontextlost', this.onCanvasGlLost);
+      c.removeEventListener('webglcontextrestored', this.onCanvasGlRestore);
+    }
     cancelAnimationFrame(this.animFrameId);
     window.removeEventListener('resize', this.onWindowResize);
     this.controls?.dispose();
@@ -415,7 +436,7 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   // ─── Three.js ──────────────────────────────────────────────
 
   private initThreeJs(): void {
-    if (this.threeJsInitialized) return;
+    if (this.threeJsInitialized || this.webglInitFailed) return;
 
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) {
@@ -431,46 +452,57 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(w, h, false);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.setClearColor(0x1a1a2e, 1);
+    try {
+      this.renderer = createWebGLRenderer({ canvas });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      this.renderer.setSize(w, h, false);
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.setClearColor(0x1a1a2e, 1);
 
-    this.scene = new THREE.Scene();
+      this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
-    this.camera.position.set(0, 25, 40);
-    this.camera.lookAt(0, 0, 0);
+      this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+      this.camera.position.set(0, 25, 40);
+      this.camera.lookAt(0, 0, 0);
 
-    this.controls = new OrbitControls(this.camera, canvas);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.08;
-    this.controls.minDistance = 15;
-    this.controls.maxDistance = 80;
-    this.controls.target.set(0, 0, 0);
+      this.controls = new OrbitControls(this.camera, canvas);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.08;
+      this.controls.minDistance = 15;
+      this.controls.maxDistance = 80;
+      this.controls.target.set(0, 0, 0);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this.scene.add(ambient);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      this.scene.add(ambient);
 
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(10, 20, 15);
-    dir.castShadow = true;
-    this.scene.add(dir);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+      dir.position.set(10, 20, 15);
+      dir.castShadow = true;
+      this.scene.add(dir);
 
-    const fill = new THREE.DirectionalLight(0xaaccff, 0.3);
-    fill.position.set(-10, 10, -10);
-    this.scene.add(fill);
+      const fill = new THREE.DirectionalLight(0xaaccff, 0.3);
+      fill.position.set(-10, 10, -10);
+      this.scene.add(fill);
 
-    this.createDefaultArch();
+      this.createDefaultArch();
 
-    window.addEventListener('resize', this.onWindowResize);
-    this.threeJsInitialized = true;
-    this.animate();
+      window.addEventListener('resize', this.onWindowResize);
+      canvas.addEventListener('webglcontextlost', this.onCanvasGlLost, false);
+      canvas.addEventListener('webglcontextrestored', this.onCanvasGlRestore, false);
+      this.threeJsInitialized = true;
+      this.animate();
+    } catch (e) {
+      this.webglInitFailed = true;
+      const msg =
+        e instanceof Error
+          ? e.message
+          : 'WebGL no disponible: active aceleración por hardware o evite RDP/sin GPU.';
+      this.zone.run(() => this.error.set(`Vista 3D: ${msg}`));
+    }
   }
 
   private readonly onWindowResize = (): void => {
-    if (!this.canvasRef) return;
+    if (!this.canvasRef || !this.renderer || !this.camera) return;
     const canvas = this.canvasRef.nativeElement;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
@@ -480,7 +512,9 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   };
 
   private animate = (): void => {
+    if (!this.glRendering) return;
     this.animFrameId = requestAnimationFrame(this.animate);
+    if (!this.renderer || !this.scene || !this.camera || !this.controls) return;
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };

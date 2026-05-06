@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { IamService } from './iam.service';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPublicDto } from './dto/register-public.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -36,7 +37,7 @@ export class IamController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token' })
-  async refresh(@Body('refreshToken') token: string, @Req() req: Request) {
-    return this.iamService.refreshToken(token, req.ip, req.headers['user-agent']);
+  async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
+    return this.iamService.refreshToken(dto.refreshToken, req.ip, req.headers['user-agent']);
   }
 }

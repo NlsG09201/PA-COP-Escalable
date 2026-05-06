@@ -26,7 +26,9 @@ import Redis from 'ioredis';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15m' },
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES') ?? '45m',
+        },
       }),
       inject: [ConfigService],
     }),

@@ -15,13 +15,13 @@ export class AnalyticsDashboardController {
   constructor(private readonly service: AnalyticsDashboardService) {}
 
   @Get('kpis')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async kpis(@Req() req, @Query('from') from: string, @Query('to') to: string) {
     return this.service.kpis({ from, to }, req.tenant);
   }
 
   @Get('appointments/trend')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async appointmentsTrend(
     @Req() req,
     @Query('from') from: string,
@@ -32,7 +32,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('revenue/trend')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async revenueTrend(
     @Req() req,
     @Query('from') from: string,
@@ -43,13 +43,13 @@ export class AnalyticsDashboardController {
   }
 
   @Get('specialties/distribution')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async specialtiesDistribution(@Req() req, @Query('from') from: string, @Query('to') to: string) {
     return this.service.specialtiesDistribution({ from, to }, req.tenant);
   }
 
   @Get('doctors/performance')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async doctorsPerformance(
     @Req() req,
     @Query('from') from: string,
@@ -60,7 +60,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('appointments/heatmap')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN')
   async appointmentsHeatmap(@Req() req, @Query('from') from: string, @Query('to') to: string) {
     return this.service.appointmentsHeatmap({ from, to }, req.tenant);
   }

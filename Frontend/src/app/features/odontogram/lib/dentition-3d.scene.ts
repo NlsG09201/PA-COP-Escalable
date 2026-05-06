@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { createWebGLRenderer } from '../../../core/three/create-webgl-renderer';
 
 export type ToothStatus3d = 'HEALTHY' | 'CARIES' | 'RESTORATION' | 'EXTRACTION' | 'TREATMENT';
 
@@ -49,13 +50,25 @@ export class Dentition3dScene {
   private readonly toothGroups = new Map<string, THREE.Group>();
   private readonly resizeObserver: ResizeObserver;
   private raf = 0;
+  private renderingEnabled = true;
+  private readonly onContextLost = (ev: Event): void => {
+    ev.preventDefault();
+    this.renderingEnabled = false;
+    cancelAnimationFrame(this.raf);
+  };
+  private readonly onContextRestored = (): void => {
+    this.renderingEnabled = true;
+    this.resize();
+    this.animateLoop();
+  };
   private keyframes: SimulationKeyframe3d[] = [];
   private simulationT = 0;
   private glbLoadToken = 0;
+  private wireframeOverlay: THREE.Object3D | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = createWebGLRenderer({ canvas });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
@@ -92,12 +105,9 @@ export class Dentition3dScene {
     this.root.add(this.glbRoot);
     this.glbRoot.visible = false;
 
-    const loop = () => {
-      this.raf = requestAnimationFrame(loop);
-      this.controls.update();
-      this.renderer.render(this.scene, this.camera);
-    };
-    loop();
+    this.canvas.addEventListener('webglcontextlost', this.onContextLost, false);
+    this.canvas.addEventListener('webglcontextrestored', this.onContextRestored, false);
+    this.animateLoop();
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.canvas.parentElement ?? this.canvas);
@@ -124,12 +134,21 @@ export class Dentition3dScene {
   }
 
   dispose(): void {
+    this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     cancelAnimationFrame(this.raf);
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.disposeTeethMeshes();
     this.clearGlb();
     this.renderer.dispose();
+  }
+
+  private animateLoop(): void {
+    if (!this.renderingEnabled) return;
+    this.raf = requestAnimationFrame(() => this.animateLoop());
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
   }
 
   private resize(): void {
@@ -291,6 +310,12 @@ export class Dentition3dScene {
     this.glbRoot.visible = false;
     this.proceduralRoot.visible = true;
 
+    if (this.wireframeOverlay) {
+      this.glbRoot.remove(this.wireframeOverlay);
+      this.disposeObject3D(this.wireframeOverlay);
+      this.wireframeOverlay = null;
+    }
+
     const children = [...this.glbRoot.children];
     for (const child of children) {
       this.glbRoot.remove(child);
@@ -306,7 +331,16 @@ export class Dentition3dScene {
    * - align to a base Y (so it sits above the grid)
    * - fit camera/orbit target
    */
-  async loadGlb(glbUrl: string, opts?: { onProgress?: (percent: number) => void }): Promise<void> {
+  async loadGlb(
+    glbUrl: string,
+    opts?: {
+      onProgress?: (percent: number) => void;
+      /** Manual Bearer (legacy); prefer fetchBinary desde HttpClient si el interceptor renueva JWT. */
+      authToken?: string | null;
+      /** Carga binaria (p. ej. HttpClient + jwtInterceptor); evita fetch() bloqueado por CORP/CORS edge cases. */
+      fetchBinary?: () => Promise<ArrayBuffer>;
+    }
+  ): Promise<void> {
     const token = ++this.glbLoadToken;
     // Keep procedural fallback visible while loading.
     this.proceduralRoot.visible = true;
@@ -314,6 +348,9 @@ export class Dentition3dScene {
     this.clearGlb();
 
     const onProgress = opts?.onProgress;
+    const authToken = opts?.authToken;
+    const fetchBinary = opts?.fetchBinary;
+
     const manager = new THREE.LoadingManager();
     manager.onProgress = (_url, itemsLoaded, itemsTotal) => {
       if (!itemsTotal) return;
@@ -325,14 +362,47 @@ export class Dentition3dScene {
     const loader = new GLTFLoader(manager);
     loader.setCrossOrigin('anonymous');
 
-    const gltf: any = await new Promise((resolve, reject) => {
-      loader.load(
-        glbUrl,
-        (data) => resolve(data),
-        undefined,
-        (err) => reject(err)
-      );
-    });
+    const parseArrayBuffer = (buf: ArrayBuffer) =>
+      new Promise((resolve, reject) => {
+        loader.parse(
+          buf,
+          '',
+          (data) => resolve(data),
+          (err) => reject(err ?? new Error('GLTF parse failed'))
+        );
+      });
+
+    const gltf: any = await (async () => {
+      if (fetchBinary) {
+        onProgress?.(12);
+        const buf = await fetchBinary();
+        onProgress?.(88);
+        return await parseArrayBuffer(buf);
+      }
+      if (authToken) {
+        onProgress?.(8);
+        const res = await fetch(glbUrl, {
+          headers: { Authorization: `Bearer ${authToken}` },
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          throw new Error(`GLB ${res.status}`);
+        }
+        const buf = await res.arrayBuffer();
+        onProgress?.(85);
+        return await parseArrayBuffer(buf);
+      }
+
+      return await new Promise((resolve, reject) => {
+        loader.load(
+          glbUrl,
+          (data) => resolve(data),
+          undefined,
+          (err) => reject(err)
+        );
+      });
+    })();
 
     const model: THREE.Object3D | undefined = gltf?.scene ?? gltf?.scenes?.[0];
     if (!model) throw new Error('GLB loaded but no scene found');
@@ -385,11 +455,54 @@ export class Dentition3dScene {
       }
     });
 
+    // Make it look like the reference: light-gray surface + black wireframe overlay,
+    // and (when safe) Subdivision level 1 for smoother quads-like appearance.
+    this.applyWireframeSubdivisionLook(model);
+
     // Put it under glbRoot for deterministic transforms & disposal.
     this.glbRoot.add(model);
     this.normalizeAndFitModel(model);
     this.glbRoot.visible = true;
     this.proceduralRoot.visible = false;
+  }
+
+  private applyWireframeSubdivisionLook(model: THREE.Object3D): void {
+    // Force a neutral light-gray surface material (so wireframe stands out).
+    model.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xe9ecef,
+        roughness: 0.65,
+        metalness: 0.02,
+      });
+      obj.material = mat;
+    });
+
+    // Create a wireframe overlay group (black lines).
+    const overlay = new THREE.Group();
+    model.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const geo = obj.geometry;
+      if (!geo) return;
+      const wf = new THREE.WireframeGeometry(geo);
+      const lines = new THREE.LineSegments(
+        wf,
+        new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.85 }),
+      );
+      lines.renderOrder = 999;
+      lines.position.copy(obj.position);
+      lines.quaternion.copy(obj.quaternion);
+      lines.scale.copy(obj.scale);
+      overlay.add(lines);
+    });
+
+    // Replace any previous overlay
+    if (this.wireframeOverlay) {
+      this.glbRoot.remove(this.wireframeOverlay);
+      this.disposeObject3D(this.wireframeOverlay);
+    }
+    this.wireframeOverlay = overlay;
+    this.glbRoot.add(overlay);
   }
 
   private normalizeAndFitModel(model: THREE.Object3D): void {
@@ -448,6 +561,11 @@ export class Dentition3dScene {
         child.geometry?.dispose();
         if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
         else child.material?.dispose();
+      } else if (child instanceof THREE.LineSegments) {
+        (child.geometry as THREE.BufferGeometry | undefined)?.dispose?.();
+        const mat = child.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose?.();
       }
     });
   }

@@ -8,15 +8,40 @@ let simulationTimeline = [];
 let currentMonth = 0;
 let showBrackets = true;
 
+function createRendererSafe() {
+    const attempts = [
+        { antialias: true, alpha: true, failIfMajorPerformanceCaveat: false, powerPreference: 'default' },
+        { antialias: false, alpha: true, failIfMajorPerformanceCaveat: false, powerPreference: 'low-power' },
+        { antialias: false, alpha: false, failIfMajorPerformanceCaveat: false }
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+        try {
+            return new THREE.WebGLRenderer(attempts[i]);
+        } catch (e) {
+            if (i === attempts.length - 1) throw e;
+        }
+    }
+    return null;
+}
+
 // Configuración inicial de Three.js
 function init3D() {
+    const status = document.getElementById('statusMsg');
+    try {
+        renderer = createRendererSafe();
+    } catch (e) {
+        const msg = 'WebGL no disponible (aceleración hardware desactivada, sesión RDP sin GPU, o navegador bloqueado). Active "Usar aceleración hardware" en ajustes del navegador.';
+        console.error(msg, e);
+        if (status) status.innerText = msg;
+        return;
+    }
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 20);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -38,6 +63,7 @@ function init3D() {
 
 function animate() {
     requestAnimationFrame(animate);
+    if (!renderer || !scene || !camera) return;
     controls.update();
     renderer.render(scene, camera);
 }
@@ -87,6 +113,11 @@ async function reconstruct() {
             body: formData
         });
         const result = await response.json();
+
+        if (!scene || !renderer) {
+            status.innerText = 'Vista 3D no inicializada (WebGL no disponible).';
+            return;
+        }
 
         // Limpiar escena previa
         teethObjects.forEach(obj => scene.remove(obj));
@@ -174,6 +205,7 @@ document.getElementById('toggleBrackets').addEventListener('click', () => {
 });
 
 window.addEventListener('resize', () => {
+    if (!camera || !renderer) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);

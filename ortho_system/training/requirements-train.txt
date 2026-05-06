@@ -1,0 +1,6 @@
+# Entrenamiento local (opcional GPU). Instalar en un venv aparte del backend ortho-ai.
+torch>=2.1.0
+torchvision>=0.16.0
+PyYAML>=6.0.1
+Pillow>=10.0.0
+tqdm>=4.66.0

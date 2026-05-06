@@ -8,20 +8,19 @@
     <!-- Use ./static so it works at / and behind /ortho-ai/ (gateway prefix). -->
     <script src="./static/three.min.js"></script>
     <script src="./static/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="./static/js/OrthoEngine.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: white; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ffffff; color: #111; }
         #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
-        #ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; border: 1px solid #444; width: 300px; backdrop-filter: blur(5px); }
+        #ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(15,15,15,0.82); padding: 20px; border-radius: 10px; border: 1px solid #444; width: 300px; backdrop-filter: blur(5px); color: #fff; }
         h2 { margin-top: 0; color: #00d2ff; font-size: 1.2em; }
         .control-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-size: 0.9em; }
         input[type="range"] { width: 100%; cursor: pointer; }
         button { background: #00d2ff; border: none; padding: 10px 15px; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.3s; }
         button:hover { background: #00a8cc; }
-        #stats { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; font-size: 0.8em; border-radius: 5px; }
+        #stats { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; font-size: 0.8em; border-radius: 5px; color: #fff; }
         .loading { color: #f39c12; }
     </style>
 </head>

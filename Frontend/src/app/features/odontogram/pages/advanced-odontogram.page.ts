@@ -15,7 +15,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Store } from '@ngrx/store';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { catchError, EMPTY, finalize, firstValueFrom, map, of, switchMap, throwError } from 'rxjs';
 import {
   DamageFinding,
   OdontogramApiService,
@@ -24,6 +25,9 @@ import {
   ToothStateVm,
   ToothStatus
 } from '../data-access/odontogram-api.service';
+import { Ortho3dApiService } from '../data-access/ortho-3d-api.service';
+import { API_BASE_URL } from '../../../core/config/api.config';
+import { AuthService } from '../../../core/services/auth.service';
 import { ClinicalHistoryApiService } from '../../clinical-history/data-access/clinical-history-api.service';
 import { OdontologyApiService, TreatmentPlanVm } from '../../../core/services/odontology-api.service';
 import { TreatmentPlanPanelComponent } from '../../odontology/components/treatment-plan-panel.component';
@@ -313,6 +317,62 @@ function buildDefaultRecords(): ToothStateVm[] {
               <p class="text-muted small mt-2 mb-0">
                 Arrastra para orbitar. El tiempo de simulación interpola poses entre keyframes clínicos.
               </p>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h6 mb-2">Reconstrucción 3D (API externa)</h3>
+              <p class="small text-muted mb-2">
+                Sube una foto intraoral: el backend llama al proveedor Image→3D (en Docker, un stub devuelve un GLB
+                de demostración; en producción configure Meshy, Tripo, Replicate, etc. vía variables
+                <code>ORTHO_IMAGE_TO_3D_*</code>).
+              </p>
+              <label class="form-label small mb-1" for="recon-file">Fotos intraorales (6–10 recomendado)</label>
+              <input
+                id="recon-file"
+                type="file"
+                accept="image/*"
+                multiple
+                class="form-control form-control-sm mb-2"
+                (change)="onReconFileSelected($event)" />
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm w-100"
+                [disabled]="!patientId() || reconBusy() || !reconFileOk()"
+                (click)="startPhotoReconstruction()">
+                {{ reconBusy() ? 'Procesando…' : 'Generar modelo 3D desde foto' }}
+              </button>
+              @if (reconHint()) {
+                <p class="small mt-2 mb-0 text-muted" role="status">{{ reconHint() }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h6 mb-2">CBCT DICOM (.zip) → 3D real</h3>
+              <p class="small text-muted mb-2">
+                Sube un ZIP con una serie DICOM (CBCT). El backend segmenta y genera una malla GLB (mandíbula/dientes).
+                Esto es lo recomendado para reconstrucción 3D real (no desde panorámica 2D).
+              </p>
+              <label class="form-label small mb-1" for="dicom-file">Archivo DICOM (.zip)</label>
+              <input
+                id="dicom-file"
+                type="file"
+                accept=".zip,application/zip"
+                class="form-control form-control-sm mb-2"
+                (change)="onDicomSelected($event)" />
+              <button
+                type="button"
+                class="btn btn-outline-dark btn-sm w-100"
+                [disabled]="!patientId() || dicomBusy() || !dicomOk()"
+                (click)="startDicomReconstruction()">
+                {{ dicomBusy() ? 'Procesando CBCT…' : 'Generar modelo 3D desde CBCT (DICOM ZIP)' }}
+              </button>
+              @if (dicomHint()) {
+                <p class="small mt-2 mb-0 text-muted" role="status">{{ dicomHint() }}</p>
+              }
             </div>
           </div>
 
@@ -680,6 +740,9 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   @ViewChild('arch3d') private arch3d?: ElementRef<HTMLCanvasElement>;
 
   private readonly odontogramApi = inject(OdontogramApiService);
+  private readonly ortho3dApi = inject(Ortho3dApiService);
+  private readonly authService = inject(AuthService);
+  private readonly http = inject(HttpClient);
   private readonly clinicalApi = inject(ClinicalHistoryApiService);
   private readonly odontologyApi = inject(OdontologyApiService);
   private readonly store = inject(Store);
@@ -701,7 +764,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   protected readonly damageOptions = DAMAGE_OPTIONS;
   protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
 
-  private readonly patientId = signal<string | null>(null);
+  protected readonly patientId = signal<string | null>(null);
   private readonly toothRecords = signal<ToothStateVm[]>(buildDefaultRecords());
   protected readonly selectedTooth = signal<string>('11');
   protected readonly hoveredTooth = signal<string | null>(null);
@@ -714,6 +777,16 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
 
   protected readonly treatmentPlans = signal<TreatmentPlanVm[]>([]);
   protected readonly plansLoading = signal(false);
+
+  protected readonly reconBusy = signal(false);
+  protected readonly reconHint = signal<string | null>(null);
+  protected readonly reconFileOk = signal(false);
+  private reconFiles: File[] = [];
+
+  protected readonly dicomBusy = signal(false);
+  protected readonly dicomHint = signal<string | null>(null);
+  protected readonly dicomOk = signal(false);
+  private dicomZip: File | null = null;
 
   protected readonly selectedRecord = computed(
     () => this.toothRecords().find((record) => record.tooth === this.selectedTooth()) ?? null
@@ -784,14 +857,118 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   ngAfterViewInit(): void {
     const el = this.arch3d?.nativeElement;
     if (el) {
-      this.scene3d = new Dentition3dScene(el);
-      this.refresh3d();
+      try {
+        this.scene3d = new Dentition3dScene(el);
+        this.refresh3d();
+      } catch (e) {
+        this.glbError.set(
+          e instanceof Error
+            ? e.message
+            : 'WebGL no disponible: active aceleración por hardware o pruebe otro navegador (no RDP sin GPU).'
+        );
+      }
     }
   }
 
   ngOnDestroy(): void {
     this.scene3d?.dispose();
     this.scene3d = null;
+  }
+
+  protected onReconFileSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    this.reconFiles = input.files ? Array.from(input.files) : [];
+    this.reconFileOk.set(this.reconFiles.length > 0);
+  }
+
+  protected startPhotoReconstruction(): void {
+    const pid = this.patientId();
+    const files = this.reconFiles;
+    if (!pid || files.length === 0) {
+      this.reconHint.set('Selecciona un paciente en la barra lateral y una o más fotos intraorales.');
+      return;
+    }
+    this.reconBusy.set(true);
+    this.reconHint.set(null);
+    this.ortho3dApi
+      .reconstructAndResolve$(pid, files)
+      .pipe(
+        switchMap((job) => {
+          if (job.status === 'FAILED') {
+            return throwError(
+              () => new Error(job.errorMessage ?? 'Proveedor Image→3D no disponible o petición rechazada.')
+            );
+          }
+          return this.odontogramApi.getByPatient$(pid);
+        }),
+        catchError((err: unknown) => {
+          const msg =
+            err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Error';
+          this.reconHint.set(msg);
+          return EMPTY;
+        }),
+        finalize(() => this.reconBusy.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ teeth, simulation }) => {
+        this.toothRecords.set(this.mergeWithDefaults(teeth));
+        this.simulation.set(simulation);
+        this.workingKeyframes.set(simulation?.keyframes?.length ? simulation.keyframes : []);
+        this.syncSelection();
+        this.refresh3d();
+        this.reconHint.set(
+          simulation?.glbUrl
+            ? 'Modelo 3D enlazado al expediente.'
+            : 'Sin URL GLB: revise el proveedor externo o los logs del backend.'
+        );
+      });
+  }
+
+  protected onDicomSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    this.dicomZip = input.files?.[0] ?? null;
+    this.dicomOk.set(!!this.dicomZip);
+  }
+
+  protected startDicomReconstruction(): void {
+    const pid = this.patientId();
+    const zip = this.dicomZip;
+    if (!pid || !zip) {
+      this.dicomHint.set('Selecciona un paciente y un ZIP con la serie DICOM.');
+      return;
+    }
+    this.dicomBusy.set(true);
+    this.dicomHint.set(null);
+    this.ortho3dApi
+      .reconstructDicomAndResolve$(pid, zip)
+      .pipe(
+        switchMap((job) => {
+          if (job.status === 'FAILED') {
+            return throwError(() => new Error(job.errorMessage ?? 'Fallo al generar GLB desde DICOM.'));
+          }
+          return this.odontogramApi.getByPatient$(pid);
+        }),
+        catchError((err: unknown) => {
+          const msg =
+            err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Error';
+          this.dicomHint.set(msg);
+          return EMPTY;
+        }),
+        finalize(() => this.dicomBusy.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ teeth, simulation }) => {
+        this.toothRecords.set(this.mergeWithDefaults(teeth));
+        this.simulation.set(simulation);
+        this.workingKeyframes.set(simulation?.keyframes?.length ? simulation.keyframes : []);
+        this.syncSelection();
+        this.refresh3d();
+        this.dicomHint.set(
+          simulation?.glbUrl
+            ? 'Modelo 3D (GLB) generado desde CBCT y enlazado al expediente.'
+            : 'Sin GLB: revisa logs del backend.'
+        );
+      });
   }
 
   protected loadPlans(patientId: string) {
@@ -976,6 +1153,26 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     this.maybeLoadGlb();
   }
 
+  /** URL absoluta del GLB para peticiones (misma base que el API). */
+  private resolveGlbRequestUrl(url: string): string {
+    const t = url.trim();
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    return `${base}${t.startsWith('/') ? '' : '/'}${t}`;
+  }
+
+  /** GLB servido por nuestro Nest (JWT + opcional refresh); URLs externas siguen con fetch/loader. */
+  private shouldLoadGlbViaHttp(absoluteUrl: string): boolean {
+    const base = API_BASE_URL.replace(/\/$/, '');
+    try {
+      const u = new URL(absoluteUrl);
+      const b = new URL(`${base}/`);
+      return u.origin === b.origin && u.pathname.includes('/api/ortho/3d/jobs/') && u.pathname.endsWith('/glb');
+    } catch {
+      return false;
+    }
+  }
+
   private maybeLoadGlb(): void {
     if (!this.scene3d) return;
     const scene3d = this.scene3d;
@@ -1001,8 +1198,15 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     this.glbProgress.set(0);
     this.glbError.set(null);
 
+    const glbAbsolute = this.resolveGlbRequestUrl(url);
+    const useHttpClient = this.shouldLoadGlbViaHttp(glbAbsolute);
+
     this.scene3d
-      .loadGlb(url, {
+      .loadGlb(glbAbsolute, {
+        fetchBinary: useHttpClient
+          ? () => firstValueFrom(this.http.get(glbAbsolute, { responseType: 'arraybuffer' }))
+          : undefined,
+        authToken: useHttpClient ? null : this.authService.getToken(),
         onProgress: (pct) => {
           if (seq !== this.glbLoadSeq) return;
           this.glbProgress.set(pct);

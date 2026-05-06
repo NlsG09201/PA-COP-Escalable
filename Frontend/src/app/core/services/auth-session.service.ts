@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, finalize, map, shareReplay, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
@@ -40,6 +40,9 @@ function summarizeJwt(token: string | null): Record<string, unknown> | null {
 export class AuthSessionService {
   private readonly http: HttpClient;
 
+  /** Single in-flight refresh: Nest rotates refresh tokens, so parallel POSTs invalidate each other. */
+  private refreshSingleton$: Observable<string> | null = null;
+
   constructor(
     backend: HttpBackend,
     private readonly tokenStorage: TokenStorageService
@@ -50,22 +53,30 @@ export class AuthSessionService {
   refresh$(): Observable<string> {
     const refreshToken = this.tokenStorage.getRefreshToken();
     if (!refreshToken) {
-      throw new Error('No refresh token available');
+      return throwError(() => new Error('No refresh token available'));
     }
 
-    return this.http
-      .post<RefreshResponse>(`${API_BASE_URL}/api/auth/refresh`, {
-        refreshToken
-      })
-      .pipe(
-        tap((response) => {
-          const token = response.accessToken ?? response.token ?? '';
-          if (!token) {
-            throw new Error('Refresh endpoint returned empty token');
-          }
-          this.tokenStorage.setTokens(token, response.refreshToken ?? refreshToken);
-        }),
-        map((response) => response.accessToken ?? response.token ?? '')
-      );
+    if (!this.refreshSingleton$) {
+      this.refreshSingleton$ = this.http
+        .post<RefreshResponse>(`${API_BASE_URL}/api/auth/refresh`, {
+          refreshToken
+        })
+        .pipe(
+          tap((response) => {
+            const token = response.accessToken ?? response.token ?? '';
+            if (!token) {
+              throw new Error('Refresh endpoint returned empty token');
+            }
+            this.tokenStorage.setTokens(token, response.refreshToken ?? refreshToken);
+          }),
+          map((response) => response.accessToken ?? response.token ?? ''),
+          finalize(() => {
+            this.refreshSingleton$ = null;
+          }),
+          shareReplay({ bufferSize: 1, refCount: false })
+        );
+    }
+
+    return this.refreshSingleton$;
   }
 }

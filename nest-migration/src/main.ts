@@ -1,14 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Security & hardening
-  app.use(helmet());
+  // Tras el gateway (nginx) para Host / X-Forwarded-* coherentes en URLs públicas (p. ej. GLB).
+  app.set('trust proxy', 1);
+
+  // SPA (p. ej. :5173) y API (:8080) son orígenes distintos: el valor por defecto de Helmet bloqueaba
+  // respuestas en fetch() al GLB con CORP same-origin.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.enableCors({
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

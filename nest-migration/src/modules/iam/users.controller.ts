@@ -21,7 +21,7 @@ export class UsersController {
   }
 
   @Patch('me')
-  @Roles('PACIENTE', 'MEDICO', 'ADMIN', 'SUPERADMIN')
+  @Roles('PACIENTE', 'MEDICO', 'ADMIN', 'SUPER_ADMIN')
   async updateMe(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     return this.iamService.updateMyProfile(req.user as any, dto);
   }

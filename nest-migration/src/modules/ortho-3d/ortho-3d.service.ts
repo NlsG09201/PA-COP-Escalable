@@ -7,6 +7,7 @@ import { OdontogramService } from '../odontogram/odontogram.service';
 import { TenantContext } from '../tenancy/tenancy.interceptor';
 import { Ortho3dJob, Ortho3dJobStatus } from './schemas/ortho-3d-job.schema';
 import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 
 type ReconstructResponse = {
   status: string;
@@ -33,6 +34,10 @@ export class Ortho3dService {
   private readonly inputImageField: string;
   private readonly inputImagesField: string;
 
+  private readonly dicomBaseUrl: string;
+  private readonly dicomCreatePath: string;
+  private readonly dicomPollPathTemplate: string;
+
   private readonly downloadResults: boolean;
   private readonly storageDir: string;
   private readonly publicBaseUrlOverride?: string;
@@ -52,6 +57,11 @@ export class Ortho3dService {
       config.get<string>('ORTHO_IMAGE_TO_3D_POLL_PATH_TEMPLATE') ?? '/openapi/v1/image-to-3d/{id}';
     this.inputImageField = config.get<string>('ORTHO_IMAGE_TO_3D_INPUT_IMAGE_FIELD') ?? 'image_url';
     this.inputImagesField = config.get<string>('ORTHO_IMAGE_TO_3D_INPUT_IMAGES_FIELD') ?? 'images';
+
+    this.dicomBaseUrl = config.get<string>('ORTHO_DICOM_TO_3D_BASE_URL') ?? 'http://dicom-to-glb:8000';
+    this.dicomCreatePath = config.get<string>('ORTHO_DICOM_TO_3D_CREATE_PATH') ?? '/openapi/v1/dicom-to-3d';
+    this.dicomPollPathTemplate =
+      config.get<string>('ORTHO_DICOM_TO_3D_POLL_PATH_TEMPLATE') ?? '/openapi/v1/dicom-to-3d/{id}';
 
     this.downloadResults = (config.get<string>('ORTHO_3D_DOWNLOAD_RESULTS') ?? 'true') !== 'false';
     this.storageDir = path.resolve(config.get<string>('ORTHO_3D_STORAGE_DIR') ?? './uploads/ortho-3d');
@@ -86,8 +96,30 @@ export class Ortho3dService {
       console.warn('[ortho-3d] local fallback simulation failed:', err);
     }
 
-    // 2) Create an external async job.
-    const { externalJobId, externalResultUrl, initialStatus } = await this.callExternalCreate(images);
+    // 2) Create an external async job (Meshy / Tripo / stub / etc.).
+    let externalJobId: string;
+    let externalResultUrl: string | undefined;
+    let initialStatus: string | undefined;
+    try {
+      const ext = await this.callExternalCreate(images);
+      externalJobId = ext.externalJobId;
+      externalResultUrl = ext.externalResultUrl;
+      initialStatus = ext.initialStatus;
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.warn('[ortho-3d] external Image→3D create failed:', err);
+      const job = new this.jobModel({
+        organizationId: tenant.organizationId,
+        siteId: tenant.siteId ?? null,
+        patientId,
+        externalJobId: `unavailable-${randomUUID()}`,
+        status: 'FAILED',
+        errorMessage: String(err?.message ?? err ?? 'Image→3D create failed'),
+        inputImageCount: images.length,
+      });
+      await job.save();
+      return this.jobModel.findById(job._id).exec();
+    }
 
     const job = new this.jobModel({
       organizationId: tenant.organizationId,
@@ -112,7 +144,57 @@ export class Ortho3dService {
       await job.save();
     }
 
-    return this.jobModel.findById(job._id).exec();
+    const saved = await this.jobModel.findById(job._id).exec();
+    if (saved?.glbPublicUrl) {
+      await this.syncPatientSimulationGlb(saved, tenant);
+    }
+    return saved;
+  }
+
+  async createDicomJobAndPersist(
+    patientId: string,
+    dicomZip: any,
+    tenant: TenantContext,
+    req: any,
+  ): Promise<Ortho3dJob> {
+    if (!patientId) throw new BadRequestException('patientId is required');
+    if (!dicomZip?.buffer) throw new BadRequestException('DICOM ZIP is required');
+
+    const job = new this.jobModel({
+      organizationId: tenant.organizationId,
+      siteId: tenant.siteId ?? null,
+      patientId,
+      externalJobId: `dicom-${randomUUID()}`,
+      status: 'PROCESSING',
+      inputImageCount: 0,
+    });
+    await job.save();
+
+    try {
+      const ext = await this.callDicomCreate(dicomZip);
+      job.status = this.mapExternalStatusToJobStatus(ext.initialStatus);
+      job.externalResultUrl = ext.externalResultUrl ?? undefined;
+      if (ext.externalResultUrl && this.isJobSucceededStatus(job.status)) {
+        if (this.downloadResults) {
+          await this.tryDownloadAndStoreGlb(job, ext.externalResultUrl, req);
+        } else {
+          job.glbPublicUrl = ext.externalResultUrl;
+        }
+      }
+      await job.save();
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.warn('[ortho-3d] dicom-to-glb failed:', err);
+      job.status = 'FAILED';
+      job.errorMessage = String(err?.message ?? err ?? 'DICOM→GLB failed');
+      await job.save();
+    }
+
+    const fresh = await this.jobModel.findById(job._id).exec();
+    if (fresh?.glbPublicUrl && fresh.status === 'SUCCEEDED') {
+      await this.syncPatientSimulationGlb(fresh, tenant);
+    }
+    return fresh ?? job;
   }
 
   async pollJobAndPersist(
@@ -142,7 +224,39 @@ export class Ortho3dService {
     }
 
     await job.save();
-    return job;
+    const fresh = await this.jobModel.findById(job._id).exec();
+    if (fresh?.glbPublicUrl && fresh.status === 'SUCCEEDED') {
+      await this.syncPatientSimulationGlb(fresh, tenant);
+    }
+    return fresh ?? job;
+  }
+
+  /** Writes `glbUrl` into the patient odontogram so the Angular viewer loads the mesh after reload. */
+  private async syncPatientSimulationGlb(job: Ortho3dJob, tenant: TenantContext): Promise<void> {
+    if (!job.patientId || !job.glbPublicUrl) return;
+
+    const o = await this.odontogram.getOrCreate(job.patientId, tenant);
+    const prev =
+      o.orthoSimulation && typeof o.orthoSimulation === 'object' ? { ...(o.orthoSimulation as object) } : {};
+    const prevMeta =
+      prev &&
+      typeof (prev as any).reconstructionMeta === 'object' &&
+      (prev as any).reconstructionMeta !== null
+        ? { ...(prev as any).reconstructionMeta }
+        : {};
+
+    o.orthoSimulation = {
+      ...prev,
+      glbUrl: job.glbPublicUrl,
+      reconstructionMeta: {
+        ...prevMeta,
+        source: 'image-to-3d-external',
+        jobId: String(job._id),
+        externalJobId: job.externalJobId,
+      },
+    };
+    o.updatedAt = new Date();
+    await o.save();
   }
 
   async getGlbStoragePath(jobId: string, tenant: TenantContext): Promise<string | null> {
@@ -372,6 +486,49 @@ export class Ortho3dService {
       externalJobId: String(externalJobId),
       externalResultUrl: initialHasResult ? String(externalResultUrl) : undefined,
       initialStatus: initialHasResult ? 'SUCCEEDED' : initialStatus,
+    };
+  }
+
+  private async callDicomCreate(
+    dicomZip: any,
+  ): Promise<{ externalJobId: string; externalResultUrl?: string; initialStatus?: string }> {
+    const url = `${this.dicomBaseUrl}${this.dicomCreatePath}`;
+    const fd = new FormData();
+    fd.append('file', new Blob([dicomZip.buffer]), dicomZip.originalname ?? 'dicom.zip');
+
+    const apiKey = process.env.ORTHO_DICOM_TO_3D_API_KEY;
+    const apiKeyHeader = process.env.ORTHO_DICOM_TO_3D_API_KEY_HEADER ?? 'Authorization';
+    const apiKeyPrefix = process.env.ORTHO_DICOM_TO_3D_API_KEY_PREFIX ?? 'Bearer ';
+    const headers: Record<string, string> = {};
+    if (apiKey) headers[apiKeyHeader] = `${apiKeyPrefix}${apiKey}`;
+
+    const res = await fetch(url, { method: 'POST', headers, body: fd as any });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new InternalServerErrorException(`DICOM→3D create failed (${res.status}): ${text}`);
+    }
+    const payload = (await res.json()) as any;
+    const externalJobId = payload?.jobId ?? payload?.id;
+    const externalResultUrl =
+      payload?.glb_url ?? payload?.glbUrl ?? payload?.result_url ?? payload?.resultUrl;
+    const initialStatus = payload?.status ?? payload?.state ?? payload?.phase ?? 'SUCCEEDED';
+    if (!externalJobId) {
+      throw new InternalServerErrorException(
+        `DICOM→3D create response missing job id: ${JSON.stringify(payload).slice(0, 300)}`,
+      );
+    }
+    // The service returns a relative file URL; make it absolute.
+    const absolute =
+      typeof externalResultUrl === 'string' && externalResultUrl.startsWith('http')
+        ? externalResultUrl
+        : typeof externalResultUrl === 'string'
+          ? `${this.dicomBaseUrl}${externalResultUrl}`
+          : undefined;
+
+    return {
+      externalJobId: String(externalJobId),
+      externalResultUrl: absolute,
+      initialStatus: absolute ? 'SUCCEEDED' : initialStatus,
     };
   }
 

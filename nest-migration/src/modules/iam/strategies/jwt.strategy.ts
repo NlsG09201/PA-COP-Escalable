@@ -1,12 +1,14 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(
     private configService: ConfigService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
@@ -20,8 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     if (payload?.jti) {
-      const exists = await this.redis.exists(`bl:${String(payload.jti)}`);
-      if (exists) return null;
+      try {
+        const exists = await this.redis.exists(`bl:${String(payload.jti)}`);
+        if (exists) return null;
+      } catch (e) {
+        this.logger.warn(`Redis blacklist check failed (${e instanceof Error ? e.message : e}); allowing token`);
+      }
     }
     // This return value is attached to request.user
     return {

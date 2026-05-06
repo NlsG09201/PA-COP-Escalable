@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, NotFoundException, Param, Post, Query, Req, Res, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import type { MulterOptions } from 'multer';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
@@ -7,6 +8,16 @@ import { RolesGuard } from '../iam/guards/roles.guard';
 import { Roles } from '../iam/decorators/roles.decorator';
 import { TenancyInterceptor } from '../tenancy/tenancy.interceptor';
 import { Ortho3dService } from './ortho-3d.service';
+
+const multipartUploadOpts: MulterOptions = {
+  limits: {
+    fileSize: (() => {
+      const mb = Number(process.env.ORTHO_MULTIPART_MAX_FILE_MB ?? 500);
+      const clamped = Number.isFinite(mb) ? Math.min(2048, Math.max(16, mb)) : 500;
+      return clamped * 1024 * 1024;
+    })(),
+  },
+};
 
 @ApiTags('ortho-3d')
 @ApiBearerAuth()
@@ -17,13 +28,16 @@ export class Ortho3dController {
   constructor(private readonly service: Ortho3dService) {}
 
   @Post('reconstruct')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'file', maxCount: 1 },
-      { name: 'files', maxCount: 10 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'files', maxCount: 10 },
+      ],
+      multipartUploadOpts,
+    ),
   )
   async reconstruct(
     @UploadedFiles() uploadedFiles: Record<string, any[]>,
@@ -48,11 +62,38 @@ export class Ortho3dController {
       glbUrl: job.glbPublicUrl ?? null,
       externalResultUrl: job.externalResultUrl ?? null,
       inputImageCount: job.inputImageCount ?? images.length,
+      errorMessage: job.errorMessage ?? null,
+    };
+  }
+
+  @Post('reconstruct-dicom')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'file', maxCount: 1 }], multipartUploadOpts),
+  )
+  async reconstructDicom(
+    @UploadedFiles() uploadedFiles: Record<string, any[]>,
+    @Query('patientId') patientId: string,
+    @Req() req: Request & { tenant: any },
+  ) {
+    const dicomZip = (uploadedFiles?.file ?? [])[0];
+    if (!dicomZip) {
+      throw new BadRequestException('Missing DICOM ZIP. Use field "file".');
+    }
+
+    const job = await this.service.createDicomJobAndPersist(patientId, dicomZip, req.tenant, req);
+    return {
+      jobId: job._id,
+      status: job.status,
+      externalJobId: job.externalJobId,
+      glbUrl: job.glbPublicUrl ?? null,
+      errorMessage: job.errorMessage ?? null,
     };
   }
 
   @Get('jobs/:jobId')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
   async poll(@Param('jobId') jobId: string, @Req() req: Request & { tenant: any }) {
     const job = await this.service.pollJobAndPersist(jobId, req.tenant, req);
     return {
@@ -65,7 +106,7 @@ export class Ortho3dController {
   }
 
   @Get('jobs/:jobId/glb')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
   async downloadGlb(
     @Param('jobId') jobId: string,
     @Req() req: Request & { tenant: any },
