@@ -96,6 +96,57 @@ services:
       retries: 3
       start_period: 5s
 
+  # Production-ready Image→Depth→3D (MiDaS) service: async jobs + PLY/OBJ/STL export.
+  image-to-3d-depth:
+    build:
+      context: ./services/image-to-3d-depth
+      dockerfile: Dockerfile
+    profiles: ["ai"]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      IMG3D_REDIS_URL: redis://redis:6379/0
+      IMG3D_CELERY_BROKER_URL: redis://redis:6379/1
+      IMG3D_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      IMG3D_STORAGE_MODE: local
+      IMG3D_LOCAL_STORAGE_DIR: /data/models
+      IMG3D_DEPTH_MODEL: ${IMG3D_DEPTH_MODEL:-DPT_Large}
+      IMG3D_DEVICE: ${IMG3D_DEVICE:-auto}
+      IMG3D_OUT_FORMAT: ${IMG3D_OUT_FORMAT:-ply}
+      IMG3D_MAKE_MESH_DEFAULT: ${IMG3D_MAKE_MESH_DEFAULT:-false}
+    volumes:
+      - image_to_3d_depth_data:/data/models
+      - image_to_3d_depth_cache:/models
+    ports:
+      - "8011:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  image-to-3d-depth-worker:
+    build:
+      context: ./services/image-to-3d-depth
+      dockerfile: worker.Dockerfile
+    profiles: ["ai"]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      IMG3D_REDIS_URL: redis://redis:6379/0
+      IMG3D_CELERY_BROKER_URL: redis://redis:6379/1
+      IMG3D_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      IMG3D_STORAGE_MODE: local
+      IMG3D_LOCAL_STORAGE_DIR: /data/models
+      IMG3D_DEPTH_MODEL: ${IMG3D_DEPTH_MODEL:-DPT_Large}
+      IMG3D_DEVICE: ${IMG3D_DEVICE:-auto}
+      IMG3D_OUT_FORMAT: ${IMG3D_OUT_FORMAT:-ply}
+      IMG3D_MAKE_MESH_DEFAULT: ${IMG3D_MAKE_MESH_DEFAULT:-false}
+    volumes:
+      - image_to_3d_depth_data:/data/models
+      - image_to_3d_depth_cache:/models
+    depends_on:
+      redis:
+        condition: service_healthy
+
   # CBCT DICOM (ZIP) → GLB (basic segmentation + marching cubes).
   dicom-to-glb:
     build:
@@ -310,5 +361,7 @@ volumes:
   models_data:
   mongodb_keyfile:
   ortho_3d_data:
+  image_to_3d_depth_data:
+  image_to_3d_depth_cache:
   j48_models:
 
