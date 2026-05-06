@@ -274,12 +274,26 @@ export class Ortho3dService {
   }
 
   private async findTenantJob(jobId: string, tenant: TenantContext): Promise<Ortho3dJob | null> {
-    const criteria: any = {
-      _id: jobId,
-      organizationId: tenant.organizationId,
-      siteId: tenant.siteId ?? null,
-    };
-    return this.jobModel.findOne(criteria).exec();
+    const org = String(tenant.organizationId ?? '');
+    const site = tenant.siteId != null && String(tenant.siteId).trim() !== '' ? String(tenant.siteId) : null;
+
+    // Jobs may be stored with siteId null (token sin sitio) mientras el JWT actual incluye site_id, o al revés.
+    // Restringimos por organización y aceptamos jobs "org-wide" (sin sitio) además del sitio explícito.
+    const base: Record<string, unknown> = { _id: jobId, organizationId: org };
+    if (site) {
+      return this.jobModel
+        .findOne({
+          ...base,
+          $or: [{ siteId: site }, { siteId: null }, { siteId: { $exists: false } }],
+        } as any)
+        .exec();
+    }
+    return this.jobModel
+      .findOne({
+        ...base,
+        $or: [{ siteId: null }, { siteId: { $exists: false } }],
+      } as any)
+      .exec();
   }
 
   private mapExternalStatusToJobStatus(
@@ -299,11 +313,14 @@ export class Ortho3dService {
   }
 
   private buildGlbPublicUrl(jobId: string, req: any): string {
-    if (this.publicBaseUrlOverride) {
-      return `${this.publicBaseUrlOverride}/api/ortho/3d/jobs/${jobId}/glb`;
+    const base = this.publicBaseUrlOverride?.replace(/\/$/, '');
+    if (base) {
+      return `${base}/api/ortho/3d/jobs/${jobId}/glb`;
     }
-    const host = req?.get?.('host');
-    const proto = req?.protocol ?? 'http';
+    const forwardedHost = req?.get?.('x-forwarded-host');
+    const host = forwardedHost || req?.get?.('host');
+    const rawProto = req?.get?.('x-forwarded-proto') ?? req?.protocol ?? 'http';
+    const proto = String(rawProto).split(',')[0].trim() || 'http';
     return `${proto}://${host}/api/ortho/3d/jobs/${jobId}/glb`;
   }
 
@@ -431,6 +448,18 @@ export class Ortho3dService {
   private async callExternalCreate(
     images: any[],
   ): Promise<{ externalJobId: string; externalResultUrl?: string; initialStatus?: string }> {
+    // Prevent accidental usage of the dev stub (it returns a demo duck GLB).
+    // Real photo→3D requires a real provider configured via ORTHO_IMAGE_TO_3D_*.
+    const allowStub = String(process.env.ORTHO_IMAGE_TO_3D_ALLOW_STUB_DEMO ?? '')
+      .trim()
+      .toLowerCase() === 'true';
+    const pointsToStub = this.externalBaseUrl.includes('image-to-3d') || this.externalBaseUrl.includes('8010');
+    if (!allowStub && pointsToStub) {
+      throw new BadRequestException(
+        'Fotos→3D está en modo demo (stub). Para un modelo real del paciente usa CBCT/DICOM (ZIP) o configura un proveedor externo.',
+      );
+    }
+
     const url = `${this.externalBaseUrl}${this.createPath}`;
 
     const dataUris = images.map((img) => {

@@ -26,18 +26,42 @@ app = FastAPI(title="Image→3D stub", version="1.0.0")
 
 @app.get("/", response_class=HTMLResponse)
 def root() -> str:
-    # Evita 404 si se abre :8010 en el navegador; el cliente real es Nest, no SPA.
-    return (
-        "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"utf-8\"/>"
-        "<title>Image→3D stub</title>"
-        '<link rel="icon" href="data:image/svg+xml,'
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
-        "<rect width='32' height='32' rx='6' fill='%236366f1'/></svg>"
-        "\"/>"
-        "</head><body><p>Servicio interno Image→3D (stub). "
-        'API: <a href="/docs">OpenAPI (/docs)</a> · '
-        '<a href="/health">health</a>.</p></body></html>'
-    )
+    # Evita 404 si se abre :8010 en el navegador. El usuario final NO modela aquí: es API para Nest.
+    return """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Image→3D stub (solo API)</title>
+  <link rel="icon" href="data:image/svg+xml,
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+    <rect width='32' height='32' rx='6' fill='%236366f1'/></svg>"/>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem;
+           line-height: 1.5; color: #1e293b; }
+    h1 { font-size: 1.25rem; }
+    .box { background: #f1f5f9; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+    a { color: #4f46e5; }
+    code { background: #e2e8f0; padding: 0.1em 0.35em; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Servicio interno Image→3D (stub)</h1>
+  <p><strong>Aquí no se suben fotos ni se ve el modelo 3D.</strong> Este puerto es una API que usa
+     el backend (Nest) cuando generas el GLB desde la aplicación clínica.</p>
+  <div class="box">
+    <p><strong>Para modelar con imágenes:</strong></p>
+    <ol>
+      <li>Abre el <strong>Dashboard</strong>: <a href="http://localhost:5173">http://localhost:5173</a></li>
+      <li>Inicia sesión y elige un <strong>paciente</strong>.</li>
+      <li>Entra a <strong>Odontograma avanzado</strong> o <strong>Simulación 3D</strong> y usa
+          la sección de reconstrucción / fotos (el navegador habla con el API en el puerto
+          <code>8080</code>, no con este).</li>
+    </ol>
+  </div>
+  <p>Uso técnico (desarrollo): <a href="/docs">OpenAPI (/docs)</a> · <a href="/health">health</a></p>
+</body>
+</html>"""
 
 
 @app.get("/favicon.ico", include_in_schema=False)

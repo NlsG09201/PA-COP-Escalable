@@ -12,12 +12,34 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Subscription } from 'rxjs';
+import {
+  Subscription,
+  catchError,
+  EMPTY,
+  finalize,
+  firstValueFrom,
+  of,
+  switchMap,
+  take,
+  throwError,
+} from 'rxjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  apiOriginForRequests,
+  normalizeInternalGlbDownloadUrl,
+  resolveHttpRequestUrl,
+  resolveUrlAgainstApiOrigin,
+} from '../../core/config/api.config';
+import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
+import { AuthService } from '../../core/services/auth.service';
 import { createWebGLRenderer } from '../../core/three/create-webgl-renderer';
+import { OdontogramApiService } from '../odontogram/data-access/odontogram-api.service';
+import { Ortho3dApiService } from '../odontogram/data-access/ortho-3d-api.service';
 import { selectSelectedPatientId } from '../../store/patients.selectors';
 import {
   SimulationApiService,
@@ -97,9 +119,93 @@ interface ToothMesh {
                   @if (creating() && creatingType() === 'IMPLANT') {
                     <span class="spinner-border spinner-border-sm me-1"></span>
                   }
-                  <i class="bi bi-plus-circle me-1"></i> Nueva Simulacion
+                  <i class="bi bi-plus-circle me-1"></i>                   Nueva Simulacion
                   Implante
                 </button>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h6 class="card-title mb-2">Modelado 3D desde imagen</h6>
+                <p class="text-muted small mb-2">
+                  Para un modelo real basado en radiografía/CBCT, usa DICOM (ZIP). Las fotos requieren un proveedor externo
+                  (en dev el stub devuelve un modelo demo).
+                </p>
+                @if (patientPhotoGlbUrl()) {
+                  <span class="badge text-bg-success mb-2 d-inline-block">GLB en expediente</span>
+                } @else {
+                  <span class="badge text-bg-secondary mb-2 d-inline-block">Sin modelo 3D</span>
+                }
+                <div class="btn-group w-100 mb-2" role="group">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    [class.active]="viewerMode() === 'procedural'"
+                    (click)="setViewerProcedural()"
+                  >
+                    Vista arcade
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    [class.active]="viewerMode() === 'photo'"
+                    [disabled]="!patientPhotoGlbUrl() || photoGlbLoading()"
+                    (click)="setViewerPhoto3d()"
+                  >
+                    Modelo 3D
+                  </button>
+                </div>
+                @if (photoGlbLoading()) {
+                  <div class="small text-muted mb-2">
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Cargando malla...
+                  </div>
+                }
+                <label class="form-label small mb-1">Fotos intraorales</label>
+                <input
+                  type="file"
+                  class="form-control form-control-sm mb-2"
+                  accept="image/*"
+                  multiple
+                  (change)="onPhotoReconFiles($event)"
+                />
+                <button
+                  class="btn btn-sm btn-primary w-100 mb-2"
+                  [disabled]="photoReconBusy() || !photoFileCount()"
+                  (click)="startPhotoReconstruction()"
+                >
+                  @if (photoReconBusy()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  }
+                  Generar / actualizar 3D
+                </button>
+                @if (photoReconHint()) {
+                  <div class="small text-muted">{{ photoReconHint() }}</div>
+                }
+
+                <hr class="my-3" />
+
+                <label class="form-label small mb-1">CBCT / DICOM (ZIP)</label>
+                <input
+                  type="file"
+                  class="form-control form-control-sm mb-2"
+                  accept=".zip,application/zip"
+                  (change)="onDicomZipSelected($event)"
+                />
+                <button
+                  class="btn btn-sm btn-outline-primary w-100 mb-2"
+                  [disabled]="dicomReconBusy()"
+                  (click)="startDicomReconstruction()"
+                >
+                  @if (dicomReconBusy()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  }
+                  Generar 3D desde CBCT
+                </button>
+                @if (dicomReconHint()) {
+                  <div class="small text-muted">{{ dicomReconHint() }}</div>
+                }
               </div>
             </div>
 
@@ -184,7 +290,11 @@ interface ToothMesh {
                 ></canvas>
 
                 <!-- Phase Slider -->
-                @if (activeSim() && activeSim()!.phases.length > 0) {
+                @if (
+                  activeSim() &&
+                  activeSim()!.phases.length > 0 &&
+                  viewerMode() === 'procedural'
+                ) {
                   <div
                     class="position-absolute bottom-0 start-0 end-0 p-3"
                     style="background: linear-gradient(transparent, rgba(0,0,0,0.7))"
@@ -227,6 +337,25 @@ interface ToothMesh {
 
               <!-- Toolbar -->
               <div class="card-footer bg-white border-top d-flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [class.btn-primary]="viewerMode() === 'procedural'"
+                  [class.btn-outline-secondary]="viewerMode() !== 'procedural'"
+                  (click)="setViewerProcedural()"
+                >
+                  Arcade
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [class.btn-primary]="viewerMode() === 'photo'"
+                  [class.btn-outline-secondary]="viewerMode() !== 'photo'"
+                  [disabled]="!patientPhotoGlbUrl() || photoGlbLoading()"
+                  (click)="setViewerPhoto3d()"
+                >
+                  GLB foto
+                </button>
                 <button
                   class="btn btn-sm btn-outline-secondary"
                   (click)="resetCamera()"
@@ -291,6 +420,10 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly store = inject(Store);
   private readonly simApi = inject(SimulationApiService);
+  private readonly odontogramApi = inject(OdontogramApiService);
+  private readonly ortho3dApi = inject(Ortho3dApiService);
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
   private readonly zone = inject(NgZone);
   private sub?: Subscription;
   private animFrameId = 0;
@@ -298,6 +431,9 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private threeJsInitialized = false;
   private webglInitFailed = false;
   private initRetryCount = 0;
+  private photoGlbLoadSeq = 0;
+  private photoGlbRoot: THREE.Group | null = null;
+  private photoReconFiles: File[] = [];
 
   // Three.js objects
   private renderer!: THREE.WebGLRenderer;
@@ -318,6 +454,14 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly currentPhase = signal(0);
   protected readonly showSplitView = signal(false);
   protected readonly showLabels = signal(true);
+  protected readonly viewerMode = signal<'procedural' | 'photo'>('procedural');
+  protected readonly patientPhotoGlbUrl = signal<string | null>(null);
+  protected readonly photoGlbLoading = signal(false);
+  protected readonly photoReconBusy = signal(false);
+  protected readonly photoReconHint = signal<string | null>(null);
+  protected readonly dicomReconBusy = signal(false);
+  protected readonly dicomReconHint = signal<string | null>(null);
+  private dicomZip: File | null = null;
 
   protected readonly currentPhaseName = () => {
     const sim = this.activeSim();
@@ -329,10 +473,28 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.sub = this.store.select(selectSelectedPatientId).subscribe((id) => {
       this.patientId.set(id);
-      if (id) this.loadSimulations(id);
-      // Canvas is only rendered when patientId() exists (see @if in the template).
-      // If it appears after ngAfterViewInit, we must retry Three.js initialization.
-      if (id) this.zone.runOutsideAngular(() => requestAnimationFrame(() => this.initThreeJs()));
+      this.photoGlbLoadSeq++;
+      this.photoGlbLoading.set(false);
+      this.viewerMode.set('procedural');
+      this.photoReconHint.set(null);
+      this.photoReconFiles = [];
+      this.activeSim.set(null);
+      this.currentPhase.set(0);
+      if (this.threeJsInitialized) {
+        this.disposePhotoGlbMesh();
+        this.createDefaultArch();
+      }
+
+      if (!id) {
+        this.simulations.set([]);
+        this.patientPhotoGlbUrl.set(null);
+        return;
+      }
+
+      this.patientPhotoGlbUrl.set(null);
+      this.loadSimulations(id);
+      this.fetchPatientOdontogramGlb(id);
+      this.zone.runOutsideAngular(() => requestAnimationFrame(() => this.initThreeJs()));
     });
   }
 
@@ -401,6 +563,12 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected selectSimulation(sim: DentalSimulation): void {
+    if (this.viewerMode() === 'photo') {
+      this.photoGlbLoadSeq++;
+      this.photoGlbLoading.set(false);
+      this.disposePhotoGlbMesh();
+      this.viewerMode.set('procedural');
+    }
     this.activeSim.set(sim);
     this.currentPhase.set(0);
     this.rebuildArch(sim.initialState);
@@ -410,10 +578,326 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected onPhaseChange(value: number): void {
+    if (this.viewerMode() === 'photo') return;
     this.currentPhase.set(value);
     const sim = this.activeSim();
     if (!sim) return;
     this.animatePhase(value);
+  }
+
+  protected setViewerProcedural(): void {
+    this.photoGlbLoadSeq++;
+    this.viewerMode.set('procedural');
+    this.photoGlbLoading.set(false);
+    this.disposePhotoGlbMesh();
+    if (!this.scene) return;
+    const sim = this.activeSim();
+    if (sim) {
+      this.rebuildArch(sim.initialState);
+      const idx = this.currentPhase();
+      const ph = sim.phases[idx];
+      if (ph) this.applyPhase(ph);
+      else if (sim.phases.length > 0) this.applyPhase(sim.phases[0]);
+    } else {
+      this.createDefaultArch();
+    }
+  }
+
+  protected setViewerPhoto3d(): void {
+    const url = this.patientPhotoGlbUrl();
+    if (!url || !this.threeJsInitialized || !this.scene) return;
+
+    this.photoGlbLoadSeq++;
+    const seq = this.photoGlbLoadSeq;
+    this.viewerMode.set('photo');
+    this.photoGlbLoading.set(true);
+    this.clearArch();
+    this.disposePhotoGlbMesh();
+
+    const glbAbsolute = this.resolveGlbRequestUrl(url);
+    const useHttp = this.shouldLoadGlbViaHttp(glbAbsolute);
+
+    void this.loadGlbIntoScene(seq, glbAbsolute, useHttp)
+      .then(() => {
+        if (seq !== this.photoGlbLoadSeq) return;
+        this.photoGlbLoading.set(false);
+      })
+      .catch(() => {
+        if (seq !== this.photoGlbLoadSeq) return;
+        this.photoGlbLoading.set(false);
+        this.photoReconHint.set('No se pudo cargar el GLB.');
+        this.photoGlbLoadSeq++;
+        this.viewerMode.set('procedural');
+        this.disposePhotoGlbMesh();
+        const sim = this.activeSim();
+        if (sim) {
+          this.rebuildArch(sim.initialState);
+          const idx = this.currentPhase();
+          const ph = sim.phases[idx];
+          if (ph) this.applyPhase(ph);
+          else if (sim.phases.length > 0) this.applyPhase(sim.phases[0]);
+        } else {
+          this.createDefaultArch();
+        }
+      });
+  }
+
+  protected onPhotoReconFiles(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    this.photoReconFiles = input.files ? Array.from(input.files) : [];
+  }
+
+  protected photoFileCount(): number {
+    return this.photoReconFiles.length;
+  }
+
+  protected onDicomZipSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    this.dicomZip = input.files?.[0] ?? null;
+  }
+
+  protected startDicomReconstruction(): void {
+    const pid = this.patientId();
+    const zip = this.dicomZip;
+    if (!pid || !zip) {
+      this.dicomReconHint.set('Seleccione un ZIP DICOM/CBCT.');
+      return;
+    }
+    this.dicomReconBusy.set(true);
+    this.dicomReconHint.set(null);
+
+    this.ortho3dApi
+      .reconstructDicomAndResolve$(pid, zip)
+      .pipe(
+        take(1),
+        finalize(() => this.dicomReconBusy.set(false)),
+        switchMap((job) => {
+          if (job.status === 'FAILED') {
+            return throwError(() => new Error(job.errorMessage?.trim() || 'Reconstrucción DICOM fallida'));
+          }
+          return this.odontogramApi.getByPatient$(pid).pipe(take(1));
+        }),
+        catchError((e: unknown) => {
+          this.dicomReconHint.set(extractHttpErrorMessage(e, 'Error de reconstrucción DICOM.'));
+          return EMPTY;
+        }),
+      )
+      .subscribe(({ simulation }) => {
+        const u = simulation?.glbUrl?.trim() || null;
+        this.patientPhotoGlbUrl.set(u);
+        if (u) {
+          this.dicomReconHint.set('Expediente actualizado (GLB desde CBCT).');
+          this.setViewerPhoto3d();
+        } else {
+          this.dicomReconHint.set('La reconstrucción terminó pero no hay GLB en el expediente.');
+        }
+      });
+  }
+
+  protected startPhotoReconstruction(): void {
+    const pid = this.patientId();
+    const files = this.photoReconFiles;
+    if (!pid || files.length === 0) {
+      this.photoReconHint.set('Seleccione al menos una imagen.');
+      return;
+    }
+    this.photoReconBusy.set(true);
+    this.photoReconHint.set(null);
+
+    this.ortho3dApi
+      .reconstructAndResolve$(pid, files)
+      .pipe(
+        take(1),
+        finalize(() => this.photoReconBusy.set(false)),
+        switchMap((job) => {
+          if (job.status === 'FAILED') {
+            return throwError(() => new Error(job.errorMessage?.trim() || 'Reconstrucción fallida'));
+          }
+          return this.odontogramApi.getByPatient$(pid).pipe(take(1));
+        }),
+        catchError((e: unknown) => {
+          this.photoReconHint.set(extractHttpErrorMessage(e, 'Error de reconstrucción.'));
+          return EMPTY;
+        }),
+      )
+      .subscribe(({ simulation }) => {
+        const u = simulation?.glbUrl?.trim() || null;
+        this.patientPhotoGlbUrl.set(u);
+        if (u) {
+          this.photoReconHint.set('Expediente actualizado.');
+          this.setViewerPhoto3d();
+        } else {
+          this.photoReconHint.set(
+            'La reconstrucción terminó pero no hay GLB en el expediente.',
+          );
+        }
+      });
+  }
+
+  private fetchPatientOdontogramGlb(patientId: string): void {
+    this.odontogramApi
+      .getByPatient$(patientId)
+      .pipe(
+        take(1),
+        catchError(() =>
+          of({ teeth: [], simulation: null } as {
+            teeth: unknown[];
+            simulation: null;
+          }),
+        ),
+      )
+      .subscribe(({ simulation }) => {
+        if (this.patientId() !== patientId) return;
+        const u = simulation?.glbUrl?.trim() || null;
+        this.patientPhotoGlbUrl.set(u);
+        if (u) this.tryAutoOpenPatientGlb(patientId);
+      });
+  }
+
+  /** Si el expediente ya tiene GLB, muestra ese modelo en lugar de la arcade procedural. */
+  private tryAutoOpenPatientGlb(forPatientId?: string): void {
+    if (!this.threeJsInitialized || !this.patientId()) return;
+    if (forPatientId !== undefined && this.patientId() !== forPatientId) return;
+    if (!this.patientPhotoGlbUrl()) return;
+    if (this.viewerMode() === 'photo') return;
+    this.setViewerPhoto3d();
+  }
+
+  private resolveGlbRequestUrl(url: string): string {
+    return normalizeInternalGlbDownloadUrl(url);
+  }
+
+  private shouldLoadGlbViaHttp(glbUrl: string): boolean {
+    const base = apiOriginForRequests().replace(/\/$/, '');
+    try {
+      const u = resolveUrlAgainstApiOrigin(glbUrl);
+      const b = new URL(`${base}/`);
+      return u.origin === b.origin && u.pathname.includes('/api/ortho/3d/jobs/') && u.pathname.endsWith('/glb');
+    } catch {
+      return false;
+    }
+  }
+
+  private async fetchGlbAsArrayBuffer(absoluteUrl: string): Promise<ArrayBuffer> {
+    const token = this.auth.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(absoluteUrl, { headers, mode: 'cors', credentials: 'omit' });
+    if (!res.ok) throw new Error(`GLB HTTP ${res.status}`);
+    return res.arrayBuffer();
+  }
+
+  private async loadGlbIntoScene(seq: number, glbAbsolute: string, useHttp: boolean): Promise<void> {
+    const loader = new GLTFLoader();
+    const buf = useHttp
+      ? await firstValueFrom(
+          this.http.get(resolveHttpRequestUrl(glbAbsolute), { responseType: 'arraybuffer' }),
+        )
+      : await this.fetchGlbAsArrayBuffer(glbAbsolute);
+
+    if (seq !== this.photoGlbLoadSeq) return;
+
+    const gltf = await new Promise<{ scene?: THREE.Object3D; scenes?: THREE.Object3D[] }>(
+      (resolve, reject) =>
+        loader.parse(
+          buf as ArrayBuffer,
+          '',
+          (data) => resolve(data as { scene?: THREE.Object3D; scenes?: THREE.Object3D[] }),
+          (err) => reject(err ?? new Error('GLTF parse failed')),
+        ),
+    );
+
+    if (seq !== this.photoGlbLoadSeq) return;
+
+    const model = gltf.scene ?? gltf.scenes?.[0];
+    if (!model) throw new Error('GLB loaded but no scene found');
+
+    const root = new THREE.Group();
+    root.add(model);
+    this.photoGlbRoot = root;
+    this.scene.add(root);
+
+    model.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const raw of mats) {
+        const anyM = raw as THREE.MeshStandardMaterial & {
+          map?: THREE.Texture;
+          emissiveMap?: THREE.Texture;
+        };
+        if (anyM.map?.isTexture) anyM.map.colorSpace = THREE.SRGBColorSpace;
+        if (anyM.emissiveMap?.isTexture) anyM.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      }
+    });
+
+    this.normalizeGlbModel(model);
+  }
+
+  private normalizeGlbModel(model: THREE.Object3D): void {
+    const bbox0 = new THREE.Box3().setFromObject(model);
+    const size0 = bbox0.getSize(new THREE.Vector3());
+    const likelyZUp = size0.y < size0.x * 0.25 && size0.y < size0.z * 0.25;
+    if (likelyZUp) model.rotateX(-Math.PI / 2);
+
+    const bbox1 = new THREE.Box3().setFromObject(model);
+    const center1 = bbox1.getCenter(new THREE.Vector3());
+    model.position.sub(center1);
+
+    const bbox2 = new THREE.Box3().setFromObject(model);
+    const size2 = bbox2.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size2.x, size2.y, size2.z);
+    const targetMaxDim = 44;
+    if (maxDim > 1e-6) {
+      model.scale.multiplyScalar(targetMaxDim / maxDim);
+    }
+
+    const bbox3 = new THREE.Box3().setFromObject(model);
+    const baseMinY = -4;
+    model.position.y += baseMinY - bbox3.min.y;
+
+    const finalBbox = new THREE.Box3().setFromObject(model);
+    this.fitCameraToBoundingBox(finalBbox);
+  }
+
+  private fitCameraToBoundingBox(bbox: THREE.Box3): void {
+    if (!this.camera || !this.controls) return;
+    const size = bbox.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim <= 1e-6) return;
+
+    const center = bbox.getCenter(new THREE.Vector3());
+    this.controls.target.copy(center);
+
+    const fovRad = THREE.MathUtils.degToRad(this.camera.fov);
+    const distance = (maxDim / 2) / Math.tan(fovRad / 2);
+    const pad = 1.35;
+    const dir = new THREE.Vector3(0.35, 0.45, 1).normalize();
+    this.camera.position.copy(center).add(dir.multiplyScalar(distance * pad));
+
+    this.camera.near = Math.max(0.01, distance / 1000);
+    this.camera.far = Math.max(200, distance * 50);
+    this.camera.updateProjectionMatrix();
+    this.controls.update();
+  }
+
+  private disposePhotoGlbMesh(): void {
+    const root = this.photoGlbRoot;
+    this.photoGlbRoot = null;
+    if (!root || !this.scene) return;
+    this.scene.remove(root);
+    root.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose();
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          const anyM = m as THREE.MeshStandardMaterial & { map?: THREE.Texture };
+          anyM.map?.dispose();
+          m.dispose();
+        }
+      }
+    });
   }
 
   protected resetCamera(): void {
@@ -491,6 +975,7 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
       canvas.addEventListener('webglcontextrestored', this.onCanvasGlRestore, false);
       this.threeJsInitialized = true;
       this.animate();
+      this.tryAutoOpenPatientGlb();
     } catch (e) {
       this.webglInitFailed = true;
       const msg =
@@ -771,6 +1256,7 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private clearArch(): void {
+    if (!this.scene) return;
     for (const tm of this.toothMeshes) {
       this.scene.remove(tm.mesh);
       tm.mesh.geometry.dispose();
@@ -791,6 +1277,7 @@ class SimulationPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private disposeScene(): void {
+    this.disposePhotoGlbMesh();
     this.clearArch();
     this.scene?.clear();
   }

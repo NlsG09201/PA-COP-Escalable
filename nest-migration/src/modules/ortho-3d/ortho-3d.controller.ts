@@ -28,7 +28,7 @@ export class Ortho3dController {
   constructor(private readonly service: Ortho3dService) {}
 
   @Post('reconstruct')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -67,7 +67,7 @@ export class Ortho3dController {
   }
 
   @Post('reconstruct-dicom')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'file', maxCount: 1 }], multipartUploadOpts),
@@ -93,7 +93,7 @@ export class Ortho3dController {
   }
 
   @Get('jobs/:jobId')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   async poll(@Param('jobId') jobId: string, @Req() req: Request & { tenant: any }) {
     const job = await this.service.pollJobAndPersist(jobId, req.tenant, req);
     return {
@@ -106,7 +106,7 @@ export class Ortho3dController {
   }
 
   @Get('jobs/:jobId/glb')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   async downloadGlb(
     @Param('jobId') jobId: string,
     @Req() req: Request & { tenant: any },

@@ -141,6 +141,9 @@ services:
       # External Image→3D provider (job/polling).
       # Defaults are safe “placeholders”; override via environment when deploying.
       ORTHO_IMAGE_TO_3D_BASE_URL: ${ORTHO_IMAGE_TO_3D_BASE_URL:-http://image-to-3d:8000}
+      # En dev, el contenedor `image-to-3d` es un stub que devuelve un modelo demo (pato).
+      # Por defecto lo desactivamos para evitar confusión: para fotos→3D real, configura un proveedor externo.
+      ORTHO_IMAGE_TO_3D_ALLOW_STUB_DEMO: ${ORTHO_IMAGE_TO_3D_ALLOW_STUB_DEMO:-false}
       ORTHO_IMAGE_TO_3D_CREATE_PATH: ${ORTHO_IMAGE_TO_3D_CREATE_PATH:-/openapi/v1/image-to-3d}
       ORTHO_IMAGE_TO_3D_POLL_PATH_TEMPLATE: ${ORTHO_IMAGE_TO_3D_POLL_PATH_TEMPLATE:-/openapi/v1/image-to-3d/{id}}
       ORTHO_IMAGE_TO_3D_INPUT_IMAGE_FIELD: ${ORTHO_IMAGE_TO_3D_INPUT_IMAGE_FIELD:-image_url}

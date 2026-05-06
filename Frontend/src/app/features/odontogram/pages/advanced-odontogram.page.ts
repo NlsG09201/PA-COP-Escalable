@@ -26,7 +26,13 @@ import {
   ToothStatus
 } from '../data-access/odontogram-api.service';
 import { Ortho3dApiService } from '../data-access/ortho-3d-api.service';
-import { API_BASE_URL } from '../../../core/config/api.config';
+import {
+  apiOriginForRequests,
+  normalizeInternalGlbDownloadUrl,
+  resolveHttpRequestUrl,
+  resolveUrlAgainstApiOrigin,
+} from '../../../core/config/api.config';
+import { extractHttpErrorMessage } from '../../../core/http/extract-http-error-message';
 import { AuthService } from '../../../core/services/auth.service';
 import { ClinicalHistoryApiService } from '../../clinical-history/data-access/clinical-history-api.service';
 import { OdontologyApiService, TreatmentPlanVm } from '../../../core/services/odontology-api.service';
@@ -902,9 +908,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
           return this.odontogramApi.getByPatient$(pid);
         }),
         catchError((err: unknown) => {
-          const msg =
-            err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Error';
-          this.reconHint.set(msg);
+          this.reconHint.set(extractHttpErrorMessage(err, 'Error al reconstruir desde fotos.'));
           return EMPTY;
         }),
         finalize(() => this.reconBusy.set(false)),
@@ -949,9 +953,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
           return this.odontogramApi.getByPatient$(pid);
         }),
         catchError((err: unknown) => {
-          const msg =
-            err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Error';
-          this.dicomHint.set(msg);
+          this.dicomHint.set(extractHttpErrorMessage(err, 'Error al reconstruir desde DICOM.'));
           return EMPTY;
         }),
         finalize(() => this.dicomBusy.set(false)),
@@ -1155,17 +1157,14 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
 
   /** URL absoluta del GLB para peticiones (misma base que el API). */
   private resolveGlbRequestUrl(url: string): string {
-    const t = url.trim();
-    if (t.startsWith('http://') || t.startsWith('https://')) return t;
-    const base = API_BASE_URL.replace(/\/$/, '');
-    return `${base}${t.startsWith('/') ? '' : '/'}${t}`;
+    return normalizeInternalGlbDownloadUrl(url);
   }
 
   /** GLB servido por nuestro Nest (JWT + opcional refresh); URLs externas siguen con fetch/loader. */
-  private shouldLoadGlbViaHttp(absoluteUrl: string): boolean {
-    const base = API_BASE_URL.replace(/\/$/, '');
+  private shouldLoadGlbViaHttp(glbUrl: string): boolean {
+    const base = apiOriginForRequests().replace(/\/$/, '');
     try {
-      const u = new URL(absoluteUrl);
+      const u = resolveUrlAgainstApiOrigin(glbUrl);
       const b = new URL(`${base}/`);
       return u.origin === b.origin && u.pathname.includes('/api/ortho/3d/jobs/') && u.pathname.endsWith('/glb');
     } catch {
@@ -1204,7 +1203,10 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
     this.scene3d
       .loadGlb(glbAbsolute, {
         fetchBinary: useHttpClient
-          ? () => firstValueFrom(this.http.get(glbAbsolute, { responseType: 'arraybuffer' }))
+          ? () =>
+              firstValueFrom(
+                this.http.get(resolveHttpRequestUrl(glbAbsolute), { responseType: 'arraybuffer' })
+              )
           : undefined,
         authToken: useHttpClient ? null : this.authService.getToken(),
         onProgress: (pct) => {
