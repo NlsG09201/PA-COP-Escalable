@@ -43,6 +43,9 @@ import { API_BASE_URL } from '../../core/config/api.config';
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Distribucion por especialidad</h6><div #specialtyChart class="chart-box"></div></div></div></div>
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Rendimiento de medicos</h6><div #doctorChart class="chart-box"></div></div></div></div>
       <div class="col-12"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Heatmap de citas (dia/hora)</h6><div #heatmapChart class="chart-box chart-heatmap"></div></div></div></div>
+      <div class="col-12 mt-1"><p class="small text-muted mb-2">Modelo J48 (riesgo / agrupación): agregados en servidor — adecuado para volúmenes de miles de predicciones sin transferir fila a fila.</p></div>
+      <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">J48 — distribución de clases</h6><div #j48ClassChart class="chart-box"></div></div></div></div>
+      <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">J48 — predicciones por mes (rango aplicado)</h6><div #j48MonthlyChart class="chart-box"></div></div></div></div>
     </div>
   `,
   styles: [`
@@ -57,12 +60,16 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
   @ViewChild('specialtyChart') private specialtyChartRef?: ElementRef<HTMLDivElement>;
   @ViewChild('doctorChart') private doctorChartRef?: ElementRef<HTMLDivElement>;
   @ViewChild('heatmapChart') private heatmapChartRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('j48ClassChart') private j48ClassChartRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('j48MonthlyChart') private j48MonthlyChartRef?: ElementRef<HTMLDivElement>;
 
   private chartAppointments?: echarts.ECharts;
   private chartRevenue?: echarts.ECharts;
   private chartSpecialty?: echarts.ECharts;
   private chartDoctor?: echarts.ECharts;
   private chartHeatmap?: echarts.ECharts;
+  private chartJ48Class?: echarts.ECharts;
+  private chartJ48Monthly?: echarts.ECharts;
 
   protected fromDate = this.asDateInput(new Date(Date.now() - 29 * 86400000));
   protected toDate = this.asDateInput(new Date());
@@ -73,6 +80,8 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
   protected specialties: any[] = [];
   protected doctors: any[] = [];
   private heatmapCells: Array<{ dayOfWeek: number; hourOfDay: number; total: number }> = [];
+  private j48Classes: Array<{ label: string; count: number }> = [];
+  private j48Monthly: Array<{ bucket: string; total: number }> = [];
 
   protected readonly cards = computed(() => {
     if (!this.kpis) return [];
@@ -94,18 +103,40 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('resize', this.onResize);
-    [this.chartAppointments, this.chartRevenue, this.chartSpecialty, this.chartDoctor, this.chartHeatmap].forEach((c) => c?.dispose());
+    [
+      this.chartAppointments,
+      this.chartRevenue,
+      this.chartSpecialty,
+      this.chartDoctor,
+      this.chartHeatmap,
+      this.chartJ48Class,
+      this.chartJ48Monthly,
+    ].forEach((c) => c?.dispose());
   }
 
   protected async reload(): Promise<void> {
     const params = this.rangeParams();
-    const [kpis, appt, rev, spec, doc, hm] = await Promise.all([
+    const iso = params.get('from') && params.get('to') ? { fromIso: params.get('from')!, toIso: params.get('to')! } : null;
+    const j48MonthlyParams = iso
+      ? new HttpParams().set('from', iso.fromIso).set('to', iso.toIso)
+      : params;
+
+    const [kpis, appt, rev, spec, doc, hm, j48Cls, j48Mo] = await Promise.all([
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/kpis`, { params })),
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/trend`, { params: params.set('groupBy', this.groupBy) })),
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/revenue/trend`, { params: params.set('groupBy', this.groupBy) })),
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/specialties/distribution`, { params })),
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/doctors/performance`, { params: params.set('limit', '10') })),
       firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/heatmap`, { params })),
+      firstValueFrom(
+        this.http.get<Array<{ label: string; count: number }>>(`${API_BASE_URL}/api/j48/analytics/class-distribution`),
+      ).catch(() => [] as Array<{ label: string; count: number }>),
+      firstValueFrom(
+        this.http.get<{ series: Array<{ bucket: string; total: number }> }>(
+          `${API_BASE_URL}/api/j48/analytics/monthly`,
+          { params: j48MonthlyParams },
+        ),
+      ).catch(() => ({ series: [] as Array<{ bucket: string; total: number }> })),
     ]);
     this.kpis = kpis;
     this.appointmentsTrend = (appt.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
@@ -113,6 +144,8 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
     this.specialties = spec.specialties ?? [];
     this.doctors = doc.doctors ?? [];
     this.heatmapCells = hm.cells ?? [];
+    this.j48Classes = j48Cls ?? [];
+    this.j48Monthly = j48Mo.series ?? [];
     this.renderCharts();
   }
 
@@ -135,6 +168,8 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
     if (this.specialtyChartRef && !this.chartSpecialty) this.chartSpecialty = echarts.init(this.specialtyChartRef.nativeElement);
     if (this.doctorChartRef && !this.chartDoctor) this.chartDoctor = echarts.init(this.doctorChartRef.nativeElement);
     if (this.heatmapChartRef && !this.chartHeatmap) this.chartHeatmap = echarts.init(this.heatmapChartRef.nativeElement);
+    if (this.j48ClassChartRef && !this.chartJ48Class) this.chartJ48Class = echarts.init(this.j48ClassChartRef.nativeElement);
+    if (this.j48MonthlyChartRef && !this.chartJ48Monthly) this.chartJ48Monthly = echarts.init(this.j48MonthlyChartRef.nativeElement);
   }
 
   private readonly onResize = () => {
@@ -143,10 +178,21 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
     this.chartSpecialty?.resize();
     this.chartDoctor?.resize();
     this.chartHeatmap?.resize();
+    this.chartJ48Class?.resize();
+    this.chartJ48Monthly?.resize();
   };
 
   private renderCharts(): void {
-    if (!this.chartAppointments || !this.chartRevenue || !this.chartSpecialty || !this.chartDoctor || !this.chartHeatmap) return;
+    if (
+      !this.chartAppointments ||
+      !this.chartRevenue ||
+      !this.chartSpecialty ||
+      !this.chartDoctor ||
+      !this.chartHeatmap ||
+      !this.chartJ48Class ||
+      !this.chartJ48Monthly
+    )
+      return;
     this.chartAppointments.setOption({
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: this.appointmentsTrend.map((x) => x.bucket) },
@@ -180,6 +226,19 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
       visualMap: { min: 0, max: Math.max(1, ...this.heatmapCells.map((x) => x.total)), orient: 'horizontal', left: 'center', bottom: 0 },
       series: [{ type: 'heatmap', data: this.heatmapCells.map((c) => [c.hourOfDay, c.dayOfWeek, c.total]) }],
       grid: { left: 40, right: 15, top: 10, bottom: 40 }
+    });
+    const j48PieData = this.j48Classes.map((r) => ({ name: String(r.label || '(sin etiqueta)'), value: r.count ?? 0 }));
+    this.chartJ48Class.setOption({
+      tooltip: { trigger: 'item' },
+      legend: { bottom: 0, type: 'scroll' },
+      series: [{ type: 'pie', radius: ['42%', '68%'], data: j48PieData }],
+    });
+    this.chartJ48Monthly.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: this.j48Monthly.map((x) => x.bucket) },
+      yAxis: { type: 'value', minInterval: 1 },
+      series: [{ type: 'bar', data: this.j48Monthly.map((x) => x.total), itemStyle: { color: '#7c3aed' } }],
+      grid: { left: 40, right: 15, top: 10, bottom: 30 },
     });
   }
 }

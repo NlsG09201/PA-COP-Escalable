@@ -1,11 +1,48 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { COLOMBIA_PAYMENT_METHOD_CATALOG } from './payments/colombian-payment.constants';
+import { ColombianPaymentGatewayService } from './payments/colombian-payment-gateway.service';
+import { CreatePublicPaymentIntentDto } from './dto/create-public-payment-intent.dto';
 import { PublicSiteService } from './public-site.service';
 
 @ApiTags('public')
 @Controller('public')
 export class PublicSiteController {
-  constructor(private readonly service: PublicSiteService) {}
+  constructor(
+    private readonly service: PublicSiteService,
+    private readonly colombianPayments: ColombianPaymentGatewayService,
+  ) {}
+
+  @Get('payments/methods')
+  listPaymentMethods() {
+    return { methods: COLOMBIA_PAYMENT_METHOD_CATALOG };
+  }
+
+  @Get('payments/context')
+  paymentsContext() {
+    const pk = !!(process.env.WOMPI_PUBLIC_KEY ?? '').trim();
+    const prv = !!(process.env.WOMPI_PRIVATE_KEY ?? '').trim();
+    const ig = !!(process.env.WOMPI_INTEGRITY_SECRET ?? '').trim();
+    const ev = !!(process.env.WOMPI_EVENTS_SECRET ?? '').trim();
+    return {
+      country: 'CO',
+      currency: 'COP',
+      wompiConfigured: pk && prv && ig,
+      wompiWebhookReady: ev,
+      wompiPublicKey: pk ? process.env.WOMPI_PUBLIC_KEY : undefined,
+      environment: process.env.WOMPI_ENV === 'production' ? 'production' : 'sandbox',
+      webhookUrlHint: `${process.env.PUBLIC_API_ORIGIN ?? 'https://TU-API'}/public/payments/webhook`,
+      note:
+        'Configure esta URL como "URL de eventos" en el dashboard Wompi. Requiere WOMPI_EVENTS_SECRET para validar el checksum. Opcion local: WOMPI_SKIP_WEBHOOK_VERIFY=true solo sin trafico de produccion.',
+    };
+  }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('payments/wompi-presets')
+  wompiPresets() {
+    return this.colombianPayments.fetchWompiMerchantPresets();
+  }
 
   @Get('catalog')
   async catalog(@Query('siteId') siteId?: string) {
@@ -41,7 +78,7 @@ export class PublicSiteController {
   }
 
   @Post('bookings/:bookingId/payments/intents')
-  async paymentIntent(@Param('bookingId') bookingId: string, @Body() body: any) {
+  async paymentIntent(@Param('bookingId') bookingId: string, @Body() body: CreatePublicPaymentIntentDto) {
     return this.service.createPaymentIntent({ bookingId, ...body });
   }
 
@@ -50,8 +87,9 @@ export class PublicSiteController {
     return this.service.completePayment({ bookingId, ...body });
   }
 
+  @SkipThrottle()
   @Post('payments/webhook')
-  async webhook(@Body() body: any) {
+  async webhook(@Body() body: Record<string, unknown>) {
     return this.service.handlePaymentWebhook(body);
   }
 }

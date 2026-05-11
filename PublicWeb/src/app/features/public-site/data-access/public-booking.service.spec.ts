@@ -41,7 +41,8 @@ describe('PublicBookingService', () => {
       clientSecret: 'sandbox_secret',
       failureReason: null,
       expiresAt: '2026-03-18T08:32:18Z',
-      confirmationPath: '/booking/confirmation/booking-123'
+      confirmationPath: '/booking/confirmation/booking-123',
+      gatewayHint: 'SANDBOX',
     });
 
     await expect(promise).resolves.toEqual({
@@ -56,7 +57,8 @@ describe('PublicBookingService', () => {
       clientSecret: 'sandbox_secret',
       failureReason: null,
       expiresAt: '2026-03-18T08:32:18Z',
-      confirmationPath: '/booking/confirmation/booking-123'
+      confirmationPath: '/booking/confirmation/booking-123',
+      gatewayHint: 'SANDBOX',
     });
   });
 

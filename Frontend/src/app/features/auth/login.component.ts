@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, isDevMode } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -16,8 +16,11 @@ import { AuthApiService } from '../../core/services/auth-api.service';
         <div class="col-md-6 col-lg-5">
           <div class="card shadow-sm">
             <div class="card-body p-4">
-              <h4 class="mb-3">Ingreso Clinico</h4>
-              <p class="text-muted mb-4">Acceso para administradores, odontologos y psicologos.</p>
+              <div class="text-center mb-3">
+                <img src="/brand/logo.png" alt="COP" width="56" height="56" class="rounded-3 shadow-sm" />
+              </div>
+              <h4 class="mb-3 text-center">Ingreso Clinico</h4>
+              <p class="text-muted mb-4 text-center">Acceso para administradores, odontologos y psicologos.</p>
 
               <form [formGroup]="form" (ngSubmit)="submit()" data-testid="login-form">
                 <div class="mb-3">
@@ -54,9 +57,11 @@ import { AuthApiService } from '../../core/services/auth-api.service';
                 @if (errorMessage) {
                   <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
-                <div class="alert alert-secondary py-2 small">
-                  Credenciales local dev: <strong>admin@cop.local</strong> / <strong>Admin123ChangeMe</strong>
-                </div>
+                @if (showDevLoginHint) {
+                  <div class="alert alert-secondary py-2 small">
+                    Solo desarrollo: <strong>admin@cop.local</strong> / <strong>Admin123ChangeMe</strong>
+                  </div>
+                }
                 <button class="btn btn-primary w-100" data-testid="login-submit" [disabled]="form.invalid || loading">
                   {{ loading ? 'Ingresando...' : 'Ingresar' }}
                 </button>
@@ -76,13 +81,15 @@ export class LoginComponent {
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
 
+  protected readonly showDevLoginHint = isDevMode();
+
   protected loading = false;
   protected errorMessage = '';
   protected sites: Array<{ id: string; name: string }> = [];
 
   protected readonly form = this.fb.nonNullable.group({
-    username: [LoginComponent.DEV_DEFAULT_USERNAME, [Validators.required]],
-    password: [LoginComponent.DEV_DEFAULT_PASSWORD, [Validators.required]],
+    username: [isDevMode() ? LoginComponent.DEV_DEFAULT_USERNAME : '', [Validators.required]],
+    password: [isDevMode() ? LoginComponent.DEV_DEFAULT_PASSWORD : '', [Validators.required]],
     siteId: ['', [Validators.required]]
   });
 
@@ -136,7 +143,7 @@ export class LoginComponent {
     }
 
     if (error.status === 401) {
-      return 'Credenciales invalidas. Usa admin@cop.local / Admin123ChangeMe y verifica la sede seleccionada.';
+      return 'Credenciales invalidas. Verifica usuario, contrasena y sede seleccionada.';
     }
     if (error.status === 400) {
       return 'Solicitud invalida. Revisa los datos del formulario.';

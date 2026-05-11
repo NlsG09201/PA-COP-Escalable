@@ -69,6 +69,49 @@ export interface PublicPaymentVm {
   failureReason: string | null;
   expiresAt: string | null;
   confirmationPath: string;
+  /** SANDBOX | WOMPI_EXTERNAL | WOMPI_STATUS cuando aplica */
+  gatewayHint?: string | null;
+}
+
+export type PublicCheckoutPaymentCategory = 'PRUEBA' | 'BILLETERA' | 'PSE_BANCO' | 'TARJETA';
+
+export interface PublicPaymentMethodVm {
+  key: string;
+  label: string;
+  description: string;
+  category: PublicCheckoutPaymentCategory;
+}
+
+export interface PublicCheckoutContextVm {
+  country: string;
+  currency: string;
+  wompiConfigured: boolean;
+  wompiWebhookReady?: boolean;
+  wompiPublicKey?: string;
+  environment: string;
+  webhookUrlHint?: string;
+  note?: string;
+}
+
+export interface WompiPresetsVm {
+  merchantPublicKey: string;
+  acceptanceToken: string;
+  acceptPersonalAuth: string;
+  termsPrivacyUrl?: string;
+  termsDataUrl?: string;
+  environment: string;
+}
+
+export interface CreatePublicPaymentIntentDto {
+  idempotencyKey?: string;
+  providerKey?: string;
+  walletPhone?: string;
+  pseLegalId?: string;
+  pseLegalIdType?: string;
+  pseUserType?: 'PERSON' | 'BUSINESS';
+  cardPaymentSourceToken?: string;
+  wompiAcceptanceToken?: string;
+  wompiPersonalAuth?: string;
 }
 
 export interface PublicBookingVm {
@@ -121,11 +164,6 @@ export interface CreatePublicBookingQuoteDto {
   siteId: string;
   serviceId: string;
   slotStartAt: string;
-}
-
-export interface CreatePublicPaymentIntentDto {
-  providerKey?: string;
-  idempotencyKey?: string;
 }
 
 export interface PublicPaymentWebhookDto {
@@ -193,6 +231,60 @@ export class PublicBookingService {
   getBookingNotifications$(bookingId: string): Observable<PublicNotificationVm[]> {
     return this.http.get<unknown>(`${this.publicBaseUrl}/bookings/${bookingId}/notifications`).pipe(
       map((raw) => this.toArray(raw).map((entry) => this.mapNotification(entry)))
+    );
+  }
+
+  listCheckoutMethods$(): Observable<{ methods: PublicPaymentMethodVm[] }> {
+    return this.http.get<unknown>(`${this.publicBaseUrl}/payments/methods`).pipe(
+      map((raw) => {
+        const obj = this.toObject(raw);
+        const methodsRaw = obj['methods'];
+        const methods = Array.isArray(methodsRaw)
+          ? methodsRaw.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          : [];
+        return {
+          methods: methods.map((m) => ({
+            key: String(m['key'] ?? ''),
+            label: String(m['label'] ?? ''),
+            description: String(m['description'] ?? ''),
+            category: String(m['category'] ?? '') as PublicCheckoutPaymentCategory,
+          })),
+        };
+      }),
+    );
+  }
+
+  checkoutContext$(): Observable<PublicCheckoutContextVm> {
+    return this.http.get<unknown>(`${this.publicBaseUrl}/payments/context`).pipe(
+      map((raw) => {
+        const x = this.toObject(raw);
+        return {
+          country: String(x['country'] ?? 'CO'),
+          currency: String(x['currency'] ?? 'COP'),
+          wompiConfigured: Boolean(x['wompiConfigured']),
+          wompiWebhookReady: x['wompiWebhookReady'] === true,
+          wompiPublicKey: x['wompiPublicKey'] ? String(x['wompiPublicKey']) : undefined,
+          environment: String(x['environment'] ?? 'sandbox'),
+          webhookUrlHint: x['webhookUrlHint'] ? String(x['webhookUrlHint']) : undefined,
+          note: x['note'] ? String(x['note']) : undefined,
+        };
+      }),
+    );
+  }
+
+  wompiPresets$(): Observable<WompiPresetsVm> {
+    return this.http.get<unknown>(`${this.publicBaseUrl}/payments/wompi-presets`).pipe(
+      map((raw) => {
+        const x = this.toObject(raw);
+        return {
+          merchantPublicKey: String(x['merchantPublicKey'] ?? ''),
+          acceptanceToken: String(x['acceptanceToken'] ?? ''),
+          acceptPersonalAuth: String(x['acceptPersonalAuth'] ?? ''),
+          termsPrivacyUrl: x['termsPrivacyUrl'] ? String(x['termsPrivacyUrl']) : undefined,
+          termsDataUrl: x['termsDataUrl'] ? String(x['termsDataUrl']) : undefined,
+          environment: String(x['environment'] ?? 'sandbox'),
+        };
+      }),
     );
   }
 
@@ -343,7 +435,8 @@ export class PublicBookingService {
       clientSecret: entry['clientSecret'] ? String(entry['clientSecret']) : null,
       failureReason: entry['failureReason'] ? String(entry['failureReason']) : null,
       expiresAt: entry['expiresAt'] ? String(entry['expiresAt']) : null,
-      confirmationPath: String(entry['confirmationPath'] ?? '')
+      confirmationPath: String(entry['confirmationPath'] ?? ''),
+      gatewayHint: entry['gatewayHint'] != null ? String(entry['gatewayHint']) : null,
     };
   }
 

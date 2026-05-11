@@ -22,6 +22,7 @@ type NavItem = {
     <div class="shell-layout" data-testid="app-shell">
       <aside class="shell-sidebar" data-testid="app-shell-sidebar">
         <div class="brand-block">
+          <img src="/brand/logo.png" alt="" width="48" height="48" class="rounded-3 mb-2 d-block" style="border:1px solid rgba(255,255,255,0.15)" />
           <p class="brand-eyebrow mb-2">Centro Odontologico y Psicologico</p>
           <div class="fw-semibold fs-5">COP Clinical Dashboard</div>
           <p class="text-white-50 small mb-0">Operacion clinica, evaluacion psicologica y seguimiento por paciente.</p>

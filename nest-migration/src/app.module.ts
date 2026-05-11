@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { IamModule } from './modules/iam/iam.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { ClinicalModule } from './modules/clinical/clinical.module';
@@ -30,10 +30,12 @@ import { ApiCompatModule } from './modules/api-compat/api-compat.module';
       }),
       inject: [ConfigService],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 250,
+      },
+    ]),
     TenancyModule,
     IamModule,
     PatientsModule,
@@ -51,5 +53,6 @@ import { ApiCompatModule } from './modules/api-compat/api-compat.module';
     ApiCompatModule,
   ],
   controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -129,8 +129,8 @@ interface ToothMesh {
               <div class="card-body">
                 <h6 class="card-title mb-2">Modelado 3D desde imagen</h6>
                 <p class="text-muted small mb-2">
-                  Para un modelo real basado en radiografía/CBCT, usa DICOM (ZIP). Las fotos requieren un proveedor externo
-                  (en dev el stub devuelve un modelo demo).
+                  Sube una foto intraoral: el backend llama al proveedor Image→3D (en Docker, un stub devuelve un GLB de demostración;
+                  en producción configure Meshy, Tripo, Replicate, etc. vía variables <code>ORTHO_IMAGE_TO_3D_*</code>).
                 </p>
                 @if (patientPhotoGlbUrl()) {
                   <span class="badge text-bg-success mb-2 d-inline-block">GLB en expediente</span>

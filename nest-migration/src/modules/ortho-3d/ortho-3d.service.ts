@@ -456,7 +456,7 @@ export class Ortho3dService {
     const pointsToStub = this.externalBaseUrl.includes('image-to-3d') || this.externalBaseUrl.includes('8010');
     if (!allowStub && pointsToStub) {
       throw new BadRequestException(
-        'Fotos→3D está en modo demo (stub). Para un modelo real del paciente usa CBCT/DICOM (ZIP) o configura un proveedor externo.',
+        'Fotos→3D está apuntando al stub de Docker (GLB de demostración). Para permitirlo en dev, setea ORTHO_IMAGE_TO_3D_ALLOW_STUB_DEMO=true. En producción configura el proveedor real vía ORTHO_IMAGE_TO_3D_*.',
       );
     }
 

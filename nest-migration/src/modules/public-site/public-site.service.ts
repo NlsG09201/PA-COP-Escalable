@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { UUID } from 'bson';
 import * as crypto from 'crypto';
 import { Connection } from 'mongoose';
+import { ColombianPaymentGatewayService } from './payments/colombian-payment-gateway.service';
+import {
+  extractWompiTransaction,
+  mapWompiTransactionToInternalStatus,
+  verifyWompiEventChecksum,
+} from './payments/wompi-webhook.util';
 
 function asUuid(value?: string): UUID | undefined {
   if (!value) return undefined;
@@ -24,7 +30,10 @@ function asStringId(value: any): string {
 
 @Injectable()
 export class PublicSiteService {
-  constructor(@InjectConnection() private readonly connection: Connection) {}
+  constructor(
+    @InjectConnection() private readonly connection: Connection,
+    private readonly colombianPayments: ColombianPaymentGatewayService,
+  ) {}
 
   private async findOrCreatePatient(input: {
     organizationId: any;
@@ -372,30 +381,60 @@ export class PublicSiteService {
     }));
   }
 
-  async createPaymentIntent(input: { bookingId: string; providerKey?: string; idempotencyKey?: string }) {
+  async createPaymentIntent(input: {
+    bookingId: string;
+    providerKey?: string;
+    idempotencyKey?: string;
+    walletPhone?: string;
+    pseLegalId?: string;
+    pseLegalIdType?: string;
+    pseUserType?: 'PERSON' | 'BUSINESS';
+    cardPaymentSourceToken?: string;
+    wompiAcceptanceToken?: string;
+    wompiPersonalAuth?: string;
+  }) {
     const bookingUuid = asUuid(input.bookingId);
     if (!bookingUuid) throw new BadRequestException('bookingId must be a valid UUID');
 
     const booking = await this.connection.collection<any>('public_bookings').findOne({ _id: bookingUuid as any } as any);
     if (!booking) throw new BadRequestException('bookingId not found');
 
-    const providerKey = String(input.providerKey ?? 'SANDBOX');
-    const providerReference = `sandbox-${input.bookingId}-${crypto.randomUUID()}`;
+    const providerKey = this.colombianPayments.normalizeProvider(input.providerKey);
+    const amountPesos = Number(booking.quoted_price ?? 0);
+    const customerEmail = String(booking.patient_email ?? '').trim() || 'paciente@cop.local';
+
+    const resolved = await this.colombianPayments.resolveCheckout({
+      bookingId: input.bookingId,
+      amountPesos,
+      customerEmail,
+      providerKey,
+      idempotencyKey: input.idempotencyKey,
+      walletPhone: input.walletPhone,
+      pseLegalId: input.pseLegalId,
+      pseLegalIdType: input.pseLegalIdType,
+      pseUserType: input.pseUserType,
+      cardPaymentSourceToken: input.cardPaymentSourceToken,
+      wompiAcceptanceToken: input.wompiAcceptanceToken,
+      wompiPersonalAuth: input.wompiPersonalAuth,
+    });
+
     const paymentId = new UUID(crypto.randomUUID());
-    const clientSecret = `sandbox_${crypto.randomUUID()}`;
+    const clientSecret = `pay_${crypto.randomUUID()}`;
 
     const paymentDoc: any = {
       _id: paymentId,
       booking_id: booking._id,
       provider_key: providerKey,
-      provider_reference: providerReference,
+      provider_reference: resolved.providerReference,
       provider_status: 'REQUIRES_ACTION',
-      checkout_url: `http://localhost:5174/public/payments/sandbox/${encodeURIComponent(input.bookingId)}?intent=${encodeURIComponent(providerReference)}`,
+      checkout_url: resolved.checkoutUrl,
       client_secret: clientSecret,
       amount: booking.quoted_price ?? 0,
       currency: 'COP',
       status: 'REQUIRES_ACTION',
       idempotency_key: input.idempotencyKey ?? null,
+      gateway_external_id: resolved.externalTransactionId ?? null,
+      gateway_redirect_hint: resolved.redirectHint ?? null,
       organization_id: booking.organization_id,
       site_id: booking.site_id,
       created_at: new Date(),
@@ -410,7 +449,7 @@ export class PublicSiteService {
     return {
       id: asStringId(paymentId),
       providerKey,
-      providerReference,
+      providerReference: resolved.providerReference,
       amount: Number(paymentDoc.amount ?? 0),
       currency: 'COP',
       status: 'REQUIRES_ACTION',
@@ -420,6 +459,7 @@ export class PublicSiteService {
       failureReason: null,
       expiresAt: null,
       confirmationPath: `/booking/confirmation/${input.bookingId}`,
+      gatewayHint: resolved.redirectHint ?? null,
     };
   }
 
@@ -433,26 +473,110 @@ export class PublicSiteService {
     if (booking.payment_id) {
       await this.connection.collection<any>('public_payments').updateOne(
         { _id: booking.payment_id },
-        { $set: { status: 'PAID', provider_status: 'approved', paid_at: new Date(), updated_at: new Date() } },
+        { $set: { status: 'PAID', provider_status: 'APPROVED', paid_at: new Date(), updated_at: new Date() } },
       );
     }
 
-    await this.connection
-      .collection<any>('public_bookings')
-      .updateOne({ _id: booking._id }, { $set: { status: 'CONFIRMED', updated_at: new Date() } });
-
-    // Promote appointment to CONFIRMED so it shows in dashboard filters.
-    if (booking.appointment_id) {
-      await this.connection.collection<any>('appointments').updateOne(
-        { _id: booking.appointment_id } as any,
-        { $set: { status: 'CONFIRMED', updated_at: new Date() } },
-      );
-    }
+    await this.confirmPublicBookingAndAppointment(booking._id, booking.appointment_id);
 
     return this.getBooking({ bookingId: input.bookingId });
   }
 
-  async handlePaymentWebhook(input: {
+  /**
+   * Webhook unificado: payload Wompi (`transaction.updated`) con verificacion de checksum,
+   * o formato legacy sandbox `{ bookingId, providerReference, status }`.
+   */
+  async handlePaymentWebhook(input: Record<string, unknown> | any) {
+    const body = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+
+    if (extractWompiTransaction(body)) {
+      return this.processWompiTransactionWebhook(body);
+    }
+
+    return this.processLegacySandboxWebhook(input);
+  }
+
+  private async processWompiTransactionWebhook(body: Record<string, unknown>) {
+    const eventsSecret = process.env.WOMPI_EVENTS_SECRET?.trim() ?? '';
+    const allowUnverified = process.env.WOMPI_SKIP_WEBHOOK_VERIFY === 'true';
+
+    if (!allowUnverified) {
+      if (!eventsSecret) {
+        throw new UnauthorizedException('Configura WOMPI_EVENTS_SECRET (secreto de eventos en el dashboard Wompi) para validar webhooks');
+      }
+      if (!verifyWompiEventChecksum(body, eventsSecret)) {
+        throw new UnauthorizedException('Checksum de evento Wompi invalido');
+      }
+    } else if (eventsSecret && !verifyWompiEventChecksum(body, eventsSecret)) {
+      throw new UnauthorizedException('Checksum de evento Wompi invalido');
+    }
+
+    const tx = extractWompiTransaction(body)!;
+    const reference = String(tx['reference'] ?? '');
+    const wid = String(tx['id'] ?? '');
+    const wStatus = String(tx['status'] ?? '');
+    const internal = mapWompiTransactionToInternalStatus(wStatus);
+    const dedupeKey = `wompi:tx:${wid}:${wStatus}:${String(body['sent_at'] ?? '')}`;
+
+    const orClauses: any[] = [];
+    if (reference) orClauses.push({ provider_reference: reference });
+    if (wid) orClauses.push({ gateway_external_id: wid });
+
+    const payment =
+      orClauses.length > 0
+        ? await this.connection.collection<any>('public_payments').findOne({ $or: orClauses } as any)
+        : null;
+
+    if (!payment) {
+      return { ok: true, matched: false, reason: 'payment_not_found', reference, transactionId: wid };
+    }
+
+    if (payment.last_webhook_idempotency_key === dedupeKey) {
+      const bid = payment.booking_id ? asStringId(payment.booking_id) : '';
+      return bid ? this.getBooking({ bookingId: bid }) : { ok: true, duplicate: true };
+    }
+
+    const failureMsg = (() => {
+      const m = tx['status_message'] ?? tx['error_reason'] ?? tx['response_message'];
+      if (m == null) return null;
+      return typeof m === 'string' ? m : JSON.stringify(m);
+    })();
+
+    const statusPatch =
+      internal === 'PAID' ? 'PAID' : internal === 'FAILED' ? 'FAILED' : internal === 'REQUIRES_ACTION' ? 'REQUIRES_ACTION' : 'PENDING';
+
+    const paymentPatch: Record<string, unknown> = {
+      provider_key: 'WOMPI',
+      provider_status: wStatus,
+      status: statusPatch,
+      last_webhook_idempotency_key: dedupeKey,
+      updated_at: new Date(),
+      gateway_external_id: wid || payment.gateway_external_id,
+    };
+
+    if (internal === 'PAID') {
+      paymentPatch.paid_at = new Date();
+      paymentPatch.failure_reason = null;
+    } else if (internal === 'FAILED') {
+      paymentPatch.failure_reason = failureMsg ?? wStatus;
+      paymentPatch.paid_at = null;
+    }
+
+    await this.connection
+      .collection<any>('public_payments')
+      .updateOne({ _id: payment._id } as any, { $set: paymentPatch });
+
+    if (internal === 'PAID') {
+      await this.confirmPublicBookingAndAppointment(payment.booking_id, undefined);
+    } else if (internal === 'FAILED') {
+      await this.reopenPublicBookingAfterFailedPayment(payment.booking_id);
+    }
+
+    const bookingId = payment.booking_id ? asStringId(payment.booking_id) : '';
+    return bookingId ? this.getBooking({ bookingId }) : { ok: true, matched: true };
+  }
+
+  private async processLegacySandboxWebhook(input: {
     bookingId?: string;
     providerKey?: string;
     providerReference?: string;
@@ -470,42 +594,58 @@ export class PublicSiteService {
         : null;
 
     if (payment) {
+      const st = String(input.status ?? '').toLowerCase().trim();
+      const approved = st === 'approved' || st === 'paid';
+      const rejected = st === 'failed' || st === 'declined';
       await this.connection.collection<any>('public_payments').updateOne(
         { _id: payment._id },
         {
           $set: {
             provider_key: String(input.providerKey ?? payment.provider_key ?? 'UNKNOWN'),
             provider_status: String(input.status ?? payment.provider_status ?? 'unknown'),
-            status: String(input.status ?? payment.status ?? 'unknown').toUpperCase() === 'APPROVED' ? 'PAID' : String(payment.status ?? 'PENDING'),
+            status: approved ? 'PAID' : rejected ? 'FAILED' : String(payment.status ?? 'PENDING'),
             last_webhook_idempotency_key: input.idempotencyKey ?? input.eventId ?? null,
             updated_at: new Date(),
+            ...(approved ? { paid_at: new Date(), failure_reason: null } : {}),
+            ...(rejected ? { failure_reason: String(input.status ?? 'FAILED'), paid_at: null } : {}),
           },
         },
       );
     }
 
     if (bookingUuid) {
-      // Reflect paid status on booking if webhook says approved.
-      const normalized = String(input.status ?? '').toLowerCase();
+      const normalized = String(input.status ?? '').toLowerCase().trim();
       if (normalized === 'approved' || normalized === 'paid') {
-        await this.connection
-          .collection<any>('public_bookings')
-          .updateOne({ _id: bookingUuid as any } as any, { $set: { status: 'CONFIRMED', updated_at: new Date() } });
-
         const booking = await this.connection.collection<any>('public_bookings').findOne({ _id: bookingUuid as any } as any);
-        if (booking?.appointment_id) {
-          await this.connection.collection<any>('appointments').updateOne(
-            { _id: booking.appointment_id } as any,
-            { $set: { status: 'CONFIRMED', updated_at: new Date() } },
-          );
-        }
+        if (booking) await this.confirmPublicBookingAndAppointment(booking._id, booking.appointment_id);
+      } else if (normalized === 'failed' || normalized === 'declined') {
+        await this.reopenPublicBookingAfterFailedPayment(bookingUuid);
       }
       return this.getBooking({ bookingId: input.bookingId! });
     }
 
-    // Fallback: return booking if we can infer it from payment.
     const inferredBookingId = payment?.booking_id ? asStringId(payment.booking_id) : null;
     return inferredBookingId ? this.getBooking({ bookingId: inferredBookingId }) : null;
+  }
+
+  private async confirmPublicBookingAndAppointment(bookingId: any, appointmentId?: any) {
+    await this.connection
+      .collection<any>('public_bookings')
+      .updateOne({ _id: bookingId } as any, { $set: { status: 'CONFIRMED', updated_at: new Date() } });
+
+    const booking = await this.connection.collection<any>('public_bookings').findOne({ _id: bookingId } as any);
+    const appt = appointmentId ?? booking?.appointment_id;
+    if (appt) {
+      await this.connection.collection<any>('appointments').updateOne({ _id: appt } as any, { $set: { status: 'CONFIRMED', updated_at: new Date() } });
+    }
+  }
+
+  private async reopenPublicBookingAfterFailedPayment(bookingId: any) {
+    if (!bookingId) return;
+    await this.connection.collection<any>('public_bookings').updateOne(
+      { _id: bookingId } as any,
+      { $set: { status: 'PENDING_PAYMENT', updated_at: new Date() } },
+    );
   }
 
   async listCatalog(input: { siteId?: string }) {
@@ -615,6 +755,7 @@ export class PublicSiteService {
             failureReason: payment.failure_reason ? String(payment.failure_reason) : null,
             expiresAt: payment.expires_at ? new Date(payment.expires_at).toISOString() : null,
             confirmationPath: `/booking/confirmation/${asStringId(booking._id)}`,
+            gatewayHint: payment.gateway_redirect_hint ? String(payment.gateway_redirect_hint) : null,
           }
         : null,
     };

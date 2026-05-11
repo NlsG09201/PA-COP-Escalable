@@ -5,6 +5,8 @@ import { PublicHeroSectionComponent } from './components/public-hero-section.com
 import { PublicPricingGridComponent } from './components/public-pricing-grid.component';
 import { PublicServiceCatalogComponent } from './components/public-service-catalog.component';
 import { PublicSiteHeaderComponent } from './components/public-site-header.component';
+import { PublicGallerySectionComponent } from './components/public-gallery-section.component';
+import { PublicReviewsSectionComponent } from './components/public-reviews-section.component';
 import { PublicSiteFacade } from './data-access/public-site.facade';
 
 @Component({
@@ -13,6 +15,8 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
     CommonModule,
     PublicSiteHeaderComponent,
     PublicHeroSectionComponent,
+    PublicGallerySectionComponent,
+    PublicReviewsSectionComponent,
     PublicServiceCatalogComponent,
     PublicPricingGridComponent,
     PublicBookingFlowComponent
@@ -66,6 +70,9 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [services]="facade.services()"
         [selectedServiceId]="facade.selectedServiceId()"
         (selectService)="facade.onServiceSelected($event)" />
+
+      <app-public-gallery-section />
+      <app-public-reviews-section />
 
       <app-public-pricing-grid
         [services]="facade.services()"

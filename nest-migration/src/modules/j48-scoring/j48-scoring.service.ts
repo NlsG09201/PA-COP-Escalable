@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Patient } from '../patients/patient.schema';
 import { Appointment, AppointmentStatus } from '../appointments/schemas/appointment.schema';
 import { PsychologicalSnapshot } from './schemas/psychological-snapshot.schema';
 import { J48Prediction } from './schemas/j48-prediction.schema';
+import { SUPER_ADMIN_ROLE } from '../iam/roles.constants';
+import { JwtUserLike } from './j48-user.types';
 
 type J48Features = {
   gender?: 'M' | 'F' | 'O';
@@ -26,30 +28,170 @@ export class J48ScoringService {
     @InjectModel(J48Prediction.name) private readonly predictions: Model<J48Prediction>,
   ) {}
 
-  async scoreAllPatients(): Promise<{ scored: number }> {
-    const cursor = this.patients.find({ status: { $ne: 'INACTIVE' } }).cursor();
-    let scored = 0;
-    for await (const p of cursor) {
-      const res = await this.scorePatient(String(p._id), p.organization_id, p.site_id);
-      if (res) scored++;
-    }
-    return { scored };
+  private isSuperAdmin(user: JwtUserLike): boolean {
+    return Array.isArray(user.roles) && user.roles.includes(SUPER_ADMIN_ROLE);
   }
 
-  async scorePatient(patientId: string, organizationId?: string, siteId?: string): Promise<J48Prediction | null> {
-    const patient = await this.patients
-      .findOne({ _id: patientId, ...(organizationId ? { organization_id: organizationId } : {}), ...(siteId ? { site_id: siteId } : {}) })
+  /** Si no es SUPER_ADMIN, devuelve organization_id del token. SUPER puede fijar otra organización explícita. */
+  resolveOrgScope(user: JwtUserLike, organizationIdOverride?: string): string | undefined {
+    if (this.isSuperAdmin(user)) {
+      return organizationIdOverride ? String(organizationIdOverride) : undefined;
+    }
+    return user.organization_id ? String(user.organization_id) : undefined;
+  }
+
+  async scorePatientForUser(patientId: string, user: JwtUserLike, organizationIdOverride?: string): Promise<J48Prediction | null> {
+    const orgScope = this.resolveOrgScope(user, organizationIdOverride);
+    if (!this.isSuperAdmin(user) && !orgScope) {
+      throw new ForbiddenException('Falta contexto de organización en el token');
+    }
+
+    const filter: Record<string, unknown> = { _id: patientId };
+    if (orgScope) filter.organization_id = orgScope;
+
+    const patient = await this.patients.findOne(filter).lean().exec();
+    if (!patient) throw new NotFoundException('Paciente no encontrado');
+
+    return this.scorePatientInternal(
+      patientId,
+      String((patient as { organization_id: string }).organization_id),
+      (patient as { site_id?: string }).site_id ? String((patient as { site_id?: string }).site_id) : undefined,
+    );
+  }
+
+  /** Procesamiento por lotes: hasta J48_SCORE_BATCH_MAX registros con concurrencia J48_SCORE_CONCURRENCY (soporta ~15k+). */
+  async scoreAllForUser(
+    user: JwtUserLike,
+    opts?: { organizationId?: string },
+  ): Promise<{ scored: number; examined: number; organizationScope?: string }> {
+    const orgScope = this.resolveOrgScope(user, opts?.organizationId);
+    if (!orgScope) {
+      throw new ForbiddenException(
+        this.isSuperAdmin(user)
+          ? 'SUPER_ADMIN debe enviar organizationId en el cuerpo para puntuación masiva'
+          : 'Falta contexto de organización',
+      );
+    }
+    if (!this.isSuperAdmin(user) && String(orgScope) !== String(user.organization_id)) {
+      throw new ForbiddenException('No puedes puntuar otra organización');
+    }
+
+    const maxTotal = Math.min(50_000, Math.max(1, Number(process.env.J48_SCORE_BATCH_MAX ?? 15_000)));
+    const concurrency = Math.min(32, Math.max(1, Number(process.env.J48_SCORE_CONCURRENCY ?? 12)));
+
+    const filter: Record<string, unknown> = { status: { $ne: 'INACTIVE' } };
+    if (orgScope) filter.organization_id = orgScope;
+
+    const slice = await this.patients
+      .find(filter)
+      .select('_id organization_id site_id')
+      .limit(maxTotal)
       .lean()
       .exec();
 
+    let scored = 0;
+    for (let i = 0; i < slice.length; i += concurrency) {
+      const chunk = slice.slice(i, i + concurrency);
+      const results = await Promise.all(
+        chunk.map((p) =>
+          this.scorePatientInternal(String(p._id), String(p.organization_id), p.site_id ? String(p.site_id) : undefined),
+        ),
+      );
+      scored += results.filter(Boolean).length;
+    }
+
+    return { scored, examined: slice.length, organizationScope: orgScope };
+  }
+
+  async classDistributionForUser(user: JwtUserLike, organizationIdOverride?: string) {
+    const orgScope = this.resolveOrgScope(user, organizationIdOverride);
+    if (!this.isSuperAdmin(user) && !orgScope) {
+      throw new ForbiddenException('Falta contexto de organización');
+    }
+    const match: Record<string, unknown> = {};
+    if (orgScope) match.organizationId = orgScope;
+
+    return this.predictions
+      .aggregate<{ label: string; count: number }>([
+        { $match: match },
+        { $group: { _id: '$classLabel', count: { $sum: 1 } } },
+        { $project: { _id: 0, label: { $ifNull: ['$_id', ''] }, count: 1 } },
+        { $sort: { count: -1 } },
+      ])
+      .exec();
+  }
+
+  async monthlyTrendForUser(user: JwtUserLike, fromIso: string, toIso: string, organizationIdOverride?: string) {
+    const orgScope = this.resolveOrgScope(user, organizationIdOverride);
+    if (!this.isSuperAdmin(user) && !orgScope) {
+      throw new ForbiddenException('Falta contexto de organización');
+    }
+    const from = new Date(fromIso);
+    const to = new Date(toIso);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return { series: [] as Array<{ bucket: string; total: number }> };
+    }
+
+    const match: Record<string, unknown> = { scoredAt: { $gte: from, $lte: to } };
+    if (orgScope) match.organizationId = orgScope;
+
+    const raw = await this.predictions
+      .aggregate<{ bucket: string; total: number }>([
+        { $match: match },
+        {
+          $group: {
+            _id: { $dateTrunc: { date: '$scoredAt', unit: 'month', timezone: 'UTC' } },
+            total: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            bucket: { $dateToString: { date: '$_id', format: '%Y-%m', timezone: 'UTC' } },
+            total: 1,
+          },
+        },
+        { $sort: { bucket: 1 } },
+      ])
+      .exec();
+
+    return { series: raw };
+  }
+
+  /** Número de predicciones almacenadas (agregación, sin volcar todos los registros al cliente). */
+  async predictionsCountForUser(user: JwtUserLike, organizationIdOverride?: string) {
+    const orgScope = this.resolveOrgScope(user, organizationIdOverride);
+    if (!this.isSuperAdmin(user) && !orgScope) throw new ForbiddenException('Falta contexto de organización');
+    const match: Record<string, unknown> = {};
+    if (orgScope) match.organizationId = orgScope;
+    const total = await this.predictions.countDocuments(match).exec();
+    return { total, organizationScope: orgScope ?? null };
+  }
+
+  private async scorePatientInternal(
+    patientId: string,
+    organizationId: string,
+    siteId?: string,
+  ): Promise<J48Prediction | null> {
+    const pRecord = await this.patients.findOne({ _id: patientId, organization_id: organizationId }).lean().exec();
+    if (!pRecord) return null;
+
     const latestSnapshot = await this.snapshots
-      .findOne({ patientId, ...(organizationId ? { organizationId } : {}), ...(siteId ? { siteId } : {}) })
+      .findOne({
+        patientId,
+        ...(organizationId ? { organizationId } : {}),
+        ...(siteId ? { siteId } : {}),
+      })
       .sort({ occurredAt: -1 })
       .lean()
       .exec();
 
     const lastAppointment = await this.appointments
-      .findOne({ patient_id: patientId, ...(organizationId ? { organization_id: organizationId } : {}), ...(siteId ? { site_id: siteId } : {}) })
+      .findOne({
+        patient_id: patientId,
+        ...(organizationId ? { organization_id: organizationId } : {}),
+        ...(siteId ? { site_id: siteId } : {}),
+      })
       .sort({ end_at: -1 })
       .lean()
       .exec();
@@ -74,8 +216,8 @@ export class J48ScoringService {
     const anxiety = this.safe01((latestSnapshot?.metrics as any)?.anxiety);
     const depression = this.safe01((latestSnapshot?.metrics as any)?.depression);
 
-    const gender = this.mapGender((patient as any)?.gender);
-    const ageGroup = this.deriveAgeGroup((patient as any)?.birth_date);
+    const gender = this.mapGender((pRecord as any)?.gender);
+    const ageGroup = this.deriveAgeGroup((pRecord as any)?.birth_date);
 
     const features: J48Features = {
       gender: gender ?? undefined,
@@ -90,7 +232,7 @@ export class J48ScoringService {
 
     const prediction = await this.callJ48Predict(features);
     const doc = new this.predictions({
-      organizationId: organizationId ?? null,
+      organizationId,
       siteId: siteId ?? null,
       patientId,
       scoredAt: now,
@@ -157,4 +299,3 @@ export class J48ScoringService {
     return 'SENIOR';
   }
 }
-

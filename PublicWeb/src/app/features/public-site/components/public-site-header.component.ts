@@ -12,7 +12,7 @@ import { DASHBOARD_URL } from '../../../core/config/dashboard.config';
     <header class="landing-header">
       <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
         <a class="brand-link" href="#hero">
-          <span class="brand-badge">COP</span>
+          <img src="/brand/logo.png" alt="COP Centro Odontológico y Psicológico" class="brand-logo" width="48" height="48" loading="eager" />
           <span>
             <strong>Centro Odontologico y Psicologico</strong>
             <small>Atencion clinica privada</small>
@@ -21,6 +21,8 @@ import { DASHBOARD_URL } from '../../../core/config/dashboard.config';
 
         <nav class="landing-nav d-flex flex-wrap align-items-center gap-3">
           <a href="#services">Servicios</a>
+          <a href="#gallery">Imágenes</a>
+          <a href="#reviews">Reseñas</a>
           <a href="#pricing">Precios</a>
           <a href="#booking">Agendar</a>
           <a routerLink="/account" class="btn btn-outline-secondary btn-sm px-3">Mi cuenta</a>
@@ -53,15 +55,12 @@ import { DASHBOARD_URL } from '../../../core/config/dashboard.config';
       font-size: 0.82rem;
     }
 
-    .brand-badge {
-      width: 2.75rem;
-      height: 2.75rem;
+    .brand-logo {
+      flex-shrink: 0;
       border-radius: 0.95rem;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-      color: #fff;
-      font-weight: 800;
+      object-fit: cover;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: #fff;
     }
 
     .landing-nav a {

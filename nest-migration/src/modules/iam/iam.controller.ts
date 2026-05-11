@@ -1,4 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards, Headers } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { IamService } from './iam.service';
@@ -13,6 +14,7 @@ export class IamController {
   constructor(private readonly iamService: IamService) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Public patient registration' })
   async register(@Body() dto: RegisterPublicDto, @Req() req: Request) {
@@ -20,6 +22,7 @@ export class IamController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 25, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
@@ -35,6 +38,7 @@ export class IamController {
   }
 
   @Post('refresh')
+  @Throttle({ default: { limit: 45, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token' })
   async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {

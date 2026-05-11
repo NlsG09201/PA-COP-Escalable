@@ -6,9 +6,11 @@ import { PsychologicalSnapshot, PsychologicalSnapshotSchema } from './schemas/ps
 import { J48Prediction, J48PredictionSchema } from './schemas/j48-prediction.schema';
 import { J48ScoringController } from './j48-scoring.controller';
 import { J48ScoringService } from './j48-scoring.service';
+import { IamModule } from '../iam/iam.module';
 
 @Module({
   imports: [
+    IamModule,
     MongooseModule.forFeature([
       { name: Patient.name, schema: PatientSchema },
       { name: Appointment.name, schema: AppointmentSchema },

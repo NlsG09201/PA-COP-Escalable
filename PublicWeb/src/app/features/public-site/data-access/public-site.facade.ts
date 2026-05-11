@@ -4,17 +4,21 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, of } from 'rxjs';
+import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import type { MeResponse } from '../../../core/auth/auth.models';
 import {
+  CreatePublicPaymentIntentDto,
   PublicAvailabilitySlotVm,
   PublicBookingQuoteVm,
   PublicBookingService,
   PublicBookingVm,
+  PublicCheckoutContextVm,
+  PublicPaymentMethodVm,
   PublicPaymentVm,
   PublicServiceVm,
-  PublicSiteVm
+  PublicSiteVm,
+  WompiPresetsVm,
 } from './public-booking.service';
 
 @Injectable()
@@ -42,6 +46,20 @@ export class PublicSiteFacade {
   readonly pageError = signal('');
   readonly selectedSiteId = signal('');
   readonly selectedServiceId = signal('');
+
+  readonly checkoutMethods = signal<PublicPaymentMethodVm[]>([]);
+  readonly checkoutContext = signal<PublicCheckoutContextVm | null>(null);
+  readonly selectedProviderKey = signal('SANDBOX');
+  readonly walletPhone = signal('');
+  readonly pseLegalId = signal('');
+  readonly cardPaymentToken = signal('');
+  readonly wompiPresets = signal<WompiPresetsVm | null>(null);
+  readonly wompiTermsAccepted = signal(false);
+  readonly loadingWompiPresets = signal(false);
+
+  readonly needsWalletPhone = computed(() => ['NEQUI', 'DAVIPLATA'].includes(this.selectedProviderKey()));
+  readonly needsPse = computed(() => this.selectedProviderKey().startsWith('PSE_'));
+  readonly needsCard = computed(() => this.selectedProviderKey() === 'CARD_TOKEN');
 
   readonly bookingForm = this.fb.nonNullable.group({
     siteId: ['', [Validators.required]],
@@ -87,6 +105,64 @@ export class PublicSiteFacade {
       this.reservationSuccess.set(null);
       this.loadQuote();
     });
+
+    forkJoin({
+      methods: this.bookingService.listCheckoutMethods$(),
+      context: this.bookingService.checkoutContext$(),
+    })
+      .pipe(
+        catchError(() =>
+          of({
+            methods: { methods: [] as PublicPaymentMethodVm[] },
+            context: null as PublicCheckoutContextVm | null,
+          }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(({ methods, context }) => {
+        this.checkoutMethods.set(methods.methods ?? []);
+        this.checkoutContext.set(context);
+      });
+  }
+
+  onCheckoutProviderChange(key: string): void {
+    this.selectedProviderKey.set(key);
+    this.wompiTermsAccepted.set(false);
+    this.wompiPresets.set(null);
+  }
+
+  loadWompiPresets(): void {
+    this.loadingWompiPresets.set(true);
+    this.pageError.set('');
+    this.bookingService
+      .wompiPresets$()
+      .pipe(
+        catchError((error) => {
+          this.pageError.set(this.toUserMessage(error, 'No se pudieron cargar los contratos Wompi.'));
+          return of(null);
+        }),
+        finalize(() => this.loadingWompiPresets.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((p) => {
+        if (p) this.wompiPresets.set(p);
+      });
+  }
+
+  toggleWompiTerms(accepted: boolean): void {
+    this.wompiTermsAccepted.set(accepted);
+  }
+
+  setWalletPhone(v: string): void {
+    this.walletPhone.set(v);
+  }
+
+  setPseLegalId(v: string): void {
+    this.pseLegalId.set(v);
+  }
+
+  setCardToken(v: string): void {
+    this.cardPaymentToken.set(v);
   }
 
   onSiteSelected(siteId: string): void {
@@ -155,17 +231,65 @@ export class PublicSiteFacade {
       return;
     }
 
+    const ctx = this.checkoutContext();
+    const pk = this.selectedProviderKey();
+
+    if (ctx?.wompiConfigured && pk !== 'SANDBOX') {
+      if (!this.wompiPresets()) {
+        this.pageError.set('Pulse "Cargar contratos del pasarela (Wompi)" antes de preparar el pago.');
+        return;
+      }
+      if (!this.wompiTermsAccepted()) {
+        this.pageError.set('Debe aceptar los contratos del proveedor de pagos.');
+        return;
+      }
+      if (this.needsWalletPhone() && !this.walletPhone().trim()) {
+        this.pageError.set('Indique el celular asociado a Nequi o Daviplata.');
+        return;
+      }
+      if (this.needsPse() && !this.pseLegalId().trim()) {
+        this.pageError.set('Indique el documento del pagador para PSE.');
+        return;
+      }
+      if (this.needsCard() && !this.cardPaymentToken().trim()) {
+        this.pageError.set(
+          'Para tarjeta use el token generado por el widget Wompi (no ingrese PAN/CVC manualmente en produccion).',
+        );
+        return;
+      }
+    }
+
     this.preparingCheckout.set(true);
     this.pageError.set('');
+
+    const payload: CreatePublicPaymentIntentDto = {
+      idempotencyKey: crypto.randomUUID(),
+      providerKey: pk,
+    };
+    const wph = this.walletPhone().replace(/\D/g, '');
+    if (wph) payload.walletPhone = wph;
+    const doc = this.pseLegalId().trim();
+    if (doc) {
+      payload.pseLegalId = doc;
+      payload.pseLegalIdType = 'CC';
+    }
+    const ctk = this.cardPaymentToken().trim();
+    if (ctk) payload.cardPaymentSourceToken = ctk;
+    if (ctx?.wompiConfigured && pk !== 'SANDBOX' && this.wompiPresets()) {
+      const w = this.wompiPresets()!;
+      payload.wompiAcceptanceToken = w.acceptanceToken;
+      payload.wompiPersonalAuth = w.acceptPersonalAuth;
+    }
+
     this.bookingService
-      .createPaymentIntent$(booking.id, { idempotencyKey: crypto.randomUUID() })
+      .createPaymentIntent$(booking.id, payload)
       .pipe(
         catchError((error) => {
           this.preparingCheckout.set(false);
           this.pageError.set(this.toUserMessage(error, 'No fue posible preparar el checkout.'));
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((payment) => {
         this.preparingCheckout.set(false);
@@ -352,6 +476,12 @@ export class PublicSiteFacade {
     this.bookingQuote.set(null);
     this.reservationSuccess.set(null);
     this.pageError.set('');
+    this.wompiPresets.set(null);
+    this.wompiTermsAccepted.set(false);
+    this.selectedProviderKey.set('SANDBOX');
+    this.walletPhone.set('');
+    this.pseLegalId.set('');
+    this.cardPaymentToken.set('');
   }
 
   /** Si hay sesión, usa datos del paciente solo donde los controles siguen vacíos. */

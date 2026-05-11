@@ -1,6 +1,6 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject } from '@angular/core';
+import { FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   PublicAvailabilitySlotVm,
@@ -9,11 +9,12 @@ import {
   PublicServiceVm,
   PublicSiteVm
 } from '../data-access/public-booking.service';
+import { PublicSiteFacade } from '../data-access/public-site.facade';
 
 @Component({
   selector: 'app-public-booking-flow',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule, FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section id="booking" class="section-block">
@@ -178,9 +179,85 @@ import {
                     </div>
                   } @else {
                     <div class="flow-banner">
-                      Tu horario esta apartado temporalmente. Abre el checkout sandbox para confirmar la reserva.
+                      Tu horario esta apartado temporalmente. Completa el medio de pago y abre el enlace de cobro para confirmar.
                     </div>
                   }
+
+                  @if (facade.checkoutMethods().length > 0) {
+                    <div class="payment-methods-box mb-3">
+                      <label class="form-label fw-semibold">Medio de pago (Colombia)</label>
+                      <select
+                        class="form-select"
+                        [ngModel]="facade.selectedProviderKey()"
+                        (ngModelChange)="facade.onCheckoutProviderChange($event)">
+                        @for (m of facade.checkoutMethods(); track m.key) {
+                          <option [ngValue]="m.key">{{ m.label }}</option>
+                        }
+                      </select>
+                      <p class="small text-muted mb-0 mt-2">{{ paymentMethodHint() }}</p>
+
+                      @if (facade.checkoutContext()?.wompiConfigured && facade.selectedProviderKey() !== 'SANDBOX') {
+                        <div class="wompi-terms card border-0 shadow-sm mt-3 p-3 bg-light">
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary mb-2"
+                            [disabled]="facade.loadingWompiPresets()"
+                            (click)="facade.loadWompiPresets()">
+                            {{ facade.loadingWompiPresets() ? 'Cargando contratos…' : 'Cargar contratos del pasarela (Wompi)' }}
+                          </button>
+                          @if (facade.wompiPresets(); as wp) {
+                            <div class="small mb-2">
+                              @if (wp.termsPrivacyUrl) {
+                                <a [href]="wp.termsPrivacyUrl" target="_blank" rel="noopener noreferrer">Terminos para usuarios</a>
+                              }
+                              @if (wp.termsPrivacyUrl && wp.termsDataUrl) {
+                                <span> · </span>
+                              }
+                              @if (wp.termsDataUrl) {
+                                <a [href]="wp.termsDataUrl" target="_blank" rel="noopener noreferrer">Tratamiento de datos</a>
+                              }
+                            </div>
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="wompi-accept"
+                                [checked]="facade.wompiTermsAccepted()"
+                                (change)="facade.toggleWompiTerms($any($event.target).checked)" />
+                              <label class="form-check-label small" for="wompi-accept">Acepto contratos para procesar el cobro</label>
+                            </div>
+                          }
+                        </div>
+                      }
+
+                      @if (facade.needsWalletPhone()) {
+                        <label class="form-label mt-3">Celular (Nequi / Daviplata)</label>
+                        <input
+                          class="form-control"
+                          placeholder="3001234567"
+                          [ngModel]="facade.walletPhone()"
+                          (ngModelChange)="facade.setWalletPhone($event)" />
+                      }
+                      @if (facade.needsPse()) {
+                        <label class="form-label mt-3">Documento pagador (PSE)</label>
+                        <input
+                          class="form-control"
+                          placeholder="Numero de cedula"
+                          [ngModel]="facade.pseLegalId()"
+                          (ngModelChange)="facade.setPseLegalId($event)" />
+                      }
+                      @if (facade.needsCard()) {
+                        <label class="form-label mt-3">Token de tarjeta (widget PSP)</label>
+                        <textarea
+                          class="form-control"
+                          rows="2"
+                          placeholder="Pegue el token generado por Wompi.js / checkout seguro — no PAN ni CVC"
+                          [ngModel]="facade.cardPaymentToken()"
+                          (ngModelChange)="facade.setCardToken($event)"></textarea>
+                      }
+                    </div>
+                  }
+
                   <div class="checkout-box" data-testid="public-checkout-summary">
                     <div class="checkout-line">
                       <span>Estado del checkout</span>
@@ -195,7 +272,7 @@ import {
                       <strong>{{ reservationSuccess.payment?.providerReference ?? 'Pendiente' }}</strong>
                     </div>
                     <div class="checkout-line">
-                      <span>Checkout sandbox</span>
+                      <span>Enlace de cobro</span>
                       <strong>{{ reservationSuccess.payment?.checkoutUrl ? 'Listo para abrir' : 'Pendiente' }}</strong>
                     </div>
                     <div class="checkout-line">
@@ -228,7 +305,9 @@ import {
                             ? 'Reabrir checkout sandbox'
                             : reservationSuccess.payment?.status === 'PAID' || reservationSuccess.status === 'CONFIRMED'
                               ? 'Pago confirmado'
-                              : 'Abrir checkout sandbox'
+                              : facade.selectedProviderKey() === 'SANDBOX'
+                                ? 'Abrir checkout prueba'
+                                : 'Ir al banco / pasarela'
                       }}
                     </button>
                     <a
@@ -646,6 +725,13 @@ import {
       color: #64748b;
     }
 
+    .payment-methods-box {
+      border-radius: 1rem;
+      padding: 1rem;
+      background: rgba(248, 250, 252, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
     .success-box,
     .empty-panel {
       margin-top: 1.25rem;
@@ -675,6 +761,12 @@ import {
   `
 })
 export class PublicBookingFlowComponent {
+  protected readonly facade = inject(PublicSiteFacade);
+
+  readonly paymentMethodHint = computed(() =>
+    this.facade.checkoutMethods().find((m) => m.key === this.facade.selectedProviderKey())?.description ?? '',
+  );
+
   @Input({ required: true }) bookingForm!: FormGroup;
   @Input() sites: PublicSiteVm[] = [];
   @Input() services: PublicServiceVm[] = [];
