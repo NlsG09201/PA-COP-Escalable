@@ -15,10 +15,33 @@ export interface PatientVm {
 export class PatientsApiService {
   constructor(private readonly http: HttpClient) {}
 
-  list$(): Observable<PatientVm[]> {
-    return this.http.get<unknown>(`${API_BASE_URL}/api/patients`).pipe(
-      map((raw) => this.toArray(raw).map((entry) => this.mapPatient(entry)))
-    );
+  list$(page = 0, size = 50, search = ''): Observable<{
+    items: PatientVm[];
+    page: number;
+    size: number;
+    total: number;
+    hasNext: boolean;
+  }> {
+    const params: Record<string, string> = {
+      page: String(page),
+      size: String(size),
+    };
+    if (search.trim()) params['search'] = search.trim();
+
+    return this.http
+      .get<{ items?: unknown[]; page?: number; size?: number; total?: number; hasNext?: boolean }>(
+        `${API_BASE_URL}/api/patients`,
+        { params },
+      )
+      .pipe(
+        map((raw) => ({
+          items: this.toArray(raw?.items ?? raw).map((entry) => this.mapPatient(entry)),
+          page: Number(raw?.page ?? page),
+          size: Number(raw?.size ?? size),
+          total: Number(raw?.total ?? 0),
+          hasNext: Boolean(raw?.hasNext),
+        })),
+      );
   }
 
   private mapPatient(entry: Record<string, unknown>): PatientVm {

@@ -4,7 +4,12 @@ import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
-type SiteVm = { id: string; name: string };
+export type SiteVm = {
+  id: string;
+  name: string;
+  department?: string | null;
+  municipality?: string | null;
+};
 
 type LoginResponse = {
   accessToken: string;
@@ -32,8 +37,24 @@ export class AuthApiService {
       }),
       map((raw) => this.toArray(raw).map((s) => ({
         id: String(s['id'] ?? ''),
-        name: String(s['name'] ?? s['siteName'] ?? 'Sede')
+        name: String(s['name'] ?? s['siteName'] ?? 'Sede'),
+        department: s['department'] ? String(s['department']) : null,
+        municipality: s['municipality'] ? String(s['municipality']) : null,
       })))
+    );
+  }
+
+  getDepartments$(): Observable<string[]> {
+    return this.http.get<{ departments?: string[] }>(`${API_BASE_URL}/public/departments`).pipe(
+      retry({
+        count: 10,
+        delay: (error: { status?: number }, retryCount) => {
+          const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
+          if (!isTransient) throw error;
+          return timer(Math.min(1000 * retryCount, 4000));
+        },
+      }),
+      map((raw) => (Array.isArray(raw?.departments) ? raw.departments : []).filter(Boolean)),
     );
   }
 

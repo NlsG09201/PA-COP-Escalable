@@ -215,7 +215,7 @@ export class AppShellComponent {
   private readonly store = inject(Store);
   protected readonly publicSiteUrl = PUBLIC_SITE_URL;
   private readonly allItems: NavItem[] = [
-    { label: 'Dashboard', path: '/app/dashboard', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Dashboard', path: '/app/dashboard', roles: ['SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Catalogo de Servicios', path: '/app/services', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
@@ -232,11 +232,12 @@ export class AppShellComponent {
     { label: 'Riesgo de Recaida', path: '/app/relapse', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Copiloto Clinico', path: '/app/copilot', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
-    { label: 'Experiencia Paciente', path: '/app/experience', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN'] }
+    { label: 'Experiencia Paciente', path: '/app/experience', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN'] },
+    { label: 'Administración', path: '/app/admin', roles: ['SUPER_ADMIN', 'ADMIN'] }
   ];
 
-  protected readonly activeRoles = signal<UserRole[]>(['ADMIN']);
-  protected readonly role = computed(() => this.activeRoles()[0] ?? 'ADMIN');
+  protected readonly activeRoles = signal<UserRole[]>([]);
+  protected readonly role = computed(() => this.activeRoles()[0] ?? '—');
   protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
   protected readonly visibleItems = computed(() =>
     this.allItems.filter((item) => item.roles.some((role) => this.activeRoles().includes(role)))

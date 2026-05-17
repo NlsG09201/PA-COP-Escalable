@@ -16,8 +16,19 @@ export class Site extends Document {
   @Prop({ required: true })
   timezone: string;
 
+  @Prop({ index: true })
+  department?: string;
+
+  @Prop()
+  municipality?: string;
+
+  @Prop()
+  address?: string;
+
   @Prop({ default: 'ACTIVE' })
   status: string;
 }
 
 export const SiteSchema = SchemaFactory.createForClass(Site);
+
+SiteSchema.index({ status: 1, department: 1 });

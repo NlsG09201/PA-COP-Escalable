@@ -6,6 +6,7 @@ import { IamService } from './iam.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPublicDto } from './dto/register-public.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -19,6 +20,14 @@ export class IamController {
   @ApiOperation({ summary: 'Public patient registration' })
   async register(@Body() dto: RegisterPublicDto, @Req() req: Request) {
     return this.iamService.registerPublicPatient(dto, req.ip, req.headers['user-agent']);
+  }
+
+  @Post('google')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or register with Google (Gmail)' })
+  async google(@Body() dto: GoogleAuthDto, @Req() req: Request) {
+    return this.iamService.loginOrRegisterWithGoogle(dto, req.ip, req.headers['user-agent']);
   }
 
   @Post('login')

@@ -13,6 +13,9 @@ export class UserAccount extends Document {
   @Prop({ required: true, unique: true })
   username: string;
 
+  @Prop({ sparse: true })
+  email?: string;
+
   @Prop({ required: true })
   password_hash: string;
 

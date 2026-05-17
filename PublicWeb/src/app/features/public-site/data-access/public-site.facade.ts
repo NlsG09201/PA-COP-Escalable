@@ -4,7 +4,7 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, finalize, forkJoin, of } from 'rxjs';
+import { catchError, debounceTime, finalize, forkJoin, merge, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import type { MeResponse } from '../../../core/auth/auth.models';
 import {
@@ -30,6 +30,8 @@ export class PublicSiteFacade {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
 
+  readonly departments = signal<string[]>([]);
+  readonly selectedDepartment = signal('');
   readonly sites = signal<PublicSiteVm[]>([]);
   readonly services = signal<PublicServiceVm[]>([]);
   readonly availabilitySlots = signal<PublicAvailabilitySlotVm[]>([]);
@@ -68,7 +70,10 @@ export class PublicSiteFacade {
     patientName: ['', [Validators.required, Validators.minLength(3)]],
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required, Validators.minLength(7), Validators.pattern(/^[0-9+\-\s()]+$/)]],
-    notes: ['']
+    documentType: ['CC', [Validators.required, Validators.minLength(2)]],
+    documentNumber: ['', [Validators.required, Validators.minLength(4)]],
+    billingMode: ['FULL', [Validators.required]],
+    installmentCount: [6, [Validators.required, Validators.min(2), Validators.max(36)]],
   });
 
   readonly selectedService = computed(
@@ -78,6 +83,7 @@ export class PublicSiteFacade {
   readonly hasCatalogData = computed(() => this.sites().length > 0 || this.services().length > 0);
 
   constructor() {
+    this.loadDepartments();
     this.loadSites();
     this.loadRecentBookings();
 
@@ -105,6 +111,14 @@ export class PublicSiteFacade {
       this.reservationSuccess.set(null);
       this.loadQuote();
     });
+
+    merge(this.bookingForm.controls.billingMode.valueChanges, this.bookingForm.controls.installmentCount.valueChanges)
+      .pipe(debounceTime(200), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.bookingForm.controls.slotStartAt.value) {
+          this.loadQuote();
+        }
+      });
 
     forkJoin({
       methods: this.bookingService.listCheckoutMethods$(),
@@ -188,7 +202,18 @@ export class PublicSiteFacade {
 
     this.submitting.set(true);
     this.pageError.set('');
-    const { siteId, serviceId, slotStartAt, patientName, email, phone, notes } = this.bookingForm.getRawValue();
+    const {
+      siteId,
+      serviceId,
+      slotStartAt,
+      patientName,
+      email,
+      phone,
+      documentType,
+      documentNumber,
+      billingMode,
+      installmentCount,
+    } = this.bookingForm.getRawValue();
 
     this.bookingService
       .createBooking$({
@@ -198,8 +223,11 @@ export class PublicSiteFacade {
         patientName,
         email,
         phone,
-        notes,
-        idempotencyKey: crypto.randomUUID()
+        documentType,
+        documentNumber,
+        billingMode,
+        installmentCount: Number(installmentCount ?? 6),
+        idempotencyKey: crypto.randomUUID(),
       })
       .pipe(
         catchError((error) => {
@@ -319,11 +347,23 @@ export class PublicSiteFacade {
     this.pageError.set('Primero debes preparar el checkout de la reserva.');
   }
 
-  private loadSites(): void {
+  onDepartmentSelected(department: string): void {
+    this.selectedDepartment.set(department);
+    this.loadSites(department);
+  }
+
+  private loadDepartments(): void {
+    this.bookingService
+      .listDepartments$()
+      .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((deps) => this.departments.set(deps));
+  }
+
+  private loadSites(department?: string): void {
     this.loadingSites.set(true);
     this.pageError.set('');
     this.bookingService
-      .listSites$()
+      .listSites$(department || this.selectedDepartment())
       .pipe(
         catchError((error) => {
           this.loadingSites.set(false);
@@ -444,8 +484,11 @@ export class PublicSiteFacade {
 
     this.loadingQuote.set(true);
     this.pageError.set('');
+    const billingMode = this.bookingForm.controls.billingMode.value;
+    const installmentCount = Number(this.bookingForm.controls.installmentCount.value ?? 6);
+
     this.bookingService
-      .quoteBooking$({ siteId, serviceId, slotStartAt })
+      .quoteBooking$({ siteId, serviceId, slotStartAt, billingMode, installmentCount })
       .pipe(
         catchError((error) => {
           this.loadingQuote.set(false);

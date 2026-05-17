@@ -27,3 +27,6 @@ export class J48Prediction extends Document {
 
 export const J48PredictionSchema = SchemaFactory.createForClass(J48Prediction);
 
+J48PredictionSchema.index({ organizationId: 1, patientId: 1, scoredAt: -1 });
+J48PredictionSchema.index({ organizationId: 1, scoredAt: -1 });
+

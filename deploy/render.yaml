@@ -1,0 +1,37 @@
+# Render Blueprint — backend Nest API
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: cop-nest-api
+    runtime: docker
+    dockerfilePath: ./nest-migration/Dockerfile
+    dockerContext: ./nest-migration
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES
+        value: 45m
+      - key: J48_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: SEED_COLOMBIA_SITES
+        value: "true"
+      - key: PUBLIC_API_ORIGIN
+        sync: false
+
+  - type: web
+    name: cop-j48-service
+    runtime: docker
+    dockerfilePath: ./services/j48-service/Dockerfile
+    dockerContext: ./services/j48-service
+    plan: starter
+    healthCheckPath: /health

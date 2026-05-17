@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Req,
@@ -67,5 +68,29 @@ export class J48ScoringController {
   @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN', 'SUPER_ADMIN')
   predictionsCount(@Req() req: Request, @Query('organizationId') organizationId?: string) {
     return this.scoring.predictionsCountForUser(this.jwtUser(req), organizationId);
+  }
+
+  @Get('patients/:patientId/latest')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN', 'SUPER_ADMIN')
+  latestForPatient(
+    @Req() req: Request,
+    @Param('patientId') patientId: string,
+    @Query('organizationId') organizationId?: string,
+  ) {
+    return this.scoring.latestPredictionForPatient(patientId, this.jwtUser(req), organizationId);
+  }
+
+  @Get('patients/:patientId/history')
+  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL', 'ORG_ADMIN', 'SITE_ADMIN', 'SUPER_ADMIN')
+  historyForPatient(
+    @Req() req: Request,
+    @Param('patientId') patientId: string,
+    @Query('limit') limit?: string,
+    @Query('organizationId') organizationId?: string,
+  ) {
+    return this.scoring.predictionHistoryForPatient(patientId, this.jwtUser(req), {
+      limit: limit ? Number(limit) : undefined,
+      organizationId,
+    });
   }
 }

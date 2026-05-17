@@ -74,7 +74,7 @@ export class PublicSiteController {
 
   @Get('bookings/:bookingId/notifications')
   async notifications(@Param('bookingId') bookingId: string) {
-    return this.service.bookingNotifications({ bookingId });
+    return this.service.listBookingNotificationLogs({ bookingId });
   }
 
   @Post('bookings/:bookingId/payments/intents')

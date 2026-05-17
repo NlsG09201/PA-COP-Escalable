@@ -13,8 +13,8 @@ export class PatientsEffects {
     this.actions$.pipe(
       ofType(loadPatients),
       switchMap(() =>
-        this.patientsApi.list$().pipe(
-          map((items) => loadPatientsSuccess({ items })),
+        this.patientsApi.list$(0, 200).pipe(
+          map((page) => loadPatientsSuccess({ items: page.items })),
           catchError(() => of(loadPatientsFailure()))
         )
       )

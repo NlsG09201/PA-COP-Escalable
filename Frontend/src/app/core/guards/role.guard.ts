@@ -16,5 +16,8 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  return router.createUrlTree(['/app/dashboard']);
+  if (authService.hasAnyRole(['PACIENTE', 'PATIENT'])) {
+    return router.createUrlTree(['/login'], { queryParams: { error: 'staff-only' } });
+  }
+  return router.createUrlTree(['/login']);
 };

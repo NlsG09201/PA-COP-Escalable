@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { TenancyService } from './tenancy.service';
 
@@ -7,12 +7,22 @@ import { TenancyService } from './tenancy.service';
 export class PublicTenancyController {
   constructor(private readonly tenancy: TenancyService) {}
 
+  @Get('departments')
+  async departments() {
+    const departments = await this.tenancy.listDepartments();
+    return { departments };
+  }
+
   @Get('sites')
-  async sites() {
-    // For login UI: list all active sites (across organizations).
-    // Downstream auth will enforce org/site membership.
-    const sites = await this.tenancy.listActiveSites();
-    return (sites ?? []).map((s: any) => ({ id: String(s._id), name: String(s.name ?? 'Sede') }));
+  async sites(@Query('department') department?: string) {
+    const sites = await this.tenancy.listActiveSites(department);
+    return (sites ?? []).map((s: any) => ({
+      id: String(s._id),
+      name: String(s.name ?? 'Sede'),
+      department: s.department ? String(s.department) : null,
+      municipality: s.municipality ? String(s.municipality) : null,
+      address: s.address ? String(s.address) : null,
+    }));
   }
 }
 

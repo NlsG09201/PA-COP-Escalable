@@ -15,7 +15,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
   selector: 'app-public-booking-flow',
   standalone: true,
   imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule, FormsModule, RouterLink],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.Default,
   template: `
     <section id="booking" class="section-block">
       <div class="container">
@@ -30,16 +30,30 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
 
               <form [formGroup]="bookingForm" (ngSubmit)="submitBooking.emit()" class="row g-3" data-testid="public-booking-form">
                 <div class="col-md-6">
-                  <label class="form-label">Sede</label>
+                  <label class="form-label">Departamento</label>
+                  <select class="form-select" [value]="selectedDepartment" (change)="departmentChange.emit($any($event.target).value)">
+                    <option value="">Todos</option>
+                    @for (dep of departments; track dep) {
+                      <option [value]="dep">{{ dep }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Sede ({{ sites.length }} disponibles)</label>
                   <select
                     class="form-select"
+                    size="6"
+                    style="min-height: 8rem;"
                     formControlName="siteId"
                     data-testid="public-site-select"
                     (change)="siteChange.emit($any($event.target).value)">
                     @for (site of sites; track site.id) {
-                      <option [value]="site.id">{{ site.name }}</option>
+                      <option [value]="site.id">
+                        {{ site.name }}@if (site.municipality) { · {{ site.municipality }} }@if (site.department) { ({{ site.department }}) }
+                      </option>
                     }
                   </select>
+                  <div class="form-text">Departamento «Todos» muestra el catálogo nacional completo.</div>
                 </div>
 
                 <div class="col-md-6">
@@ -79,7 +93,11 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                                 [class.calendar-slot-active]="slot.startAt === selectedSlotStartAt"
                                 (click)="slotSelected.emit(slot.startAt)">
                                 <strong class="calendar-slot-time">{{ slot.startAt | date: 'h:mm a' }}</strong>
-                                <span class="calendar-slot-pro text-truncate">{{ slot.professionalName }}</span>
+                                @if (slot.professionalName) {
+                                  <span class="calendar-slot-pro text-truncate">{{ slot.professionalName }}</span>
+                                } @else {
+                                  <span class="calendar-slot-pro text-muted">Cupo disponible</span>
+                                }
                               </button>
                             } @empty {
                               <div class="calendar-empty">Sin cupos</div>
@@ -105,15 +123,35 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                   <label class="form-label">Correo electronico</label>
                   <input class="form-control" formControlName="email" data-testid="public-patient-email" />
                 </div>
-                <div class="col-12">
-                  <label class="form-label">Observaciones</label>
-                  <textarea
-                    class="form-control"
-                    rows="4"
-                    formControlName="notes"
-                    data-testid="public-patient-notes"
-                    placeholder="Motivo de consulta o comentarios"></textarea>
+                <div class="col-md-6">
+                  <label class="form-label">Tipo de documento</label>
+                  <select class="form-select" formControlName="documentType" data-testid="public-patient-doc-type">
+                    <option value="CC">Cedula de ciudadania</option>
+                    <option value="CE">Cedula de extranjeria</option>
+                    <option value="TI">Tarjeta de identidad</option>
+                    <option value="PA">Pasaporte</option>
+                    <option value="PPT">Permiso de proteccion temporal</option>
+                    <option value="NIT">NIT</option>
+                  </select>
                 </div>
+                <div class="col-md-6">
+                  <label class="form-label">Numero de documento</label>
+                  <input class="form-control" formControlName="documentNumber" data-testid="public-patient-document" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Plan de pago</label>
+                  <select class="form-select" formControlName="billingMode">
+                    <option value="FULL">Pago al contado</option>
+                    <option value="INSTALLMENTS">Cuotas (pago por cuota)</option>
+                    <option value="QUOTE_CONSULT">Consulta de valoracion / cotizacion</option>
+                  </select>
+                </div>
+                @if (bookingForm.get('billingMode')?.value === 'INSTALLMENTS') {
+                  <div class="col-md-6">
+                    <label class="form-label">Numero de cuotas</label>
+                    <input type="number" class="form-control" min="2" max="36" formControlName="installmentCount" />
+                  </div>
+                }
                 <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
                   <p class="mb-0 text-muted small">
                     La pre-reserva bloquea el horario por {{ bookingQuote?.holdMinutes ?? 15 }} minutos y deja la cita en estado {{ bookingQuote?.nextStatus ?? 'PENDING_PAYMENT' }}.
@@ -136,13 +174,24 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
               <p class="text-muted">{{ selectedService?.description ?? 'Selecciona un servicio para ver el detalle.' }}</p>
 
               @if (loadingQuote && selectedSlotStartAt) {
-                <div class="empty-panel">Validando precio y profesional disponible...</div>
+                <div class="empty-panel">Validando precio y disponibilidad...</div>
               }
 
-              <div class="summary-metric">
-                <span>Precio final</span>
-                <strong>{{ (bookingQuote?.quotedPrice ?? selectedService?.priceToPay ?? 0) | currency: 'COP':'symbol':'1.0-0' }}</strong>
-              </div>
+              @if (bookingQuote?.billingMode === 'INSTALLMENTS') {
+                <div class="summary-metric">
+                  <span>Valor total tratamiento (referencia)</span>
+                  <strong>{{ (bookingQuote?.totalTreatmentPrice ?? bookingQuote?.basePrice ?? 0) | currency: 'COP':'symbol':'1.0-0' }}</strong>
+                </div>
+                <div class="summary-metric">
+                  <span>Primera cuota a pagar ahora</span>
+                  <strong>{{ (bookingQuote?.quotedPrice ?? 0) | currency: 'COP':'symbol':'1.0-0' }}</strong>
+                </div>
+              } @else {
+                <div class="summary-metric">
+                  <span>Precio a pagar ahora</span>
+                  <strong>{{ (bookingQuote?.quotedPrice ?? selectedService?.priceToPay ?? 0) | currency: 'COP':'symbol':'1.0-0' }}</strong>
+                </div>
+              }
               <div class="summary-metric">
                 <span>Duracion</span>
                 <strong>{{ selectedService?.durationMinutes ?? 0 }} min</strong>
@@ -152,8 +201,8 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                 <strong>{{ (bookingQuote?.promoPrice ?? selectedService?.promoPrice) ? 'Aplicada' : 'Tarifa regular' }}</strong>
               </div>
               <div class="summary-metric">
-                <span>Profesional asignable</span>
-                <strong>{{ bookingQuote?.professionalName ?? 'Se definira al cotizar' }}</strong>
+                <span>Profesional</span>
+                <strong>{{ bookingQuote?.professionalName || 'Se asigna desde el panel clinico' }}</strong>
               </div>
               <div class="summary-metric">
                 <span>Horario cotizado</span>
@@ -768,6 +817,8 @@ export class PublicBookingFlowComponent {
   );
 
   @Input({ required: true }) bookingForm!: FormGroup;
+  @Input() departments: string[] = [];
+  @Input() selectedDepartment = '';
   @Input() sites: PublicSiteVm[] = [];
   @Input() services: PublicServiceVm[] = [];
   @Input() slots: PublicAvailabilitySlotVm[] = [];
@@ -782,6 +833,7 @@ export class PublicBookingFlowComponent {
   @Input() submitting = false;
   @Input() processingPayment = false;
 
+  @Output() readonly departmentChange = new EventEmitter<string>();
   @Output() readonly siteChange = new EventEmitter<string>();
   @Output() readonly serviceChange = new EventEmitter<string>();
   @Output() readonly slotSelected = new EventEmitter<string>();

@@ -4,8 +4,12 @@ import { map, Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
 
 export interface AppointmentVm {
+  id: string;
   title: string;
   start: string;
+  end: string;
+  professionalId: string | null;
+  status: string;
 }
 
 export interface AppointmentPageVm {
@@ -18,14 +22,36 @@ export interface AppointmentPageVm {
 
 export type AppointmentStatusVm = 'REQUESTED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
+export interface ProfessionalOptionVm {
+  id: string;
+  name: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsApiService {
   constructor(private readonly http: HttpClient) {}
 
+  listProfessionals$(): Observable<ProfessionalOptionVm[]> {
+    return this.http.get<unknown>(`${API_BASE_URL}/api/appointments/professionals`).pipe(
+      map((raw) => {
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          .map((e) => ({ id: String(e['id'] ?? ''), name: String(e['name'] ?? '') }));
+      }),
+    );
+  }
+
+  claimAppointment$(appointmentId: string, professionalId: string): Observable<unknown> {
+    return this.http.patch(`${API_BASE_URL}/api/appointments/${encodeURIComponent(appointmentId)}/claim`, {
+      professionalId,
+    });
+  }
+
   listPage$(
     page = 0,
     size = 50,
-    filters?: { professionalId?: string; status?: AppointmentStatusVm | '' }
+    filters?: { professionalId?: string; status?: AppointmentStatusVm | ''; unassignedOnly?: boolean },
   ): Observable<AppointmentPageVm> {
     const now = new Date();
     const from = new Date(now);
@@ -36,7 +62,7 @@ export class AppointmentsApiService {
       from: from.toISOString(),
       to: to.toISOString(),
       page: String(Math.max(0, page)),
-      size: String(Math.min(Math.max(1, size), 200))
+      size: String(Math.min(Math.max(1, size), 200)),
     });
     if (filters?.professionalId?.trim()) {
       params.set('professionalId', filters.professionalId.trim());
@@ -44,13 +70,12 @@ export class AppointmentsApiService {
     if (filters?.status) {
       params.set('status', filters.status);
     }
-    // Appointments service exposes GET /api/appointments (proxy to legacy),
-    // forwarding all query params (from/to/page/size/etc). There is no /page sub-route.
+    if (filters?.unassignedOnly) {
+      params.set('unassignedOnly', 'true');
+    }
     const url = `${API_BASE_URL}/api/appointments?${params.toString()}`;
 
-    return this.http.get<unknown>(url).pipe(
-      map((raw) => this.mapPage(raw))
-    );
+    return this.http.get<unknown>(url).pipe(map((raw) => this.mapPage(raw)));
   }
 
   private mapAppointment(entry: Record<string, unknown>): AppointmentVm {
@@ -58,9 +83,17 @@ export class AppointmentsApiService {
       typeof entry['serviceNameSnapshot'] === 'string' && String(entry['serviceNameSnapshot']).trim()
         ? String(entry['serviceNameSnapshot'])
         : '';
+    const startAt = String(entry['startAt'] ?? entry['start'] ?? new Date().toISOString());
+    const endAt = String(entry['endAt'] ?? entry['end'] ?? startAt);
+    const prof = entry['professionalId'];
+    const professionalId = prof == null || prof === '' ? null : String(prof);
     return {
+      id: String(entry['id'] ?? ''),
       title: serviceTitle || String(entry['title'] ?? entry['reason'] ?? 'Cita clinica'),
-      start: String(entry['start'] ?? entry['startAt'] ?? new Date().toISOString())
+      start: startAt,
+      end: endAt,
+      professionalId,
+      status: String(entry['status'] ?? ''),
     };
   }
 
@@ -88,7 +121,7 @@ export class AppointmentsApiService {
       page: Number(payload['page'] ?? 0),
       size: Number(payload['size'] ?? items.length),
       total: Number(payload['total'] ?? items.length),
-      hasNext: Boolean(payload['hasNext'] ?? false)
+      hasNext: Boolean(payload['hasNext'] ?? false),
     };
   }
 }

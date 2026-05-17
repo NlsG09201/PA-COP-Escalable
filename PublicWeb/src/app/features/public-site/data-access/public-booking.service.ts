@@ -9,6 +9,9 @@ export interface PublicSiteVm {
   name: string;
   timezone: string;
   status: string;
+  department?: string | null;
+  municipality?: string | null;
+  address?: string | null;
 }
 
 export interface PublicServiceVm {
@@ -50,6 +53,9 @@ export interface PublicBookingQuoteVm {
   basePrice: number;
   promoPrice?: number;
   quotedPrice: number;
+  totalTreatmentPrice?: number;
+  billingMode?: string;
+  installmentCount?: number;
   currency: string;
   timezone: string;
   holdMinutes: number;
@@ -123,6 +129,11 @@ export interface PublicBookingVm {
   patientName: string;
   patientEmail: string;
   patientPhone: string;
+  patientDocumentType: string;
+  patientDocumentNumber: string;
+  billingMode: string;
+  installmentCount: number;
+  totalTreatmentPrice: number;
   notes: string;
   quotedPrice: number;
   appointmentStartAt: string;
@@ -156,7 +167,11 @@ export interface CreatePublicBookingDto {
   patientName: string;
   email: string;
   phone: string;
-  notes: string;
+  documentType: string;
+  documentNumber: string;
+  billingMode: string;
+  installmentCount: number;
+  notes?: string;
   idempotencyKey?: string;
 }
 
@@ -164,6 +179,8 @@ export interface CreatePublicBookingQuoteDto {
   siteId: string;
   serviceId: string;
   slotStartAt: string;
+  billingMode?: string;
+  installmentCount?: number;
 }
 
 export interface PublicPaymentWebhookDto {
@@ -183,9 +200,16 @@ export class PublicBookingService {
 
   constructor(private readonly http: HttpClient) {}
 
-  listSites$(): Observable<PublicSiteVm[]> {
-    return this.http.get<unknown>(`${this.publicBaseUrl}/sites`).pipe(
-      map((raw) => this.toArray(raw).map((entry) => this.mapSite(entry)))
+  listDepartments$(): Observable<string[]> {
+    return this.http.get<{ departments?: string[] }>(`${this.publicBaseUrl}/departments`).pipe(
+      map((raw) => (Array.isArray(raw?.departments) ? raw.departments : []).filter(Boolean)),
+    );
+  }
+
+  listSites$(department?: string): Observable<PublicSiteVm[]> {
+    const params = department?.trim() ? { department: department.trim() } : undefined;
+    return this.http.get<unknown>(`${this.publicBaseUrl}/sites`, { params }).pipe(
+      map((raw) => this.toArray(raw).map((entry) => this.mapSite(entry))),
     );
   }
 
@@ -366,7 +390,10 @@ export class PublicBookingService {
       organizationId: String(entry['organizationId'] ?? entry['organization_id'] ?? ''),
       name: String(entry['name'] ?? 'Sede'),
       timezone: String(entry['timezone'] ?? 'UTC'),
-      status: String(entry['status'] ?? 'ACTIVE')
+      status: String(entry['status'] ?? 'ACTIVE'),
+      department: entry['department'] ? String(entry['department']) : null,
+      municipality: entry['municipality'] ? String(entry['municipality']) : null,
+      address: entry['address'] ? String(entry['address']) : null,
     };
   }
 
@@ -415,6 +442,9 @@ export class PublicBookingService {
       basePrice: Number(entry['basePrice'] ?? 0),
       promoPrice: typeof entry['promoPrice'] === 'number' ? entry['promoPrice'] : undefined,
       quotedPrice: Number(entry['quotedPrice'] ?? 0),
+      totalTreatmentPrice: typeof entry['totalTreatmentPrice'] === 'number' ? entry['totalTreatmentPrice'] : undefined,
+      billingMode: entry['billingMode'] != null ? String(entry['billingMode']) : undefined,
+      installmentCount: typeof entry['installmentCount'] === 'number' ? entry['installmentCount'] : undefined,
       currency: String(entry['currency'] ?? 'COP'),
       timezone: String(entry['timezone'] ?? 'UTC'),
       holdMinutes: Number(entry['holdMinutes'] ?? 0),
@@ -450,6 +480,11 @@ export class PublicBookingService {
       patientName: String(entry['patientName'] ?? ''),
       patientEmail: String(entry['patientEmail'] ?? ''),
       patientPhone: String(entry['patientPhone'] ?? ''),
+      patientDocumentType: String(entry['patientDocumentType'] ?? ''),
+      patientDocumentNumber: String(entry['patientDocumentNumber'] ?? ''),
+      billingMode: String(entry['billingMode'] ?? 'FULL'),
+      installmentCount: Number(entry['installmentCount'] ?? 1),
+      totalTreatmentPrice: Number(entry['totalTreatmentPrice'] ?? entry['quotedPrice'] ?? 0),
       notes: String(entry['notes'] ?? ''),
       quotedPrice: Number(entry['quotedPrice'] ?? 0),
       appointmentStartAt: String(entry['appointmentStartAt'] ?? ''),

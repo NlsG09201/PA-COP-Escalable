@@ -3,6 +3,7 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { UUID } from 'bson';
 import * as crypto from 'crypto';
 import { Connection } from 'mongoose';
+import { BookingNotificationsService } from '../notifications/booking-notifications.service';
 import { ColombianPaymentGatewayService } from './payments/colombian-payment-gateway.service';
 import {
   extractWompiTransaction,
@@ -28,11 +29,24 @@ function asStringId(value: any): string {
   }
 }
 
+function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  return aStart.getTime() < bEnd.getTime() && aEnd.getTime() > bStart.getTime();
+}
+
+type PublicBillingMode = 'FULL' | 'INSTALLMENTS' | 'QUOTE_CONSULT';
+
+function normalizeBillingMode(v?: string): PublicBillingMode {
+  const x = String(v ?? 'FULL').toUpperCase().trim();
+  if (x === 'INSTALLMENTS' || x === 'QUOTE_CONSULT') return x;
+  return 'FULL';
+}
+
 @Injectable()
 export class PublicSiteService {
   constructor(
     @InjectConnection() private readonly connection: Connection,
     private readonly colombianPayments: ColombianPaymentGatewayService,
+    private readonly bookingNotificationsSvc: BookingNotificationsService,
   ) {}
 
   private async findOrCreatePatient(input: {
@@ -41,24 +55,31 @@ export class PublicSiteService {
     fullName: string;
     email?: string;
     phone?: string;
+    documentType?: string;
+    documentNumber?: string;
   }): Promise<{ _id: UUID }> {
     const email = String(input.email ?? '').trim().toLowerCase();
     const phone = String(input.phone ?? '').trim();
+    const documentType = String(input.documentType ?? '').trim().toUpperCase();
+    const documentNumber = String(input.documentNumber ?? '').trim();
 
     const match: any = { organization_id: input.organizationId };
     if (input.siteId) match.site_id = input.siteId;
 
-    // Prefer email match; fallback to phone.
+    const byDoc =
+      documentNumber.length >= 4
+        ? await this.connection.collection<any>('patients').findOne({
+            ...match,
+            document_number: documentNumber,
+          } as any)
+        : null;
+
     const patient =
-      (email
-        ? await this.connection.collection<any>('patients').findOne({ ...match, email } as any)
-        : null) ??
-      (phone
-        ? await this.connection.collection<any>('patients').findOne({ ...match, phone } as any)
-        : null);
+      byDoc ??
+      (email ? await this.connection.collection<any>('patients').findOne({ ...match, email } as any) : null) ??
+      (phone ? await this.connection.collection<any>('patients').findOne({ ...match, phone } as any) : null);
 
     if (patient?._id) {
-      // Best-effort refresh of contact info/name if missing.
       await this.connection.collection<any>('patients').updateOne(
         { _id: patient._id } as any,
         {
@@ -66,6 +87,8 @@ export class PublicSiteService {
             full_name: String(input.fullName ?? patient.full_name ?? '').trim() || patient.full_name,
             ...(email ? { email } : {}),
             ...(phone ? { phone } : {}),
+            ...(documentType ? { document_type: documentType } : {}),
+            ...(documentNumber ? { document_number: documentNumber } : {}),
             updated_at: new Date(),
           },
         },
@@ -84,6 +107,8 @@ export class PublicSiteService {
       gender: null,
       phone: phone || null,
       email: email || null,
+      document_type: documentType || null,
+      document_number: documentNumber || null,
       status: 'ACTIVE',
       created_at: new Date(),
       updated_at: new Date(),
@@ -138,13 +163,11 @@ export class PublicSiteService {
     const rangeStartUtc = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 0, 0, 0));
     const rangeEndUtc = new Date(rangeStartUtc.getTime() + days * 24 * 60 * 60_000);
 
-    const profIds = professionals.map((p: any) => p._id);
-    const busy = await this.connection
+    const busyAll = await this.connection
       .collection<any>('appointments')
       .find(
         {
           site_id: site._id,
-          professional_id: { $in: profIds },
           start_at: { $lt: rangeEndUtc },
           end_at: { $gt: rangeStartUtc },
           status: { $in: ['REQUESTED', 'CONFIRMED', 'COMPLETED'] },
@@ -154,8 +177,9 @@ export class PublicSiteService {
       .toArray();
 
     const busyByProf = new Map<string, Array<{ start: Date; end: Date }>>();
-    for (const b of busy) {
-      const key = asStringId(b.professional_id);
+    for (const b of busyAll) {
+      const key = b.professional_id ? asStringId(b.professional_id) : '';
+      if (!key) continue;
       const list = busyByProf.get(key) ?? [];
       list.push({ start: new Date(b.start_at), end: new Date(b.end_at) });
       busyByProf.set(key, list);
@@ -175,19 +199,29 @@ export class PublicSiteService {
         const startAt = new Date(t);
         const endAt = new Date(t + durationMinutes * 60_000);
 
+        const siteBlocked = busyAll.some((b) =>
+          rangesOverlap(startAt, endAt, new Date(b.start_at), new Date(b.end_at)),
+        );
+        if (siteBlocked) continue;
+
+        let anyProfFree = false;
         for (const p of professionals) {
           const pid = asStringId(p._id);
           const ranges = busyByProf.get(pid) ?? [];
-          const overlaps = ranges.some((r) => startAt < r.end && endAt > r.start);
-          if (overlaps) continue;
-
-          slots.push({
-            startAt: startAt.toISOString(),
-            endAt: endAt.toISOString(),
-            professionalId: pid,
-            professionalName: String(p.full_name ?? 'Profesional'),
-          });
+          const overlapsProf = ranges.some((r) => rangesOverlap(startAt, endAt, r.start, r.end));
+          if (!overlapsProf) {
+            anyProfFree = true;
+            break;
+          }
         }
+        if (!anyProfFree) continue;
+
+        slots.push({
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          professionalId: '',
+          professionalName: '',
+        });
       }
     }
 
@@ -195,7 +229,13 @@ export class PublicSiteService {
     return { siteId: input.siteId, serviceId: input.serviceId, slots: slots.slice(0, 200) };
   }
 
-  async quoteBooking(input: { siteId?: string; serviceId?: string; slotStartAt?: string }) {
+  async quoteBooking(input: {
+    siteId?: string;
+    serviceId?: string;
+    slotStartAt?: string;
+    billingMode?: string;
+    installmentCount?: number;
+  }) {
     const siteUuid = asUuid(input.siteId);
     if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
     if (!input.serviceId) throw new BadRequestException('serviceId is required');
@@ -226,11 +266,23 @@ export class PublicSiteService {
 
     const basePrice = Number(offering.base_price ?? 0);
     const promoPrice = undefined;
-    const quotedPrice = basePrice;
+    const billingMode = normalizeBillingMode(input.billingMode);
+    const installmentCount =
+      billingMode === 'INSTALLMENTS' ? Math.max(2, Math.min(36, Number(input.installmentCount ?? 6))) : 1;
 
-    // Best-effort professional: pick the first available one for this slot.
+    let quotedPrice = basePrice;
+    let totalTreatmentPrice = basePrice;
+    if (billingMode === 'INSTALLMENTS') {
+      quotedPrice = basePrice > 0 ? Math.max(1, Math.ceil(basePrice / installmentCount)) : 0;
+    } else if (billingMode === 'QUOTE_CONSULT') {
+      const pct = Math.ceil(basePrice * 0.15);
+      quotedPrice = basePrice > 0 ? Math.max(20_000, Math.min(120_000, pct)) : 30_000;
+      totalTreatmentPrice = basePrice;
+    }
+
     const availability = await this.availability({ siteId: asStringId(site._id), serviceId: asStringId(offering._id), fromDate: startAt.toISOString().slice(0, 10) });
-    const matchSlot = availability.slots.find((s) => s.startAt === startAt.toISOString()) ?? availability.slots[0];
+    const matchSlot = availability.slots.find((s) => s.startAt === startAt.toISOString());
+    if (!matchSlot) throw new BadRequestException('Horario no disponible');
 
     return {
       siteId: asStringId(site._id),
@@ -240,11 +292,14 @@ export class PublicSiteService {
       serviceCategory: String(category?.name ?? 'General'),
       slotStartAt: startAt.toISOString(),
       slotEndAt: endAt.toISOString(),
-      professionalId: matchSlot?.professionalId ?? '',
-      professionalName: matchSlot?.professionalName ?? 'Profesional',
+      professionalId: '',
+      professionalName: 'Se asignará desde la clínica',
       basePrice,
       promoPrice,
       quotedPrice,
+      totalTreatmentPrice,
+      billingMode,
+      installmentCount: billingMode === 'INSTALLMENTS' ? installmentCount : 1,
       currency: 'COP',
       timezone: String(site.timezone ?? 'UTC'),
       holdMinutes: 15,
@@ -260,12 +315,21 @@ export class PublicSiteService {
     email?: string;
     phone?: string;
     notes?: string;
+    documentType?: string;
+    documentNumber?: string;
+    billingMode?: string;
+    installmentCount?: number;
     idempotencyKey?: string;
   }) {
     const siteUuid = asUuid(input.siteId);
     if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
     if (!input.serviceId) throw new BadRequestException('serviceId is required');
     if (!input.slotStartAt) throw new BadRequestException('slotStartAt is required');
+
+    const docType = String(input.documentType ?? '').trim().toUpperCase();
+    const docNum = String(input.documentNumber ?? '').trim();
+    if (!docType || docType.length < 2) throw new BadRequestException('documentType is required');
+    if (!docNum || docNum.length < 4) throw new BadRequestException('documentNumber is required');
 
     const startAt = new Date(input.slotStartAt);
     if (Number.isNaN(startAt.getTime())) throw new BadRequestException('slotStartAt must be a valid ISO date');
@@ -290,29 +354,48 @@ export class PublicSiteService {
     const durationMinutes = Number(catalogItem?.default_duration_minutes ?? 45);
     const endAt = new Date(startAt.getTime() + durationMinutes * 60_000);
 
+    const overlap = await this.connection.collection<any>('appointments').findOne({
+      site_id: site._id,
+      start_at: { $lt: endAt },
+      end_at: { $gt: startAt },
+      status: { $in: ['REQUESTED', 'CONFIRMED', 'COMPLETED'] },
+    } as any);
+    if (overlap) throw new BadRequestException('Ese horario ya no esta disponible');
+
     const bookingId = new UUID(crypto.randomUUID());
 
-    // Choose professional from availability for the selected slot.
     const availability = await this.availability({ siteId: asStringId(site._id), serviceId: asStringId(offering._id), fromDate: startAt.toISOString().slice(0, 10) });
     const selectedSlot = availability.slots.find((s) => s.startAt === startAt.toISOString());
-    const professionalUuid = selectedSlot?.professionalId ? asUuid(selectedSlot.professionalId) : undefined;
+    if (!selectedSlot) throw new BadRequestException('Horario no disponible');
 
-    // Create or reuse patient (so it appears in dashboard).
+    const billingMode = normalizeBillingMode(input.billingMode);
+    const installmentCount =
+      billingMode === 'INSTALLMENTS' ? Math.max(2, Math.min(36, Number(input.installmentCount ?? 6))) : 1;
+    const basePrice = Number(offering.base_price ?? 0);
+    let quotedPrice = basePrice;
+    let totalTreatmentPrice = basePrice;
+    if (billingMode === 'INSTALLMENTS') {
+      quotedPrice = basePrice > 0 ? Math.max(1, Math.ceil(basePrice / installmentCount)) : 0;
+    } else if (billingMode === 'QUOTE_CONSULT') {
+      const pct = Math.ceil(basePrice * 0.15);
+      quotedPrice = basePrice > 0 ? Math.max(20_000, Math.min(120_000, pct)) : 30_000;
+    }
+
     const patient = await this.findOrCreatePatient({
       organizationId: site.organization_id,
       siteId: site._id,
       fullName: String(input.patientName ?? '').trim(),
       email: input.email,
       phone: input.phone,
+      documentType: docType,
+      documentNumber: docNum,
     });
 
     const appointmentId = new UUID(crypto.randomUUID());
-    const quotedPrice = Number(offering.base_price ?? 0);
 
-    // Create an appointment as a soft hold (REQUESTED).
     await this.connection.collection<any>('appointments').insertOne({
       _id: appointmentId,
-      professional_id: professionalUuid ?? null,
+      professional_id: null,
       patient_id: patient._id,
       start_at: startAt,
       end_at: endAt,
@@ -336,12 +419,17 @@ export class PublicSiteService {
       patient_name: String(input.patientName ?? ''),
       patient_email: String(input.email ?? ''),
       patient_phone: String(input.phone ?? ''),
-      notes: String(input.notes ?? ''),
+      patient_document_type: docType,
+      patient_document_number: docNum,
+      notes: input.notes != null ? String(input.notes) : '',
+      billing_mode: billingMode,
+      installment_count: billingMode === 'INSTALLMENTS' ? installmentCount : 1,
+      total_treatment_price: totalTreatmentPrice,
       quoted_price: quotedPrice,
       appointment_start_at: startAt,
       appointment_end_at: endAt,
       status: 'PENDING_PAYMENT',
-      professional_id: professionalUuid ?? null,
+      professional_id: null,
       patient_id: patient._id,
       appointment_id: appointmentId,
       payment_id: null,
@@ -355,7 +443,7 @@ export class PublicSiteService {
     return this.getBooking({ bookingId: asStringId(bookingId) });
   }
 
-  async bookingNotifications(input: { bookingId: string }) {
+  async listBookingNotificationLogs(input: { bookingId: string }) {
     const bookingUuid = asUuid(input.bookingId);
     if (!bookingUuid) throw new BadRequestException('bookingId must be a valid UUID');
 
@@ -638,6 +726,9 @@ export class PublicSiteService {
     if (appt) {
       await this.connection.collection<any>('appointments').updateOne({ _id: appt } as any, { $set: { status: 'CONFIRMED', updated_at: new Date() } });
     }
+
+    const bid = asStringId(bookingId);
+    void this.bookingNotificationsSvc.notifyBookingConfirmed(bid).catch(() => undefined);
   }
 
   private async reopenPublicBookingAfterFailedPayment(bookingId: any) {
@@ -732,6 +823,11 @@ export class PublicSiteService {
       patientName: String(booking.patient_name ?? ''),
       patientEmail: String(booking.patient_email ?? ''),
       patientPhone: String(booking.patient_phone ?? ''),
+      patientDocumentType: String(booking.patient_document_type ?? ''),
+      patientDocumentNumber: String(booking.patient_document_number ?? ''),
+      billingMode: String(booking.billing_mode ?? 'FULL'),
+      installmentCount: Number(booking.installment_count ?? 1),
+      totalTreatmentPrice: Number(booking.total_treatment_price ?? booking.quoted_price ?? 0),
       notes: String(booking.notes ?? ''),
       quotedPrice: Number(booking.quoted_price ?? 0),
       appointmentStartAt: booking.appointment_start_at ? new Date(booking.appointment_start_at).toISOString() : '',

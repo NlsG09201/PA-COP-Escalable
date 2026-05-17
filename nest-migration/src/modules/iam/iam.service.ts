@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { AssignRoleDto } from './dto/assign-role.dto';
+import { SUPER_ADMIN_ROLE } from './roles.constants';
 import { JwtService } from '@nestjs/jwt';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UUID } from 'bson';
@@ -11,6 +13,7 @@ import { UserAccount } from './user-account.schema';
 import { RefreshToken } from './schemas/refresh-token.schema';
 import { LoginDto } from './dto/login.dto';
 import { RegisterPublicDto } from './dto/register-public.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -40,6 +43,45 @@ export class IamService {
     } catch {
       return String(value);
     }
+  }
+
+  async loginOrRegisterWithGoogle(dto: GoogleAuthDto, ip?: string, userAgent?: string) {
+    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+    if (!clientId) {
+      throw new BadRequestException(
+        'Inicio con Google no configurado. Define GOOGLE_CLIENT_ID o usa registro manual con tu correo Gmail.',
+      );
+    }
+
+    const tokenInfoRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(dto.idToken)}`,
+    );
+    if (!tokenInfoRes.ok) throw new UnauthorizedException('Token de Google inválido');
+    const tokenInfo = (await tokenInfoRes.json()) as { aud?: string; email?: string; name?: string; sub?: string };
+    if (tokenInfo.aud !== clientId) throw new UnauthorizedException('Token de Google no corresponde a esta aplicación');
+
+    const email = String(tokenInfo.email ?? '').trim().toLowerCase();
+    if (!email) throw new BadRequestException('La cuenta de Google no tiene correo verificado');
+
+    const existing = await this.userModel.findOne({ username: email }).exec();
+    if (existing) {
+      return this.generateTokenPair(existing, dto.siteId, ip, userAgent);
+    }
+
+    if (!dto.siteId) throw new BadRequestException('siteId requerido para el primer registro con Google');
+
+    const randomPassword = crypto.randomBytes(24).toString('base64url');
+    return this.registerPublicPatient(
+      {
+        siteId: dto.siteId,
+        email,
+        password: randomPassword,
+        fullName: String(tokenInfo.name ?? email.split('@')[0]),
+        phone: '',
+      },
+      ip,
+      userAgent,
+    );
   }
 
   async registerPublicPatient(dto: RegisterPublicDto, ip?: string, userAgent?: string) {
@@ -94,7 +136,11 @@ export class IamService {
   }
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
-    const user = await this.userModel.findOne({ username: dto.username.toLowerCase() }).exec();
+    const loginId = dto.username.toLowerCase().trim();
+    let user = await this.userModel.findOne({ username: loginId }).exec();
+    if (!user && loginId.includes('@')) {
+      user = await this.userModel.findOne({ email: loginId }).exec();
+    }
     const storedHash = user?.password_hash ? this.normalizeHash(user.password_hash) : '';
     if (!user || !storedHash || !(await bcrypt.compare(dto.password, storedHash))) {
       throw new UnauthorizedException('Invalid credentials');
@@ -113,6 +159,72 @@ export class IamService {
     const ttlSeconds = Math.max(1, Number(payload.exp) - Math.floor(Date.now() / 1000));
     await this.redis.set(`bl:${String(payload.jti)}`, '1', 'EX', ttlSeconds);
     return { ok: true };
+  }
+
+  async listUsersForAdmin(search?: string, limit = 50) {
+    const cap = Math.min(200, Math.max(1, Number(limit) || 50));
+    const q = String(search ?? '').trim().toLowerCase();
+    const filter: Record<string, unknown> = {};
+    if (q) {
+      filter.$or = [
+        { username: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        { email: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+      ];
+    }
+    const rows = await this.userModel
+      .find(filter)
+      .sort({ username: 1 })
+      .limit(cap)
+      .select('username email roles organization_id patient_id')
+      .lean()
+      .exec();
+    return rows.map((u: any) => ({
+      id: String(u._id),
+      username: u.username,
+      email: u.email ?? null,
+      roles: u.roles ?? [],
+      organizationId: u.organization_id ?? null,
+      patientId: u.patient_id ?? null,
+    }));
+  }
+
+  async assignRoleToUser(actor: { roles?: string[]; organization_id?: string }, dto: AssignRoleDto) {
+    const actorRoles = Array.isArray(actor?.roles) ? actor.roles : [];
+    const isSuper = actorRoles.includes(SUPER_ADMIN_ROLE);
+    const isAdmin = actorRoles.includes('ADMIN') || isSuper;
+    if (!isAdmin) throw new ForbiddenException('Solo administradores pueden asignar roles');
+
+    const username = String(dto.username ?? '').trim().toLowerCase();
+    const target = await this.userModel.findOne({ username }).exec();
+    if (!target) throw new BadRequestException('Usuario no encontrado. Debe registrarse primero en la web pública.');
+
+    if (!isSuper && String(target.organization_id) !== String(actor.organization_id ?? '')) {
+      throw new ForbiddenException('No puedes asignar roles fuera de tu organización');
+    }
+
+    const role = String(dto.role);
+    const elevated = ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN'];
+    if (elevated.includes(role) && !isSuper) {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede asignar roles administrativos');
+    }
+
+    const nextRoles = Array.from(new Set([...(target.roles ?? []).filter((r) => r !== 'PACIENTE'), role]));
+    if (role === 'PACIENTE') {
+      target.roles = ['PACIENTE'];
+    } else {
+      target.roles = nextRoles;
+    }
+    await target.save();
+
+    return {
+      ok: true,
+      username: target.username,
+      roles: target.roles,
+      message:
+        role === 'MEDICO' || role === 'PROFESSIONAL'
+          ? 'Rol clínico asignado. El usuario ya puede ingresar al dashboard.'
+          : 'Rol actualizado.',
+    };
   }
 
   async getMyProfile(user: any) {

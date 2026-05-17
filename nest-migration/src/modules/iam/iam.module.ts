@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { IamService } from './iam.service';
 import { IamController } from './iam.controller';
 import { UsersController } from './users.controller';
+import { AdminUsersController } from './admin-users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -33,7 +34,7 @@ import Redis from 'ioredis';
       inject: [ConfigService],
     }),
   ],
-  controllers: [IamController, UsersController],
+  controllers: [IamController, UsersController, AdminUsersController],
   providers: [
     IamService,
     JwtStrategy,

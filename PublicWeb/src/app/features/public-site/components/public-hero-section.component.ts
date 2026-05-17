@@ -11,8 +11,8 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       <div class="container py-5">
         <div class="row align-items-center g-5">
           <div class="col-lg-6">
-            <span class="hero-chip">Landing page sobre CoreUI + Bootstrap</span>
-            <h1 class="hero-title mt-3">Atencion odontologica y psicologica con una experiencia digital clara y profesional.</h1>
+            <span class="hero-chip">Centro COP · Colombia</span>
+            <h1 class="hero-title mt-3">Salud oral y bienestar emocional, con tecnología clínica de confianza.</h1>
             <p class="hero-copy">
               Agenda tu cita, revisa servicios y conoce precios transparentes desde una interfaz moderna,
               responsiva y conectada con reservas, checkout y confirmacion real.
@@ -44,7 +44,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
               <div class="hero-panel-copy">
                 <span class="hero-panel-tag">Experiencia premium</span>
                 <h2>Flujo optimizado: servicio, precio, agenda y pago en una sola experiencia.</h2>
-                <p>La web publica prioriza conversion, claridad de informacion y continuidad hacia el dashboard privado.</p>
+                <p>Reserva en línea, elige sede por departamento y recibe seguimiento con modelos de riesgo J48 en el panel clínico.</p>
               </div>
 
               <div class="preview-card">

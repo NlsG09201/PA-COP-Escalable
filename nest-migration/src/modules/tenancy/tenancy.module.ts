@@ -6,6 +6,8 @@ import { Organization, OrganizationSchema } from './schemas/organization.schema'
 import { Site, SiteSchema } from './schemas/site.schema';
 import { Professional, ProfessionalSchema } from './schemas/professional.schema';
 import { PublicTenancyController } from './public-tenancy.controller';
+import { SitesAdminController } from './sites-admin.controller';
+import { ColombiaSitesSeedService } from './colombia-sites.seed';
 
 @Global()
 @Module({
@@ -16,8 +18,8 @@ import { PublicTenancyController } from './public-tenancy.controller';
       { name: Professional.name, schema: ProfessionalSchema },
     ]),
   ],
-  controllers: [PublicTenancyController],
-  providers: [TenancyInterceptor, TenancyService],
+  controllers: [PublicTenancyController, SitesAdminController],
+  providers: [TenancyInterceptor, TenancyService, ColombiaSitesSeedService],
   exports: [TenancyInterceptor, TenancyService],
 })
 export class TenancyModule {}

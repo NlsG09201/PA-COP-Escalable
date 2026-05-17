@@ -10,6 +10,7 @@ import {
   RelapseAlert,
   RiskFactor
 } from '../../core/services/relapse-api.service';
+import { J48ApiService, J48HistoryPointVm, J48PredictionVm } from '../../core/services/j48-api.service';
 
 const RISK_COLORS: Record<string, string> = {
   LOW: '#10b981',
@@ -40,13 +41,40 @@ const RISK_LABELS: Record<string, string> = {
           <h4 class="mb-0 d-flex align-items-center gap-2">
             <i class="bi bi-shield-exclamation text-primary"></i> Riesgo de Recaída
           </h4>
-          <button class="btn btn-primary d-flex align-items-center gap-1"
-                  (click)="assessRisk()" [disabled]="assessing()">
-            <span class="spinner-border spinner-border-sm" *ngIf="assessing()"></span>
-            <i class="bi bi-arrow-clockwise" *ngIf="!assessing()"></i>
-            Evaluar Riesgo
-          </button>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary d-flex align-items-center gap-1"
+                    (click)="scoreJ48()" [disabled]="scoringJ48()">
+              <span class="spinner-border spinner-border-sm" *ngIf="scoringJ48()"></span>
+              <i class="bi bi-diagram-3" *ngIf="!scoringJ48()"></i>
+              Evaluar J48
+            </button>
+            <button class="btn btn-outline-primary d-flex align-items-center gap-1"
+                    (click)="assessRisk()" [disabled]="assessing()">
+              <span class="spinner-border spinner-border-sm" *ngIf="assessing()"></span>
+              <i class="bi bi-arrow-clockwise" *ngIf="!assessing()"></i>
+              Evaluar compat.
+            </button>
+          </div>
         </div>
+
+        @if (j48Prediction()) {
+          <div class="alert alert-light border mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+              <div>
+                <strong class="text-primary">Predicción J48</strong>
+                <div class="fs-4 fw-bold mt-1">{{ j48Prediction()!.classLabel }}</div>
+                <small class="text-muted d-block">Evaluado: {{ j48Prediction()!.scoredAt | date:'medium' }}</small>
+              </div>
+              @if (j48TopProbabilities().length) {
+                <div class="small">
+                  @for (p of j48TopProbabilities(); track p.label) {
+                    <span class="badge bg-secondary-subtle text-secondary me-1">{{ p.label }}: {{ p.value | percent:'1.0-0' }}</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         @if (loading()) {
           <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
@@ -205,6 +233,7 @@ const RISK_LABELS: Record<string, string> = {
 class RelapsePageComponent implements OnInit, OnDestroy {
   private readonly store = inject(Store);
   private readonly api = inject(RelapseApiService);
+  private readonly j48 = inject(J48ApiService);
 
   @ViewChild('trendChart') private trendChartRef?: ElementRef<HTMLDivElement>;
   private chart?: echarts.ECharts;
@@ -212,13 +241,23 @@ class RelapsePageComponent implements OnInit, OnDestroy {
   readonly patientId = signal<string | null>(null);
   readonly loading = signal(false);
   readonly assessing = signal(false);
+  readonly scoringJ48 = signal(false);
   readonly acknowledging = signal(false);
   readonly currentAlert = signal<RelapseAlert | null>(null);
   readonly trend = signal<RelapseAlert[]>([]);
+  readonly j48Prediction = signal<J48PredictionVm | null>(null);
+  readonly j48History = signal<J48HistoryPointVm[]>([]);
 
   actionChecks: boolean[] = [];
 
   readonly checkedCount = computed(() => this.actionChecks.filter(Boolean).length);
+  readonly j48TopProbabilities = computed(() => {
+    const probs = this.j48Prediction()?.probabilities ?? {};
+    return Object.entries(probs)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([label, value]) => ({ label, value }));
+  });
 
   ngOnInit() {
     this.store.select(selectSelectedPatientId).subscribe(id => {
@@ -231,7 +270,37 @@ class RelapsePageComponent implements OnInit, OnDestroy {
     this.chart?.dispose();
   }
 
+  scoreJ48() {
+    const pid = this.patientId();
+    if (!pid) return;
+    this.scoringJ48.set(true);
+    this.j48.scorePatient$(pid).subscribe({
+      next: (res) => {
+        this.j48Prediction.set(res.prediction);
+        this.scoringJ48.set(false);
+        this.loadJ48History(pid);
+      },
+      error: () => this.scoringJ48.set(false),
+    });
+  }
+
+  private loadJ48(patientId: string) {
+    this.j48.latest$(patientId).subscribe({
+      next: (p) => this.j48Prediction.set(p),
+      error: () => this.j48Prediction.set(null),
+    });
+    this.loadJ48History(patientId);
+  }
+
+  private loadJ48History(patientId: string) {
+    this.j48.history$(patientId).subscribe({
+      next: (rows) => this.j48History.set(rows ?? []),
+      error: () => this.j48History.set([]),
+    });
+  }
+
   private loadData(patientId: string) {
+    this.loadJ48(patientId);
     this.loading.set(true);
     this.api.getLatestRisk$(patientId).subscribe({
       next: alert => {

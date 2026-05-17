@@ -158,6 +158,65 @@ export class J48ScoringService {
     return { series: raw };
   }
 
+  async latestPredictionForPatient(patientId: string, user: JwtUserLike, organizationIdOverride?: string) {
+    const orgScope = this.resolveOrgScope(user, organizationIdOverride);
+    if (!this.isSuperAdmin(user) && !orgScope) throw new ForbiddenException('Falta contexto de organización');
+
+    const match: Record<string, unknown> = { patientId };
+    if (orgScope) match.organizationId = orgScope;
+
+    const doc = await this.predictions.findOne(match).sort({ scoredAt: -1 }).lean().exec();
+    if (!doc) return null;
+    return {
+      id: String(doc._id),
+      patientId: doc.patientId,
+      organizationId: doc.organizationId,
+      siteId: doc.siteId ?? null,
+      classLabel: doc.classLabel,
+      probabilities: doc.probabilities ?? {},
+      features: doc.features,
+      scoredAt: doc.scoredAt,
+    };
+  }
+
+  async predictionHistoryForPatient(
+    patientId: string,
+    user: JwtUserLike,
+    opts?: { limit?: number; organizationId?: string },
+  ) {
+    const orgScope = this.resolveOrgScope(user, opts?.organizationId);
+    if (!this.isSuperAdmin(user) && !orgScope) throw new ForbiddenException('Falta contexto de organización');
+
+    const limit = Math.min(100, Math.max(1, Number(opts?.limit ?? 24)));
+    const match: Record<string, unknown> = { patientId };
+    if (orgScope) match.organizationId = orgScope;
+
+    const rows = await this.predictions
+      .find(match)
+      .sort({ scoredAt: -1 })
+      .limit(limit)
+      .select('classLabel probabilities scoredAt features')
+      .lean()
+      .exec();
+
+    return rows.map((r) => ({
+      id: String(r._id),
+      classLabel: r.classLabel,
+      probabilities: r.probabilities ?? {},
+      features: r.features,
+      scoredAt: r.scoredAt,
+      riskScore: this.classLabelToRiskScore(r.classLabel),
+    }));
+  }
+
+  private classLabelToRiskScore(label: string): number {
+    const normalized = String(label ?? '').trim().toUpperCase();
+    if (normalized.includes('CRIT') || normalized.includes('ALTO') || normalized.includes('HIGH')) return 85;
+    if (normalized.includes('MED') || normalized.includes('MODER')) return 55;
+    if (normalized.includes('BAJO') || normalized.includes('LOW')) return 20;
+    return 40;
+  }
+
   /** Número de predicciones almacenadas (agregación, sin volcar todos los registros al cliente). */
   async predictionsCountForUser(user: JwtUserLike, organizationIdOverride?: string) {
     const orgScope = this.resolveOrgScope(user, organizationIdOverride);

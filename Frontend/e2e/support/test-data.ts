@@ -1,6 +1,6 @@
 export const automationConfig = {
-  adminUsername: process.env.PLAYWRIGHT_ADMIN_USERNAME ?? 'admin@cop.local',
-  adminPassword: process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'Admin123ChangeMe'
+  adminUsername: process.env.PLAYWRIGHT_ADMIN_USERNAME ?? 'nelsonh09',
+  adminPassword: process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'NelsonH09092001'
 };
 
 export type PatientData = {

@@ -33,7 +33,8 @@ export async function createPublicBooking(
   await page.getByTestId('public-patient-name').fill(patient.patientName);
   await page.getByTestId('public-patient-phone').fill(patient.phone);
   await page.getByTestId('public-patient-email').fill(patient.email);
-  await page.getByTestId('public-patient-notes').fill(patient.notes);
+  await page.getByTestId('public-patient-doc-type').selectOption(patient.documentType);
+  await page.getByTestId('public-patient-document').fill(patient.documentNumber);
 
   const attempts = Math.min(await slotOptions.count(), 6);
   let createEnabled = false;

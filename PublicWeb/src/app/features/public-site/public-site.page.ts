@@ -5,6 +5,7 @@ import { PublicHeroSectionComponent } from './components/public-hero-section.com
 import { PublicPricingGridComponent } from './components/public-pricing-grid.component';
 import { PublicServiceCatalogComponent } from './components/public-service-catalog.component';
 import { PublicSiteHeaderComponent } from './components/public-site-header.component';
+import { PublicAboutSectionComponent } from './components/public-about-section.component';
 import { PublicGallerySectionComponent } from './components/public-gallery-section.component';
 import { PublicReviewsSectionComponent } from './components/public-reviews-section.component';
 import { PublicSiteFacade } from './data-access/public-site.facade';
@@ -14,6 +15,7 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
   imports: [
     CommonModule,
     PublicSiteHeaderComponent,
+    PublicAboutSectionComponent,
     PublicHeroSectionComponent,
     PublicGallerySectionComponent,
     PublicReviewsSectionComponent,
@@ -32,6 +34,8 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [selectedPrice]="facade.selectedService()?.priceToPay ?? 0"
         [selectedDurationMinutes]="facade.selectedService()?.durationMinutes ?? 0"
         [serviceCount]="facade.services().length" />
+
+      <app-public-about-section />
 
       @if (facade.pageError()) {
         <section class="status-strip">
@@ -81,6 +85,8 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
 
       <app-public-booking-flow
         [bookingForm]="facade.bookingForm"
+        [departments]="facade.departments()"
+        [selectedDepartment]="facade.selectedDepartment()"
         [sites]="facade.sites()"
         [services]="facade.services()"
         [slots]="facade.availabilitySlots()"
@@ -94,6 +100,7 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [preparingCheckout]="facade.preparingCheckout()"
         [submitting]="facade.submitting()"
         [processingPayment]="facade.processingPayment()"
+        (departmentChange)="facade.onDepartmentSelected($event)"
         (siteChange)="facade.onSiteSelected($event)"
         (serviceChange)="facade.onServiceSelected($event)"
         (slotSelected)="facade.bookingForm.controls.slotStartAt.setValue($event)"

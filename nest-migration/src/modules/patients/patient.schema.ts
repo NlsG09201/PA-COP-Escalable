@@ -36,3 +36,7 @@ export class Patient extends Document {
 }
 
 export const PatientSchema = SchemaFactory.createForClass(Patient);
+
+PatientSchema.index({ organization_id: 1, site_id: 1, status: 1 });
+PatientSchema.index({ organization_id: 1, full_name: 1 });
+PatientSchema.index({ organization_id: 1, email: 1 });

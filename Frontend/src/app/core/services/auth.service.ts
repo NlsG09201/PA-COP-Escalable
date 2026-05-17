@@ -2,7 +2,16 @@ import { Injectable } from '@angular/core';
 import { UserRole } from '../models/user-role.model';
 import { TokenStorageService } from './token-storage.service';
 
-const ROLE_PRIORITY: UserRole[] = ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PATIENT', 'PACIENTE'];
+const ROLE_PRIORITY: UserRole[] = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'ORG_ADMIN',
+  'SITE_ADMIN',
+  'MEDICO',
+  'PROFESSIONAL',
+  'PATIENT',
+  'PACIENTE',
+];
 const KNOWN_ROLES = new Set<UserRole>(ROLE_PRIORITY);
 
 @Injectable({ providedIn: 'root' })

@@ -13,5 +13,7 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist/PublicWeb/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Mismo origen que el navegador: rutas /api y /public proxied al gateway (ver nginx.conf).
+RUN printf '%s\n' 'window.__env={API_BASE_URL:""};' > /usr/share/nginx/html/env.js
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

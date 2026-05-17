@@ -1,5 +1,9 @@
 # Builds: se recomienda BuildKit (Docker Desktop lo trae activo). Cache de Maven/npm/pip acelera rebuilds.
 # Si subes imágenes a un registry, construye solo lo cambiado: docker compose build legacy-backend dashboard
+#
+# Perfil `ai`: incluye ai-diagnosis-service, emotion-analysis-service, recommendation-engine, image-to-3d-depth, etc.
+# Sin `docker compose --profile ai up -d` esos contenedores no arrancan; el front puede seguir llamando rutas api-compat con stubs.
+# Entrenamiento local: ver scripts/ai-train-docker.ps1 (dataset requerido).
 services:
   mongodb-keyfile:
     image: alpine:3.20
@@ -183,11 +187,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_me}
       # Mayor TTL en dev reduce tormentas de refresh paralelas; producción puede acortarlo vía .env.
       JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-45m}
-      # Usuario de pruebas: recibe roles SUPER_ADMIN + ADMIN (superadmin pasa cualquier @Roles).
-      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin@cop.local}
-      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-Admin123ChangeMe}
+      # Único admin bootstrap (SUPER_ADMIN + ADMIN). Sobrescribe con .env si hace falta.
+      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-nelsonh09}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-NelsonH09092001}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-nelsondavid1954@gmail.com}
       APP_BOOTSTRAP_ADMIN_ORG_ID: ${APP_BOOTSTRAP_ADMIN_ORG_ID:-be7f4015-67ad-472b-9cf7-aadcd8b0d604}
       APP_BOOTSTRAP_ADMIN_RESET: ${APP_BOOTSTRAP_ADMIN_RESET:-true}
+      APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN: ${APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN:-true}
       ORTHO_AI_URL: http://ortho-ai:8000
       # External Image→3D provider (job/polling).
       # Defaults are safe “placeholders”; override via environment when deploying.
@@ -218,6 +224,20 @@ services:
       ORTHO_3D_DOWNLOAD_RESULTS: ${ORTHO_3D_DOWNLOAD_RESULTS:-true}
       # Tamaño máximo por archivo multipart (MB); alinear con client_max_body_size del gateway.
       ORTHO_MULTIPART_MAX_FILE_MB: ${ORTHO_MULTIPART_MAX_FILE_MB:-500}
+      # Notificaciones al confirmar reserva (Gmail SMTP + WhatsApp via Twilio). Opcional en dev.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+      # URL base que ven navegadores / Wompi (sin barra final). Dev: gateway en el host.
+      PUBLIC_API_ORIGIN: ${PUBLIC_API_ORIGIN:-http://localhost:8080}
+      # Orígenes permitidos CORS (coma). Vacío = Nest acepta cualquier origen (solo recomendable en dev).
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -229,6 +249,8 @@ services:
         condition: service_healthy
       dicom-to-glb:
         condition: service_healthy
+      ortho-ai:
+        condition: service_healthy
 
   gateway:
     build:
@@ -238,10 +260,9 @@ services:
       - "8080:8080"
     depends_on:
       nest-backend:
-        condition: service_started
+        condition: service_healthy
       j48-service:
-        condition: service_started
-    # Gateway is intentionally lightweight: it can start before all downstreams are healthy.
+        condition: service_healthy
 
   j48-service:
     build:
@@ -341,7 +362,7 @@ services:
       - "5173:80"
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
 
   publicweb:
     build:
@@ -354,7 +375,7 @@ services:
       - "5174:80"
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   mongodb_data:
