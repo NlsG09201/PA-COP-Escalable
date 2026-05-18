@@ -31,11 +31,12 @@ docker compose --profile core up -d --build
 
 ## Producción
 
-1. Leer **[docs/PRODUCTION_ANALYSIS.md](docs/PRODUCTION_ANALYSIS.md)** — checklist y brechas.
-2. Copiar **[deploy/env.production.example](deploy/env.production.example)** y configurar Atlas, Redis, JWT, Wompi, CORS.
-3. Usar **`NODE_ENV=production`** en el API (Swagger desactivado, validación estricta de env).
-4. Health: `GET /health` (Mongo + Redis), `GET /health/live` (solo proceso).
-5. Blueprint Render: **[deploy/render.yaml](deploy/render.yaml)** (API + J48; frontends suelen ir en Vercel u otro host).
+1. Guía de despliegue: **[docs/DEPLOY_RENDER_VERCEL.md](docs/DEPLOY_RENDER_VERCEL.md)** (Atlas + Render + Vercel).
+2. Leer **[docs/PRODUCTION_ANALYSIS.md](docs/PRODUCTION_ANALYSIS.md)** — checklist y brechas.
+3. Copiar **[deploy/env.production.example](deploy/env.production.example)** y configurar Atlas, Redis, JWT, Wompi, CORS.
+4. Usar **`NODE_ENV=production`** en el API (Swagger desactivado, validación estricta de env).
+5. Health: `GET /health` (Mongo + Redis), `GET /health/live` (solo proceso).
+6. Blueprint Render: **[deploy/render.yaml](deploy/render.yaml)** (API + J48; frontends en Vercel).
 
 ## CI
 
