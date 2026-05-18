@@ -11,6 +11,7 @@ import {
   RiskFactor
 } from '../../core/services/relapse-api.service';
 import { J48ApiService, J48HistoryPointVm, J48PredictionVm } from '../../core/services/j48-api.service';
+import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
 
 const RISK_COLORS: Record<string, string> = {
   LOW: '#10b981',
@@ -43,41 +44,110 @@ const RISK_LABELS: Record<string, string> = {
           </h4>
           <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-primary d-flex align-items-center gap-1"
+                    type="button"
                     (click)="scoreJ48()" [disabled]="scoringJ48()">
-              <span class="spinner-border spinner-border-sm" *ngIf="scoringJ48()"></span>
-              <i class="bi bi-diagram-3" *ngIf="!scoringJ48()"></i>
+              @if (scoringJ48()) {
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              } @else {
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+              }
               Evaluar J48
             </button>
             <button class="btn btn-outline-primary d-flex align-items-center gap-1"
+                    type="button"
                     (click)="assessRisk()" [disabled]="assessing()">
-              <span class="spinner-border spinner-border-sm" *ngIf="assessing()"></span>
-              <i class="bi bi-arrow-clockwise" *ngIf="!assessing()"></i>
+              @if (assessing()) {
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              } @else {
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+              }
               Evaluar compat.
             </button>
           </div>
         </div>
 
+        @if (j48Error()) {
+          <div class="alert alert-warning py-2 mb-3" role="alert">{{ j48Error() }}</div>
+        }
+
         @if (j48Prediction()) {
-          <div class="alert alert-light border mb-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
               <div>
-                <strong class="text-primary">Predicción J48</strong>
-                <div class="fs-4 fw-bold mt-1">{{ j48Prediction()!.classLabel }}</div>
+                <h6 class="text-primary mb-1">Predicción J48 (árbol de decisión)</h6>
+                <div class="fs-3 fw-bold">{{ j48Prediction()!.classLabel }}</div>
                 <small class="text-muted d-block">Evaluado: {{ j48Prediction()!.scoredAt | date:'medium' }}</small>
               </div>
-              @if (j48TopProbabilities().length) {
-                <div class="small">
-                  @for (p of j48TopProbabilities(); track p.label) {
-                    <span class="badge bg-secondary-subtle text-secondary me-1">{{ p.label }}: {{ p.value | percent:'1.0-0' }}</span>
-                  }
-                </div>
-              }
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="j48DetailsOpen.set(!j48DetailsOpen())">
+                {{ j48DetailsOpen() ? 'Ocultar detalle' : 'Ver probabilidades' }}
+              </button>
+            </div>
+            @if (j48TopProbabilities().length) {
+              <div class="row g-2 mb-2">
+                @for (p of j48TopProbabilities(); track p.label) {
+                  <div class="col-md-6">
+                    <div class="d-flex justify-content-between small mb-1">
+                      <span>{{ p.label }}</span>
+                      <span class="fw-semibold">{{ p.value | percent:'1.1-1' }}</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                      <div class="progress-bar bg-primary" [style.width.%]="p.value * 100"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+            @if (j48DetailsOpen() && j48AllProbabilities().length) {
+              <div class="border-top pt-3 mt-2">
+                <p class="small text-muted mb-2">Distribución completa</p>
+                @for (p of j48AllProbabilities(); track p.label) {
+                  <div class="d-flex justify-content-between small mb-1">
+                    <span>{{ p.label }}</span>
+                    <span>{{ p.value | percent:'1.2-2' }}</span>
+                  </div>
+                }
+              </div>
+            }
+            </div>
+          </div>
+        } @else if (!j48Loading() && patientId()) {
+          <p class="text-muted small mb-3">Sin evaluación J48 reciente. Pulsa «Evaluar J48» para generar una predicción.</p>
+        }
+
+        @if (j48History().length) {
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+              <h6 class="mb-3">Historial J48 (últimas {{ j48History().length }})</h6>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col">Fecha</th>
+                      <th scope="col">Clase</th>
+                      <th scope="col">Confianza</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (h of j48History(); track h.id) {
+                      <tr>
+                        <td>{{ h.scoredAt | date:'short' }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ h.classLabel }}</span></td>
+                        <td>{{ j48TopProb(h) | percent:'1.0-0' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         }
 
         @if (loading()) {
-          <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+          <div class="text-center py-4" aria-live="polite">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2 mb-0">Cargando evaluación de riesgo…</p>
+          </div>
         }
 
         @if (currentAlert()) {
@@ -247,6 +317,9 @@ class RelapsePageComponent implements OnInit, OnDestroy {
   readonly trend = signal<RelapseAlert[]>([]);
   readonly j48Prediction = signal<J48PredictionVm | null>(null);
   readonly j48History = signal<J48HistoryPointVm[]>([]);
+  readonly j48Error = signal('');
+  readonly j48Loading = signal(false);
+  readonly j48DetailsOpen = signal(false);
 
   actionChecks: boolean[] = [];
 
@@ -256,6 +329,12 @@ class RelapsePageComponent implements OnInit, OnDestroy {
     return Object.entries(probs)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
+      .map(([label, value]) => ({ label, value }));
+  });
+  readonly j48AllProbabilities = computed(() => {
+    const probs = this.j48Prediction()?.probabilities ?? {};
+    return Object.entries(probs)
+      .sort((a, b) => b[1] - a[1])
       .map(([label, value]) => ({ label, value }));
   });
 
@@ -274,20 +353,39 @@ class RelapsePageComponent implements OnInit, OnDestroy {
     const pid = this.patientId();
     if (!pid) return;
     this.scoringJ48.set(true);
+    this.j48Error.set('');
     this.j48.scorePatient$(pid).subscribe({
       next: (res) => {
         this.j48Prediction.set(res.prediction);
         this.scoringJ48.set(false);
         this.loadJ48History(pid);
       },
-      error: () => this.scoringJ48.set(false),
+      error: (err) => {
+        this.scoringJ48.set(false);
+        this.j48Error.set(extractHttpErrorMessage(err, 'No se pudo evaluar con J48.'));
+      },
     });
   }
 
+  j48TopProb(point: J48HistoryPointVm): number {
+    const probs = point.probabilities ?? {};
+    const top = Object.values(probs).sort((a, b) => b - a)[0];
+    return top ?? 0;
+  }
+
   private loadJ48(patientId: string) {
+    this.j48Loading.set(true);
+    this.j48Error.set('');
     this.j48.latest$(patientId).subscribe({
-      next: (p) => this.j48Prediction.set(p),
-      error: () => this.j48Prediction.set(null),
+      next: (p) => {
+        this.j48Prediction.set(p);
+        this.j48Loading.set(false);
+      },
+      error: (err) => {
+        this.j48Prediction.set(null);
+        this.j48Loading.set(false);
+        this.j48Error.set(extractHttpErrorMessage(err, 'No se pudo cargar la predicción J48.'));
+      },
     });
     this.loadJ48History(patientId);
   }

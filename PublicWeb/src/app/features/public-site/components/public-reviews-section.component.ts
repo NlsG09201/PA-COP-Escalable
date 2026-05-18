@@ -9,15 +9,15 @@ import { PublicReviewVm, PublicReviewsApiService } from '../data-access/public-r
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section id="reviews" class="reviews-section">
-      <div class="container py-5">
-        <div class="section-head mb-4">
-          <span class="eyebrow">Opiniones</span>
-          <h2 class="section-title mb-2">Lo que dicen las personas que nos visitan</h2>
-          <p class="section-lead mb-0">
+    <section id="reviews" class="cop-section-block reviews-section">
+      <div class="container">
+        <header class="cop-section-head text-start mb-4">
+          <span class="cop-section-eyebrow">Opiniones</span>
+          <h2 class="cop-section-title text-start mb-2">Lo que dicen quienes nos visitan</h2>
+          <p class="cop-section-copy text-start mb-0">
             Las reseñas públicas aparecen después de revisión moderada para mantener un espacio respetuoso y útil.
           </p>
-        </div>
+        </header>
 
         <div class="row g-4">
           <div class="col-lg-5">
@@ -104,43 +104,24 @@ import { PublicReviewVm, PublicReviewsApiService } from '../data-access/public-r
   `,
   styles: `
     .reviews-section {
-      background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, #ffffff 40%);
-      border-top: 1px solid rgba(15, 23, 42, 0.06);
-    }
-
-    .eyebrow {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #2563eb;
-      margin-bottom: 0.35rem;
-    }
-
-    .section-title {
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-
-    .section-lead {
-      color: #64748b;
-      max-width: 46rem;
+      background: linear-gradient(180deg, var(--cop-surface) 0%, var(--cop-surface-elevated) 45%);
+      border-top: 1px solid var(--cop-border);
     }
 
     .review-form-card {
-      border-radius: 1.35rem;
+      border-radius: var(--cop-radius-lg, 1.75rem);
       padding: 1.5rem;
-      background: #fff;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+      background: var(--cop-surface-elevated, #fff);
+      border: 1px solid var(--cop-border);
+      box-shadow: var(--cop-shadow-sm);
     }
 
     .review-card {
-      border-radius: 1.2rem;
+      border-radius: var(--cop-radius-md, 1.25rem);
       padding: 1.15rem 1.35rem;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: var(--cop-surface-elevated, #fff);
+      border: 1px solid var(--cop-border);
+      box-shadow: var(--cop-shadow-sm);
     }
 
     .review-card-top {
@@ -158,14 +139,14 @@ import { PublicReviewVm, PublicReviewsApiService } from '../data-access/public-r
     }
 
     .review-comment {
-      color: #334155;
+      color: var(--cop-ink-muted, #5c6b6e);
       line-height: 1.5;
       white-space: pre-wrap;
     }
 
     .empty-reviews {
-      background: rgba(241, 245, 249, 0.7);
-      border: 1px dashed rgba(100, 116, 139, 0.35);
+      background: var(--cop-brand-light, #e6f4f3);
+      border: 1px dashed var(--cop-border-strong);
     }
   `,
 })

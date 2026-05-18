@@ -11,7 +11,8 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   template: `
-    <div class="container py-5" data-testid="login-page">
+    <div class="cop-login-page" data-testid="login-page">
+      <div class="container py-4">
       <div class="row justify-content-center">
         <div class="col-md-6 col-lg-5">
           <div class="card shadow-sm">
@@ -19,8 +20,8 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
               <div class="text-center mb-3">
                 <img src="/brand/logo.png" alt="COP" width="56" height="56" class="rounded-3 shadow-sm" />
               </div>
-              <h4 class="mb-3 text-center">Ingreso Clinico</h4>
-              <p class="text-muted mb-4 text-center">Acceso para administradores, odontologos y psicologos.</p>
+              <h4 class="mb-3 text-center">Ingreso clínico</h4>
+              <p class="text-muted mb-4 text-center">Acceso para administradores, odontólogos y psicólogos.</p>
 
               <form [formGroup]="form" (ngSubmit)="submit()" data-testid="login-form">
                 <div class="mb-3">
@@ -52,14 +53,27 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
                   </select>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label">Sede</label>
+                  <label class="form-label" for="site-search">Buscar sede</label>
+                  <input
+                    id="site-search"
+                    class="form-control mb-2"
+                    placeholder="Nombre, municipio o departamento…"
+                    [(ngModel)]="siteSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="applySiteFilter()"
+                    [disabled]="sitesLoading" />
+                  <label class="form-label" for="login-site-select">Sede</label>
+                  @if (sitesLoading) {
+                    <p class="form-text d-flex align-items-center gap-2 mb-1">
+                      <span class="spinner-border spinner-border-sm"></span> Cargando sedes…
+                    </p>
+                  }
                   <select
                     class="form-select"
-                    size="8"
-                    style="min-height: 10rem;"
                     [class.is-invalid]="isInvalid('siteId')"
                     formControlName="siteId"
-                    data-testid="login-site-select">
+                    data-testid="login-site-select"
+                    [disabled]="sitesLoading">
                     <option value="">Seleccione una sede</option>
                     @for (site of filteredSites; track site.id) {
                       <option [value]="site.id">
@@ -69,7 +83,7 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
                   </select>
                   <div class="form-text">{{ filteredSites.length }} sedes visibles · {{ allSites.length }} en total</div>
                   @if (sitesLoadError) {
-                    <div class="text-danger small">{{ sitesLoadError }}</div>
+                    <div class="text-danger small" role="alert">{{ sitesLoadError }} <button type="button" class="btn btn-link btn-sm p-0" (click)="loadSites()">Reintentar</button></div>
                   }
                   @if (isInvalid('siteId')) {
                     <div class="invalid-feedback d-block">Selecciona una sede para continuar.</div>
@@ -91,6 +105,7 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
           </div>
         </div>
       </div>
+      </div>
     </div>
   `,
 })
@@ -111,6 +126,8 @@ export class LoginComponent {
   protected filteredSites: SiteVm[] = [];
   protected departments: string[] = [];
   protected departmentFilter = '';
+  protected siteSearch = '';
+  protected sitesLoading = true;
 
   protected readonly form = this.fb.nonNullable.group({
     username: [isDevMode() ? LoginComponent.DEV_DEFAULT_USERNAME : '', [Validators.required]],
@@ -119,10 +136,17 @@ export class LoginComponent {
   });
 
   constructor() {
+    this.loadSites();
+  }
+
+  protected loadSites(): void {
+    this.sitesLoading = true;
+    this.sitesLoadError = '';
     forkJoin({
       sites: this.authApi.getSites$().pipe(catchError(() => of([] as SiteVm[]))),
       departments: this.authApi.getDepartments$().pipe(catchError(() => of([] as string[]))),
     }).subscribe(({ sites, departments }) => {
+      this.sitesLoading = false;
       this.allSites = sites;
       this.departments = departments;
       this.applySiteFilter();
@@ -134,13 +158,20 @@ export class LoginComponent {
   }
 
   protected applySiteFilter(): void {
-    const dep = this.departmentFilter.trim();
-    this.filteredSites = dep
-      ? this.allSites.filter((s) => String(s.department ?? '').toLowerCase() === dep.toLowerCase())
-      : [...this.allSites];
+    const dep = this.departmentFilter.trim().toLowerCase();
+    const q = this.siteSearch.trim().toLowerCase();
+    this.filteredSites = this.allSites.filter((s) => {
+      if (dep && String(s.department ?? '').toLowerCase() !== dep) return false;
+      if (!q) return true;
+      const haystack = [s.name, s.municipality, s.department]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
     const current = this.form.controls.siteId.value;
-    if (!this.filteredSites.some((s) => s.id === current)) {
-      this.form.controls.siteId.setValue(this.filteredSites[0]?.id ?? '');
+    if (current && !this.filteredSites.some((s) => s.id === current)) {
+      this.form.controls.siteId.setValue('');
     }
   }
 

@@ -45,6 +45,9 @@ export class PublicSiteFacade {
   readonly processingPayment = signal(false);
   readonly loadingSites = signal(true);
   readonly loadingServices = signal(false);
+  readonly sitesLoadError = signal('');
+  readonly servicesLoadError = signal('');
+  readonly siteSearch = signal('');
   readonly pageError = signal('');
   readonly selectedSiteId = signal('');
   readonly selectedServiceId = signal('');
@@ -81,6 +84,16 @@ export class PublicSiteFacade {
   );
 
   readonly hasCatalogData = computed(() => this.sites().length > 0 || this.services().length > 0);
+
+  readonly filteredSites = computed(() => {
+    const q = this.siteSearch().trim().toLowerCase();
+    const list = this.sites();
+    if (!q) return list;
+    return list.filter((s) => {
+      const haystack = [s.name, s.municipality, s.department].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  });
 
   constructor() {
     this.loadDepartments();
@@ -349,7 +362,30 @@ export class PublicSiteFacade {
 
   onDepartmentSelected(department: string): void {
     this.selectedDepartment.set(department);
+    this.siteSearch.set('');
     this.loadSites(department);
+  }
+
+  setSiteSearch(value: string): void {
+    this.siteSearch.set(value);
+    const current = this.bookingForm.controls.siteId.value;
+    if (current && !this.filteredSites().some((s) => s.id === current)) {
+      this.bookingForm.controls.siteId.setValue('');
+      this.selectedSiteId.set('');
+      this.services.set([]);
+      this.availabilitySlots.set([]);
+    }
+  }
+
+  retryLoadSites(): void {
+    this.loadSites(this.selectedDepartment());
+  }
+
+  retryLoadServices(): void {
+    const siteId = this.bookingForm.controls.siteId.value;
+    if (siteId) {
+      this.loadServices(siteId);
+    }
   }
 
   private loadDepartments(): void {
@@ -361,13 +397,13 @@ export class PublicSiteFacade {
 
   private loadSites(department?: string): void {
     this.loadingSites.set(true);
-    this.pageError.set('');
+    this.sitesLoadError.set('');
     this.bookingService
       .listSites$(department || this.selectedDepartment())
       .pipe(
         catchError((error) => {
           this.loadingSites.set(false);
-          this.pageError.set(this.toUserMessage(error, 'No fue posible cargar las sedes publicas.'));
+          this.sitesLoadError.set(this.toUserMessage(error, 'No fue posible cargar las sedes públicas.'));
           return of([]);
         }),
         takeUntilDestroyed(this.destroyRef)
@@ -375,7 +411,9 @@ export class PublicSiteFacade {
       .subscribe((sites) => {
         this.loadingSites.set(false);
         this.sites.set(sites);
-        const firstSiteId = this.bookingForm.controls.siteId.value || sites[0]?.id || '';
+        const current = this.bookingForm.controls.siteId.value;
+        const firstSiteId =
+          current && sites.some((s) => s.id === current) ? current : sites[0]?.id ?? '';
         this.bookingForm.controls.siteId.setValue(firstSiteId);
         this.selectedSiteId.set(firstSiteId);
 
@@ -419,7 +457,7 @@ export class PublicSiteFacade {
     }
 
     this.loadingServices.set(true);
-    this.pageError.set('');
+    this.servicesLoadError.set('');
     this.bookingService
       .listServices$(siteId)
       .pipe(
@@ -427,7 +465,7 @@ export class PublicSiteFacade {
           this.loadingServices.set(false);
           this.services.set([]);
           this.availabilitySlots.set([]);
-          this.pageError.set(this.toUserMessage(error, 'No fue posible cargar el catalogo de servicios.'));
+          this.servicesLoadError.set(this.toUserMessage(error, 'No fue posible cargar el catálogo de servicios.'));
           return of([]);
         }),
         takeUntilDestroyed(this.destroyRef)

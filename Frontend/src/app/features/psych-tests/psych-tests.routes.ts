@@ -275,7 +275,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
     }
 
     .eyebrow {
-      color: #7c3aed;
+      color: var(--cop-accent, #1e6b9a);
       font-size: 0.75rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -316,7 +316,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
     }
 
     .template-card.active {
-      border-color: #7c3aed;
+      border-color: var(--cop-accent, #1e6b9a);
       box-shadow: 0 12px 30px rgba(124, 58, 237, 0.12);
       transform: translateY(-1px);
     }
@@ -410,7 +410,7 @@ const BUILTIN_TEMPLATES: PsychTestTemplateVm[] = [
       background: #fff;
       font-size: 2rem;
       font-weight: 800;
-      color: #7c3aed;
+      color: var(--cop-accent, #1e6b9a);
     }
 
     .empty-state {

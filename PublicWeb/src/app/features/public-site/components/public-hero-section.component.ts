@@ -1,78 +1,87 @@
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-public-hero-section',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe],
+  imports: [CommonModule, CurrencyPipe, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section id="hero" class="hero-section">
-      <div class="container py-5">
-        <div class="row align-items-center g-5">
-          <div class="col-lg-6">
-            <span class="hero-chip">Centro COP · Colombia</span>
-            <h1 class="hero-title mt-3">Salud oral y bienestar emocional, con tecnología clínica de confianza.</h1>
-            <p class="hero-copy">
-              Agenda tu cita, revisa servicios y conoce precios transparentes desde una interfaz moderna,
-              responsiva y conectada con reservas, checkout y confirmacion real.
-            </p>
+    <section id="hero" class="hero-section" aria-label="Presentación Centro COP">
+      <div class="hero-visual">
+        <img
+          src="/brand/clinic-cali.jpg"
+          alt="Consultorio del Centro Odontológico y Psicológico COP"
+          class="hero-photo"
+          width="1200"
+          height="800"
+          loading="eager"
+          fetchpriority="high" />
+        <div class="hero-visual-overlay" aria-hidden="true"></div>
+      </div>
 
-            <div class="d-flex flex-wrap gap-3 mt-4">
-              <a href="#booking" class="btn btn-primary btn-lg px-4">Reservar cita</a>
-              <a href="#pricing" class="btn btn-light btn-lg px-4">Ver precios</a>
-            </div>
+      <div class="container hero-layout">
+        <div class="row align-items-end g-4 g-lg-5">
+          <div class="col-lg-7">
+            <div class="hero-copy-panel">
+              <span class="hero-chip">Centro COP · Colombia</span>
+              <h1 class="hero-title">Cuidado odontológico y psicológico con la calidez que mereces.</h1>
+              <p class="hero-lead">
+                Reserva en línea, elige tu sede por departamento y recibe confirmación clara de tu cita.
+                Atención presencial con equipos especializados en salud oral y bienestar emocional.
+              </p>
 
-            <div class="hero-metrics mt-4">
-              <div class="metric-card">
-                <strong>{{ serviceCount }}</strong>
-                <span>Servicios principales</span>
+              <div class="d-flex flex-wrap gap-3 mt-4 hero-ctas">
+                <a href="#booking" class="btn btn-primary btn-lg px-4">Reservar cita</a>
+                <a href="#services" class="btn btn-outline-light btn-lg px-4">Ver servicios</a>
+                <a routerLink="/register" class="btn btn-link btn-lg hero-register-link px-2">Crear cuenta</a>
               </div>
-              <div class="metric-card">
-                <strong>2</strong>
-                <span>Especialidades integradas</span>
-              </div>
-              <div class="metric-card">
-                <strong>24/7</strong>
-                <span>Reserva online</span>
+
+              <div class="hero-metrics" role="list">
+                <div class="metric-card" role="listitem">
+                  <strong>36+</strong>
+                  <span>Sedes en Colombia</span>
+                </div>
+                <div class="metric-card" role="listitem">
+                  <strong>2</strong>
+                  <span>Especialidades</span>
+                </div>
+                <div class="metric-card" role="listitem">
+                  <strong>24/7</strong>
+                  <span>Reserva online</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="col-lg-6">
-            <div class="hero-panel shadow-lg">
-              <div class="hero-panel-copy">
-                <span class="hero-panel-tag">Experiencia premium</span>
-                <h2>Flujo optimizado: servicio, precio, agenda y pago en una sola experiencia.</h2>
-                <p>Reserva en línea, elige sede por departamento y recibe seguimiento con modelos de riesgo J48 en el panel clínico.</p>
-              </div>
-
-              <div class="preview-card">
-                <div class="preview-head">
-                  <span></span><span></span><span></span>
-                </div>
-                <div class="preview-body">
-                  <div class="preview-highlight">
-                    <strong>{{ selectedServiceTitle || 'Selecciona un servicio' }}</strong>
-                    <span>{{ selectedPrice | currency: 'COP':'symbol':'1.0-0' }}</span>
-                  </div>
-                  <div class="preview-list">
-                    <div>
-                      <small>Modalidad</small>
-                      <strong>Presencial</strong>
-                    </div>
-                    <div>
-                      <small>Duracion</small>
-                      <strong>{{ selectedDurationMinutes }} min</strong>
-                    </div>
-                    <div>
-                      <small>Estado</small>
-                      <strong>Reserva y checkout listos</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="col-lg-5">
+            <aside class="hero-service-card cop-card" aria-label="Servicio seleccionado">
+              <p class="hero-service-label">Tu próxima cita</p>
+              <h2 class="hero-service-title">{{ selectedServiceTitle || 'Explora nuestros servicios' }}</h2>
+              <p class="hero-service-price">
+                @if (selectedPrice > 0) {
+                  Desde {{ selectedPrice | currency: 'COP':'symbol':'1.0-0' }}
+                } @else {
+                  Precios transparentes en catálogo
+                }
+              </p>
+              <ul class="hero-service-meta">
+                <li>
+                  <span>Modalidad</span>
+                  <strong>Presencial</strong>
+                </li>
+                <li>
+                  <span>Duración</span>
+                  <strong>{{ selectedDurationMinutes || '—' }}@if (selectedDurationMinutes) { min}</strong>
+                </li>
+                <li>
+                  <span>Catálogo</span>
+                  <strong>{{ serviceCount }} servicios</strong>
+                </li>
+              </ul>
+              <a href="#booking" class="btn btn-primary w-100 mt-3">Continuar reserva</a>
+            </aside>
           </div>
         </div>
       </div>
@@ -80,133 +89,180 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
   `,
   styles: `
     .hero-section {
-      padding: 2rem 0 3rem;
+      position: relative;
+      overflow: hidden;
+      min-height: min(88vh, 720px);
+      display: flex;
+      align-items: flex-end;
     }
 
-    .hero-chip,
-    .hero-panel-tag {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+    .hero-visual {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .hero-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 30%;
+    }
+
+    .hero-visual-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(105deg, rgba(15, 28, 30, 0.88) 0%, rgba(15, 28, 30, 0.55) 42%, rgba(15, 28, 30, 0.25) 100%),
+        linear-gradient(0deg, rgba(15, 28, 30, 0.4) 0%, transparent 40%);
+    }
+
+    .hero-layout {
+      position: relative;
+      z-index: 1;
+      padding-block: clamp(2.5rem, 6vw, 4rem);
+    }
+
+    .hero-copy-panel {
+      color: #fff;
+      max-width: 36rem;
     }
 
     .hero-chip {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .hero-panel-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: var(--cop-radius-pill, 999px);
+      padding: 0.35rem 0.85rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       background: rgba(255, 255, 255, 0.14);
-      color: #dbeafe;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(8px);
     }
 
     .hero-title {
-      font-size: clamp(2.3rem, 5vw, 4.4rem);
-      line-height: 1.05;
-      font-weight: 800;
-      letter-spacing: -0.04em;
+      font-size: clamp(2rem, 4.5vw, 3.25rem);
+      line-height: 1.08;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 1rem 0 0.75rem;
     }
 
-    .hero-copy {
+    .hero-lead {
       font-size: 1.05rem;
-      color: #475569;
-      max-width: 40rem;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.88);
+      margin: 0;
     }
 
     .hero-metrics {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1rem;
+      gap: 0.75rem;
+      margin-top: 1.75rem;
     }
 
     .metric-card {
-      border-radius: 1.25rem;
-      padding: 1rem;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: var(--cop-radius-md, 1.25rem);
+      padding: 0.85rem 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(10px);
       display: grid;
-      gap: 0.25rem;
+      gap: 0.15rem;
     }
 
     .metric-card strong {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
+      font-weight: 700;
     }
 
     .metric-card span {
-      color: #64748b;
-      font-size: 0.9rem;
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.78);
     }
 
-    .hero-panel {
-      border-radius: 2rem;
-      padding: 2rem;
-      color: #fff;
-      background: linear-gradient(145deg, #0f172a 0%, #1d4ed8 52%, #7c3aed 100%);
+    .hero-service-card {
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(12px);
     }
 
-    .hero-panel h2 {
-      font-size: 1.8rem;
-      line-height: 1.15;
-      margin: 0.75rem 0;
+    .hero-service-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--cop-brand, #0d6e6a);
+      margin: 0 0 0.35rem;
     }
 
-    .hero-panel p {
-      color: rgba(255, 255, 255, 0.82);
+    .hero-service-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.25;
+      color: var(--cop-ink, #0f1c1e);
+      margin: 0 0 0.5rem;
     }
 
-    .preview-card {
-      margin-top: 1.75rem;
-      border-radius: 1.4rem;
-      padding: 1rem;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.16);
+    .hero-service-price {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--cop-brand-dark, #0a5855);
+      margin: 0 0 1rem;
     }
 
-    .preview-head {
-      display: flex;
-      gap: 0.45rem;
-      margin-bottom: 1rem;
+    .hero-service-meta {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 0.65rem;
     }
 
-    .preview-head span {
-      width: 0.7rem;
-      height: 0.7rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.45);
-    }
-
-    .preview-highlight {
+    .hero-service-meta li {
       display: flex;
       justify-content: space-between;
       gap: 1rem;
-      border-radius: 1rem;
-      padding: 1rem;
-      background: #fff;
-      color: #0f172a;
+      font-size: 0.92rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--cop-border, rgba(15, 28, 30, 0.08));
     }
 
-    .preview-list {
-      display: grid;
-      gap: 0.85rem;
-      margin-top: 1rem;
+    .hero-service-meta li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
     }
 
-    .preview-list small {
-      display: block;
-      color: rgba(255, 255, 255, 0.72);
+    .hero-service-meta span {
+      color: var(--cop-ink-muted, #5c6b6e);
+    }
+
+    .hero-register-link {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-weight: 600;
+    }
+
+    .hero-register-link:hover {
+      color: #fff !important;
     }
 
     @media (max-width: 991px) {
+      .hero-section {
+        min-height: auto;
+      }
+
       .hero-metrics {
         grid-template-columns: 1fr;
       }
+
+      .hero-copy-panel {
+        max-width: none;
+      }
     }
-  `
+  `,
 })
 export class PublicHeroSectionComponent {
   @Input() selectedServiceTitle = '';

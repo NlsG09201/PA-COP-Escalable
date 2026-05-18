@@ -61,4 +61,19 @@ export class AuthService {
     const currentRoles = this.getRoles();
     return roles.some((role) => currentRoles.includes(role));
   }
+
+  getSiteId(): string | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1] ?? '';
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      const payload = JSON.parse(atob(padded)) as { site_id?: unknown };
+      const siteId = payload.site_id;
+      return siteId != null && String(siteId).trim() ? String(siteId) : null;
+    } catch {
+      return null;
+    }
+  }
 }

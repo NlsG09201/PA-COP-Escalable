@@ -5,39 +5,39 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section id="about" class="section-block about-section">
+    <section id="about" class="cop-section-block about-section">
       <div class="container">
-        <div class="row g-4 align-items-center">
+        <div class="row g-4 g-lg-5 align-items-center">
           <div class="col-lg-6">
-            <span class="section-eyebrow">Nosotros</span>
-            <h2 class="section-title">Cuidado odontológico y psicológico con enfoque humano y datos clínicos.</h2>
-            <p class="section-copy">
-              Integramos agenda digital, historial clínico y modelos de riesgo (J48) para acompañar cada paciente
-              con claridad, seguimiento y continuidad entre la web pública y el panel profesional.
+            <span class="cop-section-eyebrow">Nosotros</span>
+            <h2 class="cop-section-title text-lg-start">Cuidado integral con enfoque humano y seguimiento clínico.</h2>
+            <p class="cop-section-copy text-lg-start">
+              En Centro COP unimos odontología y psicología en un mismo ecosistema: reserva digital,
+              historial clínico seguro y acompañamiento continuo entre la web pública y nuestro equipo profesional.
             </p>
             <ul class="about-list">
               <li>Red de sedes en departamentos de Colombia</li>
-              <li>Reserva online, pagos locales y confirmación inmediata</li>
-              <li>Equipo clínico con acceso seguro al dashboard</li>
+              <li>Reserva en línea con confirmación y recordatorios</li>
+              <li>Profesionales con acceso al panel clínico autorizado</li>
             </ul>
           </div>
           <div class="col-lg-6">
             <div class="about-grid">
-              <article class="about-tile">
-                <strong>15k+</strong>
-                <span>Pacientes soportados en el dataset de entrenamiento</span>
+              <article class="about-tile cop-card">
+                <strong>36+</strong>
+                <span>Sedes activas en el país</span>
               </article>
-              <article class="about-tile">
-                <strong>J48</strong>
-                <span>Modelo de clasificación de riesgo integrado</span>
+              <article class="about-tile cop-card">
+                <strong>2</strong>
+                <span>Especialidades: odontología y psicología</span>
               </article>
-              <article class="about-tile">
-                <strong>32+</strong>
-                <span>Departamentos con sedes registradas</span>
+              <article class="about-tile cop-card">
+                <strong>100%</strong>
+                <span>Reserva y seguimiento digital</span>
               </article>
-              <article class="about-tile">
+              <article class="about-tile cop-card">
                 <strong>24/7</strong>
-                <span>Autogestión de citas para pacientes</span>
+                <span>Agenda disponible cuando la necesites</span>
               </article>
             </div>
           </div>
@@ -46,37 +46,15 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     </section>
   `,
   styles: `
-    .about-section {
-      padding: 4rem 0;
-    }
-
-    .section-eyebrow {
-      display: inline-block;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #1d4ed8;
-      margin-bottom: 0.5rem;
-    }
-
-    .section-title {
-      font-size: clamp(1.75rem, 3vw, 2.4rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.15;
-    }
-
-    .section-copy {
-      color: #475569;
-      font-size: 1.05rem;
-      max-width: 36rem;
+    .about-section .cop-section-title,
+    .about-section .cop-section-copy {
+      text-align: left;
     }
 
     .about-list {
       margin: 1.25rem 0 0;
-      padding-left: 1.1rem;
-      color: #334155;
+      padding-left: 1.2rem;
+      color: var(--cop-ink-muted, #5c6b6e);
       display: grid;
       gap: 0.5rem;
     }
@@ -88,23 +66,33 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     }
 
     .about-tile {
-      border-radius: 1.25rem;
       padding: 1.25rem;
-      background: #fff;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
       display: grid;
       gap: 0.35rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .about-tile:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--cop-shadow-md);
     }
 
     .about-tile strong {
-      font-size: 1.5rem;
-      color: #0f172a;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--cop-brand, #0d6e6a);
+      line-height: 1.1;
     }
 
     .about-tile span {
-      color: #64748b;
       font-size: 0.9rem;
+      color: var(--cop-ink-muted, #5c6b6e);
+    }
+
+    @media (max-width: 575px) {
+      .about-grid {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })

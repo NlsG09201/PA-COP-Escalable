@@ -41,7 +41,7 @@ describe('PublicBookingConfirmationComponent', () => {
     expect(component.statusSummary()).toEqual({
       tone: 'success',
       title: 'Reserva confirmada',
-      detail: 'Tu cita ya quedo registrada y el pago aparece como aplicado correctamente.'
+      detail: 'Tu cita ya quedó registrada y el pago aparece como aplicado correctamente.'
     });
     expect(component.timeline().map((event) => event.title)).toContain('Pago aplicado');
   });

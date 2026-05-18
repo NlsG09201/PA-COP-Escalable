@@ -46,11 +46,11 @@ import { ServiceItem } from '../../models/service.model';
       flex-direction: column;
     }
     .service-card-selected {
-      border-color: #60a5fa;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.14);
+      border-color: rgba(13, 110, 106, 0.45);
+      box-shadow: 0 8px 24px rgba(13, 110, 106, 0.12);
     }
     .price {
-      color: #0f172a;
+      color: var(--cop-ink, #0f1c1e);
       font-size: 0.95rem;
       white-space: nowrap;
     }
@@ -60,12 +60,12 @@ import { ServiceItem } from '../../models/service.model';
       padding: 0.2rem 0.55rem;
       font-size: 0.72rem;
       font-weight: 700;
-      background: #dbeafe;
-      color: #1d4ed8;
+      background: var(--cop-brand-light, #e6f4f3);
+      color: var(--cop-brand-dark, #0a5855);
     }
     .category-badge-psych {
-      background: #ede9fe;
-      color: #6d28d9;
+      background: var(--cop-accent-soft, #e8f2f8);
+      color: var(--cop-accent, #1e6b9a);
     }
     .meta-row {
       margin-top: auto;

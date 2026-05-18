@@ -16,7 +16,7 @@ import { PublicBookingService, PublicBookingVm } from './data-access/public-book
           <span class="section-eyebrow">Sandbox checkout</span>
           <h1 class="h3 mt-3 mb-2">Confirma el pago de prueba</h1>
           <p class="text-muted mb-4">
-            Esta vista simula el proveedor de pagos y ejecuta el webhook publico para completar la reserva.
+            Esta vista simula el proveedor de pagos y ejecuta el webhook público para completar la reserva.
           </p>
 
           @if (errorMessage()) {
@@ -26,13 +26,13 @@ import { PublicBookingService, PublicBookingVm } from './data-access/public-book
           @if (booking(); as booking) {
             @if (booking.status === 'CONFIRMED') {
               <div class="alert alert-success" data-testid="sandbox-already-confirmed">
-                La reserva ya quedo confirmada. Puedes revisar el seguimiento o volver al inicio.
+                La reserva ya quedó confirmada. Puedes revisar el seguimiento o volver al inicio.
               </div>
             }
 
             @if (intentMismatch()) {
               <div class="alert alert-warning" data-testid="sandbox-intent-mismatch">
-                Esta URL corresponde a una referencia distinta a la ultima intencion activa registrada para la reserva.
+                Esta URL corresponde a una referencia distinta a la última intención activa registrada para la reserva.
               </div>
             }
 
@@ -141,8 +141,8 @@ import { PublicBookingService, PublicBookingVm } from './data-access/public-book
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      background: #ede9fe;
-      color: #6d28d9;
+      background: var(--cop-brand-light, #e6f4f3);
+      color: var(--cop-brand-dark, #0a5855);
     }
 
     .detail-grid {
@@ -229,7 +229,7 @@ export class PublicSandboxCheckoutComponent {
   protected simulatePayment(status: 'approved' | 'failed'): void {
     const booking = this.booking();
     if (!booking?.payment) {
-      this.errorMessage.set('La reserva no tiene una intencion de pago disponible.');
+      this.errorMessage.set('La reserva no tiene una intención de pago disponible.');
       return;
     }
 

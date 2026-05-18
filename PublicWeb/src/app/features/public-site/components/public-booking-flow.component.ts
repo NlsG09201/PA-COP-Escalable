@@ -17,64 +17,106 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
   imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule, FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.Default,
   template: `
-    <section id="booking" class="section-block">
+    <section id="booking" class="cop-section-block">
       <div class="container">
         <div class="row g-4 align-items-start">
           <div class="col-xl-7">
-            <div class="booking-card">
-              <div class="section-head text-start mb-4">
-                <span class="section-eyebrow">Agenda online</span>
-                <h2>Reserva tu cita en minutos</h2>
-                <p>Selecciona sede, servicio, horario y completa el checkout de confirmacion.</p>
-              </div>
+            <div class="booking-card cop-card">
+              <header class="booking-section-head mb-4">
+                <span class="cop-section-eyebrow">Agenda online</span>
+                <h2 class="cop-section-title text-start">Reserva tu cita en minutos</h2>
+                <p class="cop-section-copy text-start">Selecciona sede, servicio, horario y completa la confirmación.</p>
+              </header>
 
               <form [formGroup]="bookingForm" (ngSubmit)="submitBooking.emit()" class="row g-3" data-testid="public-booking-form">
-                <div class="col-md-6">
-                  <label class="form-label">Departamento</label>
-                  <select class="form-select" [value]="selectedDepartment" (change)="departmentChange.emit($any($event.target).value)">
+                <div class="col-12">
+                  <label class="form-label" for="public-department">Departamento</label>
+                  <select
+                    id="public-department"
+                    class="form-select"
+                    [value]="selectedDepartment"
+                    (change)="departmentChange.emit($any($event.target).value)"
+                    [disabled]="loadingSites">
                     <option value="">Todos</option>
                     @for (dep of departments; track dep) {
                       <option [value]="dep">{{ dep }}</option>
                     }
                   </select>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Sede ({{ sites.length }} disponibles)</label>
+                <div class="col-12">
+                  <label class="form-label" for="public-site-search">Buscar sede</label>
+                  <input
+                    id="public-site-search"
+                    class="form-control"
+                    placeholder="Nombre, municipio o departamento…"
+                    [ngModel]="siteSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="siteSearchChange.emit($event)"
+                    [disabled]="loadingSites" />
+                  <label class="form-label mt-2" for="public-site-select">Sede</label>
+                  @if (loadingSites) {
+                    <p class="form-text d-flex align-items-center gap-2 mb-1">
+                      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                      Cargando sedes…
+                    </p>
+                  }
                   <select
+                    id="public-site-select"
                     class="form-select"
-                    size="6"
-                    style="min-height: 8rem;"
                     formControlName="siteId"
                     data-testid="public-site-select"
-                    (change)="siteChange.emit($any($event.target).value)">
+                    (change)="siteChange.emit($any($event.target).value)"
+                    [disabled]="loadingSites">
+                    <option value="">Seleccione una sede</option>
                     @for (site of sites; track site.id) {
                       <option [value]="site.id">
                         {{ site.name }}@if (site.municipality) { · {{ site.municipality }} }@if (site.department) { ({{ site.department }}) }
                       </option>
                     }
                   </select>
-                  <div class="form-text">Departamento «Todos» muestra el catálogo nacional completo.</div>
+                  <div class="form-text">{{ sites.length }} sedes visibles · {{ totalSitesCount }} en catálogo</div>
+                  @if (sitesLoadError) {
+                    <div class="text-danger small mt-1" role="alert">
+                      {{ sitesLoadError }}
+                      <button type="button" class="btn btn-link btn-sm p-0 ms-1" (click)="retryLoadSites.emit()">Reintentar</button>
+                    </div>
+                  }
                 </div>
 
-                <div class="col-md-6">
-                  <label class="form-label">Servicio</label>
+                <div class="col-12">
+                  <label class="form-label" for="public-service-select">Servicio</label>
+                  @if (loadingServices) {
+                    <p class="form-text d-flex align-items-center gap-2 mb-1">
+                      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                      Cargando servicios…
+                    </p>
+                  }
                   <select
+                    id="public-service-select"
                     class="form-select"
                     formControlName="serviceId"
                     data-testid="public-service-select"
-                    (change)="serviceChange.emit($any($event.target).value)">
+                    (change)="serviceChange.emit($any($event.target).value)"
+                    [disabled]="loadingServices || !bookingForm.controls['siteId'].value">
+                    <option value="">Seleccione un servicio</option>
                     @for (service of services; track service.id) {
                       <option [value]="service.id">
                         {{ service.title }} - {{ service.category }} - {{ service.priceToPay | currency: 'COP':'symbol':'1.0-0' }} - {{ service.durationMinutes }} min
                       </option>
                     }
                   </select>
+                  @if (servicesLoadError) {
+                    <div class="text-danger small mt-1" role="alert">
+                      {{ servicesLoadError }}
+                      <button type="button" class="btn btn-link btn-sm p-0 ms-1" (click)="retryLoadServices.emit()">Reintentar</button>
+                    </div>
+                  }
                 </div>
 
                 <div class="col-12">
                   <label class="form-label">Horarios disponibles</label>
                   @if (loadingAvailability) {
-                    <div class="empty-panel">Consultando agenda disponible...</div>
+                    <div class="empty-panel text-center py-4" aria-live="polite"><div class="spinner-border text-primary mb-2" role="status"></div><div>Consultando agenda disponible…</div></div>
                   } @else {
                     <div class="calendar" data-testid="public-slot-calendar">
                       @for (day of calendarDays; track day.key) {
@@ -105,7 +147,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                           </div>
                         </section>
                       } @empty {
-                        <div class="empty-panel">No hay cupos disponibles para la combinacion seleccionada.</div>
+                        <div class="empty-panel">No hay cupos disponibles para la combinación seleccionada.</div>
                       }
                     </div>
                   }
@@ -116,26 +158,26 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                   <input class="form-control" formControlName="patientName" data-testid="public-patient-name" />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Telefono</label>
+                  <label class="form-label">Teléfono</label>
                   <input class="form-control" formControlName="phone" data-testid="public-patient-phone" />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Correo electronico</label>
+                  <label class="form-label">Correo electrónico</label>
                   <input class="form-control" formControlName="email" data-testid="public-patient-email" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Tipo de documento</label>
                   <select class="form-select" formControlName="documentType" data-testid="public-patient-doc-type">
-                    <option value="CC">Cedula de ciudadania</option>
-                    <option value="CE">Cedula de extranjeria</option>
+                    <option value="CC">Cédula de ciudadanía</option>
+                    <option value="CE">Cédula de extranjería</option>
                     <option value="TI">Tarjeta de identidad</option>
                     <option value="PA">Pasaporte</option>
-                    <option value="PPT">Permiso de proteccion temporal</option>
+                    <option value="PPT">Permiso de protección temporal</option>
                     <option value="NIT">NIT</option>
                   </select>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Numero de documento</label>
+                  <label class="form-label">Número de documento</label>
                   <input class="form-control" formControlName="documentNumber" data-testid="public-patient-document" />
                 </div>
                 <div class="col-md-6">
@@ -148,7 +190,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                 </div>
                 @if (bookingForm.get('billingMode')?.value === 'INSTALLMENTS') {
                   <div class="col-md-6">
-                    <label class="form-label">Numero de cuotas</label>
+                    <label class="form-label">Número de cuotas</label>
                     <input type="number" class="form-control" min="2" max="36" formControlName="installmentCount" />
                   </div>
                 }
@@ -168,8 +210,8 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
           </div>
 
           <div class="col-xl-5">
-            <div class="summary-card mb-4">
-              <span class="section-eyebrow">Resumen</span>
+            <div class="summary-card cop-card mb-4">
+              <span class="cop-section-eyebrow">Resumen</span>
               <h3 class="h5 mt-2">{{ selectedService?.title ?? 'Sin servicio' }}</h3>
               <p class="text-muted">{{ selectedService?.description ?? 'Selecciona un servicio para ver el detalle.' }}</p>
 
@@ -193,11 +235,11 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                 </div>
               }
               <div class="summary-metric">
-                <span>Duracion</span>
+                <span>Duración</span>
                 <strong>{{ selectedService?.durationMinutes ?? 0 }} min</strong>
               </div>
               <div class="summary-metric">
-                <span>Promocion</span>
+                <span>Promoción</span>
                 <strong>{{ (bookingQuote?.promoPrice ?? selectedService?.promoPrice) ? 'Aplicada' : 'Tarifa regular' }}</strong>
               </div>
               <div class="summary-metric">
@@ -220,7 +262,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                     </div>
                   } @else if (reservationSuccess.status === 'EXPIRED') {
                     <div class="flow-banner flow-banner-danger">
-                      La pre-reserva expiro y el horario ya no esta bloqueado. Debes generar una nueva reserva.
+                      La pre-reserva expiró y el horario ya no está bloqueado. Debes generar una nueva reserva.
                     </div>
                   } @else if (reservationSuccess.payment?.status === 'FAILED' || reservationSuccess.payment?.status === 'CANCELLED') {
                     <div class="flow-banner flow-banner-danger">
@@ -228,7 +270,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                     </div>
                   } @else {
                     <div class="flow-banner">
-                      Tu horario esta apartado temporalmente. Completa el medio de pago y abre el enlace de cobro para confirmar.
+                      Tu horario está apartado temporalmente. Completa el medio de pago y abre el enlace de cobro para confirmar.
                     </div>
                   }
 
@@ -257,7 +299,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                           @if (facade.wompiPresets(); as wp) {
                             <div class="small mb-2">
                               @if (wp.termsPrivacyUrl) {
-                                <a [href]="wp.termsPrivacyUrl" target="_blank" rel="noopener noreferrer">Terminos para usuarios</a>
+                                <a [href]="wp.termsPrivacyUrl" target="_blank" rel="noopener noreferrer">Términos para usuarios</a>
                               }
                               @if (wp.termsPrivacyUrl && wp.termsDataUrl) {
                                 <span> · </span>
@@ -291,7 +333,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                         <label class="form-label mt-3">Documento pagador (PSE)</label>
                         <input
                           class="form-control"
-                          placeholder="Numero de cedula"
+                          placeholder="Número de cédula"
                           [ngModel]="facade.pseLegalId()"
                           (ngModelChange)="facade.setPseLegalId($event)" />
                       }
@@ -370,10 +412,10 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
               }
             </div>
 
-            <div class="summary-card">
+            <div class="summary-card cop-card">
               <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                 <div>
-                  <span class="section-eyebrow">Panel de usuario basico</span>
+                  <span class="cop-section-eyebrow">Panel de usuario</span>
                   <h3 class="h5 mt-2 mb-0">Reservas recientes</h3>
                 </div>
                 <span class="badge rounded-pill text-bg-light">{{ bookings.length }}</span>
@@ -414,7 +456,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                     </a>
                   </article>
                 } @empty {
-                  <div class="empty-panel">Aun no hay reservas publicas registradas desde este navegador.</div>
+                  <div class="empty-panel">Aún no hay reservas públicas registradas desde este navegador.</div>
                 }
               </div>
             </div>
@@ -424,43 +466,14 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
     </section>
   `,
   styles: `
-    .section-block {
-      padding: 1.5rem 0 4rem;
-    }
-
-    .section-head h2 {
-      font-size: clamp(1.8rem, 4vw, 3rem);
-      line-height: 1.1;
-      margin: 0.85rem 0;
-      font-weight: 800;
-    }
-
-    .section-head p {
-      color: #64748b;
-      font-size: 1rem;
-    }
-
-    .section-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: #ede9fe;
-      color: #6d28d9;
+    .booking-section-head .cop-section-title {
+      margin-top: 0.65rem;
     }
 
     .booking-card,
     .summary-card {
       height: 100%;
-      border-radius: 1.6rem;
       padding: 1.5rem;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(148, 163, 184, 0.14);
-      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06);
       display: flex;
       flex-direction: column;
     }
@@ -478,10 +491,10 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
     }
 
     .calendar-day {
-      border-radius: 1.25rem;
-      border: 1px solid rgba(148, 163, 184, 0.16);
-      background: rgba(255, 255, 255, 0.92);
-      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.04);
+      border-radius: var(--cop-radius-md, 1.25rem);
+      border: 1px solid var(--cop-border);
+      background: var(--cop-surface-elevated, #fff);
+      box-shadow: var(--cop-shadow-sm);
       overflow: hidden;
       min-height: 260px;
       display: grid;
@@ -494,8 +507,8 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
       align-items: center;
       gap: 0.75rem;
       padding: 0.85rem 0.95rem;
-      background: linear-gradient(180deg, #eff6ff 0%, rgba(239, 246, 255, 0.35) 100%);
-      border-bottom: 1px solid rgba(147, 197, 253, 0.6);
+      background: linear-gradient(180deg, var(--cop-brand-light, #e6f4f3) 0%, rgba(230, 244, 243, 0.35) 100%);
+      border-bottom: 1px solid var(--cop-border);
     }
 
     .calendar-day-title {
@@ -516,9 +529,9 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
       justify-content: center;
       font-weight: 900;
       font-size: 0.78rem;
-      color: #1d4ed8;
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(147, 197, 253, 0.85);
+      color: var(--cop-brand-dark, #0a5855);
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(13, 110, 106, 0.25);
       flex-shrink: 0;
     }
 
@@ -533,6 +546,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
 
     .calendar-slot {
       width: 100%;
+      min-height: 44px;
       text-align: left;
       border-radius: 1rem;
       padding: 0.75rem 0.85rem;
@@ -545,8 +559,8 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
 
     .calendar-slot:hover {
       transform: translateY(-1px);
-      border-color: rgba(37, 99, 235, 0.24);
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      border-color: rgba(13, 110, 106, 0.28);
+      box-shadow: var(--cop-shadow-sm);
     }
 
     .calendar-slot-time {
@@ -561,9 +575,9 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
     }
 
     .calendar-slot-active {
-      border-color: #2563eb;
-      background: #eff6ff;
-      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
+      border-color: var(--cop-brand, #0d6e6a);
+      background: var(--cop-brand-light, #e6f4f3);
+      box-shadow: var(--cop-shadow-sm);
     }
 
     .calendar-empty {
@@ -604,8 +618,8 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
 
     .booking-item:hover {
       transform: translateY(-1px);
-      border-color: rgba(37, 99, 235, 0.22);
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      border-color: rgba(13, 110, 106, 0.22);
+      box-shadow: var(--cop-shadow-sm);
     }
 
     .booking-item-head {
@@ -651,9 +665,9 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
       border-color: rgba(5, 150, 105, 0.25);
     }
     .status-badge[data-status="PENDING_PAYMENT"] {
-      background: #eff6ff;
-      color: #1d4ed8;
-      border-color: rgba(37, 99, 235, 0.25);
+      background: var(--cop-accent-soft, #e8f2f8);
+      color: var(--cop-accent, #1e6b9a);
+      border-color: rgba(30, 107, 154, 0.25);
     }
     .status-badge[data-status="REQUESTED"] {
       background: #f8fafc;
@@ -715,7 +729,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
       margin-top: 0.75rem;
       font-weight: 800;
       text-decoration: none;
-      color: #2563eb;
+      color: var(--cop-brand, #0d6e6a);
     }
 
     @media (max-width: 575px) {
@@ -829,11 +843,20 @@ export class PublicBookingFlowComponent {
   @Input() reservationSuccess: PublicBookingVm | null = null;
   @Input() loadingAvailability = false;
   @Input() loadingQuote = false;
+  @Input() loadingSites = false;
+  @Input() loadingServices = false;
+  @Input() sitesLoadError = '';
+  @Input() servicesLoadError = '';
+  @Input() siteSearch = '';
+  @Input() totalSitesCount = 0;
   @Input() preparingCheckout = false;
   @Input() submitting = false;
   @Input() processingPayment = false;
 
   @Output() readonly departmentChange = new EventEmitter<string>();
+  @Output() readonly siteSearchChange = new EventEmitter<string>();
+  @Output() readonly retryLoadSites = new EventEmitter<void>();
+  @Output() readonly retryLoadServices = new EventEmitter<void>();
   @Output() readonly siteChange = new EventEmitter<string>();
   @Output() readonly serviceChange = new EventEmitter<string>();
   @Output() readonly slotSelected = new EventEmitter<string>();

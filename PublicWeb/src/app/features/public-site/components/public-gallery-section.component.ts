@@ -7,13 +7,13 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section id="gallery" class="gallery-section py-5">
+    <section id="gallery" class="cop-section-block gallery-section">
       <div class="container">
-        <div class="mb-4">
-          <span class="eyebrow">Nuestra sede</span>
-          <h2 class="section-title mb-2">Imágenes y ambiente</h2>
-          <p class="section-lead mb-0">Un vistazo a la atención en Cali y a los espacios preparados para odontología y psicología.</p>
-        </div>
+        <header class="cop-section-head text-start mb-4">
+          <span class="cop-section-eyebrow">Nuestra sede</span>
+          <h2 class="cop-section-title text-start mb-2">Imágenes y ambiente</h2>
+          <p class="cop-section-copy text-start mb-0">Un vistazo a la atención en Cali y espacios preparados para odontología y psicología.</p>
+        </header>
 
         <div class="row g-4">
           <div class="col-md-6 col-lg-4">
@@ -40,31 +40,15 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   `,
   styles: `
     .gallery-section {
-      border-top: 1px solid rgba(15, 23, 42, 0.06);
-      background: #fff;
-    }
-    .eyebrow {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #2563eb;
-      margin-bottom: 0.35rem;
-    }
-    .section-title {
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-    .section-lead {
-      color: #64748b;
-      max-width: 46rem;
+      border-top: 1px solid var(--cop-border);
+      background: var(--cop-surface-elevated, #fff);
     }
     .gallery-card {
-      border-radius: 1.35rem;
+      border-radius: var(--cop-radius-md, 1.25rem);
       overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.16);
-      background: rgba(248, 250, 252, 0.9);
+      border: 1px solid var(--cop-border);
+      background: var(--cop-surface);
+      box-shadow: var(--cop-shadow-sm);
     }
     .gallery-img {
       display: block;
@@ -74,7 +58,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     .gallery-cap {
       padding: 0.75rem 1rem;
       font-size: 0.9rem;
-      color: #475569;
+      color: var(--cop-ink-muted, #5c6b6e);
       margin: 0;
     }
   `,

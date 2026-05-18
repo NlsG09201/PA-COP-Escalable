@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
@@ -27,12 +27,14 @@ export interface ProfessionalOptionVm {
   name: string;
 }
 
+const SKIP_GLOBAL_LOADER = { headers: new HttpHeaders({ 'X-Skip-Loader': '1' }) };
+
 @Injectable({ providedIn: 'root' })
 export class AppointmentsApiService {
   constructor(private readonly http: HttpClient) {}
 
   listProfessionals$(): Observable<ProfessionalOptionVm[]> {
-    return this.http.get<unknown>(`${API_BASE_URL}/api/appointments/professionals`).pipe(
+    return this.http.get<unknown>(`${API_BASE_URL}/api/appointments/professionals`, SKIP_GLOBAL_LOADER).pipe(
       map((raw) => {
         if (!Array.isArray(raw)) return [];
         return raw
@@ -75,7 +77,7 @@ export class AppointmentsApiService {
     }
     const url = `${API_BASE_URL}/api/appointments?${params.toString()}`;
 
-    return this.http.get<unknown>(url).pipe(map((raw) => this.mapPage(raw)));
+    return this.http.get<unknown>(url, SKIP_GLOBAL_LOADER).pipe(map((raw) => this.mapPage(raw)));
   }
 
   private mapAppointment(entry: Record<string, unknown>): AppointmentVm {

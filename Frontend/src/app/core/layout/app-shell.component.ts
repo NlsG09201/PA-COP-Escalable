@@ -1,5 +1,6 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { UserRole } from '../models/user-role.model';
@@ -23,9 +24,9 @@ type NavItem = {
       <aside class="shell-sidebar" data-testid="app-shell-sidebar">
         <div class="brand-block">
           <img src="/brand/logo.png" alt="" width="48" height="48" class="rounded-3 mb-2 d-block" style="border:1px solid rgba(255,255,255,0.15)" />
-          <p class="brand-eyebrow mb-2">Centro Odontologico y Psicologico</p>
-          <div class="fw-semibold fs-5">COP Clinical Dashboard</div>
-          <p class="text-white-50 small mb-0">Operacion clinica, evaluacion psicologica y seguimiento por paciente.</p>
+          <p class="brand-eyebrow mb-2">Centro Odontológico y Psicológico</p>
+          <div class="fw-semibold fs-5">Panel clínico COP</div>
+          <p class="text-white-50 small mb-0">Operación clínica, evaluación psicológica y seguimiento por paciente.</p>
         </div>
 
         <nav class="nav-section" data-testid="app-shell-nav">
@@ -56,6 +57,12 @@ type NavItem = {
           </div>
 
           <div class="header-actions">
+            @if (activeSiteName()) {
+              <div class="patient-chip">
+                <span class="footer-label">Sede activa</span>
+                <strong>{{ activeSiteName() }}</strong>
+              </div>
+            }
             <div class="patient-chip">
               <span class="footer-label">Paciente activo</span>
               <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion' }}</strong>
@@ -83,7 +90,7 @@ type NavItem = {
       display: grid;
       grid-template-columns: 300px 1fr;
       min-height: 100vh;
-      background: #f4f7fb;
+      background: var(--cop-surface, #faf9f7);
     }
 
     .shell-sidebar {
@@ -92,7 +99,7 @@ type NavItem = {
       height: 100vh;
       overflow-y: auto;
       padding: 1.25rem 1rem;
-      background: linear-gradient(180deg, #0f172a 0%, #172554 100%);
+      background: linear-gradient(180deg, #0a5855 0%, #0f1c1e 100%);
       color: #fff;
     }
 
@@ -136,8 +143,8 @@ type NavItem = {
     }
 
     .nav-link.active {
-      background: rgba(255, 255, 255, 0.16);
-      border-color: rgba(191, 219, 254, 0.35);
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(230, 244, 243, 0.35);
       color: #fff;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
       font-weight: 700;
@@ -155,8 +162,8 @@ type NavItem = {
       align-items: center;
       gap: 1rem;
       padding: 1rem 1.5rem;
-      background: rgba(255, 255, 255, 0.9);
-      border-bottom: 1px solid #eaeef5;
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--cop-border, rgba(15, 28, 30, 0.08));
       backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
@@ -178,8 +185,8 @@ type NavItem = {
     }
 
     .patient-chip {
-      background: #f8fafc;
-      border: 1px solid #e9eef5;
+      background: var(--cop-brand-light, #e6f4f3);
+      border: 1px solid var(--cop-border);
       min-width: 210px;
     }
 
@@ -238,6 +245,7 @@ export class AppShellComponent {
 
   protected readonly activeRoles = signal<UserRole[]>([]);
   protected readonly role = computed(() => this.activeRoles()[0] ?? '—');
+  protected readonly activeSiteName = signal('');
   protected readonly selectedPatient$ = this.store.select(selectSelectedPatient);
   protected readonly visibleItems = computed(() =>
     this.allItems.filter((item) => item.roles.some((role) => this.activeRoles().includes(role)))
@@ -249,6 +257,16 @@ export class AppShellComponent {
     private readonly router: Router
   ) {
     this.activeRoles.set(authService.getRoles());
+    const siteId = authService.getSiteId();
+    if (siteId) {
+      this.authApi
+        .getSites$()
+        .pipe(catchError(() => of([])))
+        .subscribe((sites) => {
+          const match = sites.find((s) => s.id === siteId);
+          this.activeSiteName.set(match?.name ?? `Sede ${siteId.slice(0, 8)}…`);
+        });
+    }
   }
 
   protected logout(): void {

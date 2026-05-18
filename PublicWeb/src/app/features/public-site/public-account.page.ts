@@ -1,298 +1,232 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { AsyncPipe, CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { PublicBookingService } from './data-access/public-booking.service';
-import { Observable, combineLatest, map, of } from 'rxjs';
+import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
+import { PublicSiteHeaderComponent } from './components/public-site-header.component';
+import { PublicSiteFooterComponent } from './components/public-site-footer.component';
+import { MeResponse } from '../../core/auth/auth.models';
 
 @Component({
   selector: 'app-public-account-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [AsyncPipe, CommonModule, ReactiveFormsModule, RouterLink, PublicSiteHeaderComponent, PublicSiteFooterComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="section-block">
-      <div class="container">
-        <div class="row g-4 align-items-start">
-          <div class="col-lg-7">
-            <div class="cardx">
-              <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                  <span class="eyebrow">Cuenta</span>
-                  <h2 class="h3 mt-2 mb-1">Tu perfil</h2>
-                  <p class="text-muted mb-0">Regístrate, inicia sesión y edita tus datos cuando lo necesites.</p>
-                </div>
-                <a routerLink="/" class="btn btn-outline-secondary btn-sm">Volver</a>
-              </div>
+    <div class="account-shell">
+      <app-public-site-header />
 
-              @if (!(me$ | async)) {
-                <div class="tabs">
-                  <button type="button" class="tab" [class.active]="mode() === 'login'" (click)="mode.set('login')">Ingresar</button>
-                  <button type="button" class="tab" [class.active]="mode() === 'register'" (click)="mode.set('register')">Crear cuenta</button>
-                </div>
+      <section class="cop-section-block">
+        <div class="container">
+          <div class="row g-4 justify-content-center">
+            <div class="col-lg-8 col-xl-7">
+              <div class="account-card cop-card">
+                <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                  <div>
+                    <span class="cop-section-eyebrow">Mi cuenta</span>
+                    <h1 class="cop-section-title text-start mb-1">Tu perfil</h1>
+                    <p class="cop-section-copy text-start mb-0">Actualiza tus datos de contacto y contraseña.</p>
+                  </div>
+                  <a routerLink="/" class="btn btn-outline-secondary btn-sm">Inicio</a>
+                </header>
 
-                @if (mode() === 'login') {
-                  <form class="row g-3 mt-3" [formGroup]="loginForm" (ngSubmit)="doLogin()">
+                @if (me$ | async; as me) {
+                  <div class="account-welcome mb-4">
+                    Sesión activa:
+                    <strong>{{ displayName(me) }}</strong>
+                  </div>
+
+                  @if (successMessage()) {
+                    <div class="alert alert-success py-2 small" role="status">{{ successMessage() }}</div>
+                  }
+                  @if (errorMessage()) {
+                    <div class="alert alert-danger py-2 small" role="alert">{{ errorMessage() }}</div>
+                  }
+
+                  <form class="row g-3" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
                     <div class="col-md-6">
-                      <label class="form-label">Correo</label>
-                      <input class="form-control" formControlName="email" placeholder="tu@gmail.com" />
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Contraseña</label>
-                      <input class="form-control" type="password" formControlName="password" />
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label">Sede</label>
-                      <select class="form-select" formControlName="siteId">
-                        @for (s of sites$ | async; track s.id) {
-                          <option [value]="s.id">{{ s.name }}</option>
-                        }
-                      </select>
-                      <div class="form-text">Se usa para asociar tu perfil a la clínica/sede.</div>
-                    </div>
-                    <div class="col-12 d-flex justify-content-end">
-                      <button class="btn btn-primary" [disabled]="loginForm.invalid || busy()">Ingresar</button>
-                    </div>
-                  </form>
-                } @else {
-                  <form class="row g-3 mt-3" [formGroup]="registerForm" (ngSubmit)="doRegister()">
-                    <div class="col-12">
-                      <label class="form-label">Sede</label>
-                      <select class="form-select" formControlName="siteId">
-                        @for (s of sites$ | async; track s.id) {
-                          <option [value]="s.id">{{ s.name }}</option>
-                        }
-                      </select>
+                      <label class="form-label" for="profile-name">Nombre completo</label>
+                      <input id="profile-name" class="form-control" formControlName="fullName" autocomplete="name" />
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label">Nombre completo</label>
-                      <input class="form-control" formControlName="fullName" />
+                      <label class="form-label" for="profile-phone">Teléfono</label>
+                      <input id="profile-phone" class="form-control" formControlName="phone" autocomplete="tel" />
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label">Teléfono</label>
-                      <input class="form-control" formControlName="phone" />
+                      <label class="form-label" for="profile-email">Correo</label>
+                      <input id="profile-email" type="email" class="form-control" formControlName="email" autocomplete="email" />
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label">Correo</label>
-                      <input class="form-control" formControlName="email" placeholder="tu@hotmail.com" />
+                      <label class="form-label" for="profile-password">Nueva contraseña (opcional)</label>
+                      <input id="profile-password" type="password" class="form-control" formControlName="password" autocomplete="new-password" />
+                      <div class="form-text">Déjala vacía si no quieres cambiarla.</div>
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label">Contraseña</label>
-                      <input class="form-control" type="password" formControlName="password" />
+                      <label class="form-label" for="profile-birth">Fecha de nacimiento</label>
+                      <input id="profile-birth" type="date" class="form-control" formControlName="birthDate" />
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label">Fecha de nacimiento</label>
-                      <input class="form-control" type="date" formControlName="birthDate" />
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Género</label>
-                      <select class="form-select" formControlName="gender">
+                      <label class="form-label" for="profile-gender">Género</label>
+                      <select id="profile-gender" class="form-select" formControlName="gender">
                         <option value="">Prefiero no decir</option>
                         <option value="M">Masculino</option>
                         <option value="F">Femenino</option>
                         <option value="O">Otro</option>
                       </select>
                     </div>
-                    <div class="col-12 d-flex justify-content-end">
-                      <button class="btn btn-primary" [disabled]="registerForm.invalid || busy()">Crear cuenta</button>
+                    <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2">
+                      <button type="button" class="btn btn-outline-danger" (click)="logout()" [disabled]="busy()">
+                        Cerrar sesión
+                      </button>
+                      <div class="d-flex gap-2">
+                        <a routerLink="/" fragment="booking" class="btn btn-outline-primary">Agendar cita</a>
+                        <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || busy()">
+                          @if (busy()) {
+                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                          }
+                          Guardar cambios
+                        </button>
+                      </div>
                     </div>
                   </form>
+                } @else {
+                  <div class="text-center py-4 text-muted">
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    Cargando perfil…
+                  </div>
                 }
-              } @else {
-                <div class="alertx">
-                  Sesión iniciada como <strong>{{ (me$ | async)?.username }}</strong>
-                </div>
-
-                <form class="row g-3 mt-2" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-                  <div class="col-md-6">
-                    <label class="form-label">Nombre completo</label>
-                    <input class="form-control" formControlName="fullName" />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Teléfono</label>
-                    <input class="form-control" formControlName="phone" />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Correo</label>
-                    <input class="form-control" formControlName="email" />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Nueva contraseña (opcional)</label>
-                    <input class="form-control" type="password" formControlName="password" />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Fecha de nacimiento</label>
-                    <input class="form-control" type="date" formControlName="birthDate" />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Género</label>
-                    <select class="form-select" formControlName="gender">
-                      <option value="">Prefiero no decir</option>
-                      <option value="M">Masculino</option>
-                      <option value="F">Femenino</option>
-                      <option value="O">Otro</option>
-                    </select>
-                  </div>
-                  <div class="col-12 d-flex justify-content-between align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-danger" (click)="logout()" [disabled]="busy()">Cerrar sesión</button>
-                    <button class="btn btn-primary" [disabled]="profileForm.invalid || busy()">Guardar cambios</button>
-                  </div>
-                </form>
-              }
-            </div>
-          </div>
-
-          <div class="col-lg-5">
-            <div class="cardx">
-              <span class="eyebrow">Tip</span>
-              <h3 class="h5 mt-2">¿Por qué crear cuenta?</h3>
-              <ul class="mb-0 text-muted">
-                <li>Editar datos si te equivocaste al reservar</li>
-                <li>Ver tu perfil y usar el mismo correo en futuras reservas</li>
-                <li>Más control y trazabilidad de tu información</li>
-              </ul>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <app-public-site-footer />
+    </div>
   `,
   styles: `
-    .section-block { padding: 2rem 0 4rem; }
-    .cardx {
-      border-radius: 1.6rem;
-      padding: 1.5rem;
-      background: rgba(255,255,255,0.94);
-      border: 1px solid rgba(148,163,184,0.14);
-      box-shadow: 0 20px 45px rgba(15,23,42,0.06);
+    .account-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--cop-surface, #faf9f7);
     }
-    .eyebrow{
-      display:inline-flex;align-items:center;border-radius:999px;padding:.35rem .75rem;
-      font-size:.78rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
-      background:#ede9fe;color:#6d28d9;
+
+    .cop-section-block {
+      flex: 1;
     }
-    .tabs{display:flex;gap:.5rem;background:#f1f5f9;border:1px solid rgba(148,163,184,.18);padding:.35rem;border-radius:999px;margin-top:1rem;}
-    .tab{border:0;background:transparent;padding:.55rem .9rem;border-radius:999px;font-weight:900;color:#475569}
-    .tab.active{background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.06);color:#0f172a}
-    .alertx{margin-top:1rem;border-radius:1rem;padding:0.85rem 1rem;background:#ecfdf5;border:1px solid #6ee7b7;color:#047857;font-weight:700;}
-  `
+
+    .account-card {
+      padding: clamp(1.25rem, 3vw, 2rem);
+    }
+
+    .account-welcome {
+      border-radius: var(--cop-radius-md);
+      padding: 0.85rem 1rem;
+      background: var(--cop-brand-light, #e6f4f3);
+      color: var(--cop-brand-dark, #0a5855);
+      font-size: 0.95rem;
+    }
+  `,
 })
 export class PublicAccountPageComponent implements OnInit {
-  mode = signal<'login' | 'register'>('login');
-  busy = signal(false);
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
-  sites$!: Observable<any[]>;
-  me$!: Observable<any>;
+  readonly busy = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly me$ = this.auth.current$();
 
-  loginForm!: FormGroup;
-  registerForm!: FormGroup;
-  profileForm!: FormGroup;
-
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly auth: AuthService,
-    private readonly publicBooking: PublicBookingService,
-  ) {
-    this.sites$ = this.publicBooking.listSites$();
-    this.me$ = this.auth.current$();
-
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      siteId: ['', [Validators.required]],
-    });
-
-    this.registerForm = this.fb.group({
-      siteId: ['', [Validators.required]],
-      fullName: ['', [Validators.required, Validators.minLength(3)]],
-      phone: [''],
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      birthDate: [''],
-      gender: [''],
-    });
-
-    this.profileForm = this.fb.group({
-      fullName: ['', [Validators.required, Validators.minLength(3)]],
-      phone: [''],
-      email: ['', [Validators.required, Validators.email]],
-      password: [''],
-      birthDate: [''],
-      gender: [''],
-    });
-  }
+  readonly profileForm = this.fb.nonNullable.group({
+    fullName: ['', [Validators.required, Validators.minLength(3)]],
+    phone: [''],
+    email: ['', [Validators.required, Validators.email]],
+    password: [''],
+    birthDate: [''],
+    gender: ['' as '' | 'M' | 'F' | 'O'],
+  });
 
   ngOnInit(): void {
-    // Best-effort: if token exists load me.
-    if (this.auth.isLoggedIn()) this.auth.loadMe$().subscribe();
+    if (!this.auth.isLoggedIn()) {
+      void this.router.navigate(['/login'], { queryParams: { returnUrl: '/account' } });
+      return;
+    }
 
-    combineLatest([this.me$, of(null)]).pipe(map(([me]) => me)).subscribe((me) => {
-      const p = me?.profile;
-      if (!p) return;
-      this.profileForm.patchValue({
-        fullName: p.fullName ?? '',
-        phone: p.phone ?? '',
-        email: p.email ?? me?.username ?? '',
-        birthDate: p.birthDate ?? '',
-        gender: p.gender ?? '',
-        password: '',
-      });
+    this.auth.loadMe$().subscribe((me) => {
+      if (!me) {
+        void this.router.navigate(['/login'], { queryParams: { returnUrl: '/account' } });
+        return;
+      }
+      this.patchProfile(me);
+    });
+
+    this.me$.subscribe((me) => {
+      if (me) this.patchProfile(me);
     });
   }
 
-  doLogin(): void {
-    if (this.loginForm.invalid) return;
-    this.busy.set(true);
-    const v = this.loginForm.getRawValue();
-    this.auth.login$({ email: v.email!, password: v.password!, siteId: v.siteId! }).subscribe({
-      next: () => this.busy.set(false),
-      error: () => this.busy.set(false),
-    });
+  protected displayName(me: MeResponse | null): string {
+    if (!me) return '';
+    return me.profile?.fullName?.trim() || me.username;
   }
 
-  doRegister(): void {
-    if (this.registerForm.invalid) return;
+  protected saveProfile(): void {
+    if (this.profileForm.invalid) {
+      this.profileForm.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
-    const v = this.registerForm.getRawValue();
-    this.auth
-      .register$({
-        siteId: v.siteId!,
-        email: v.email!,
-        password: v.password!,
-        fullName: v.fullName!,
-        phone: v.phone || undefined,
-        birthDate: v.birthDate || undefined,
-        gender: (v.gender as any) || undefined,
-      })
-      .subscribe({
-        next: () => this.busy.set(false),
-        error: () => this.busy.set(false),
-      });
-  }
-
-  saveProfile(): void {
-    if (this.profileForm.invalid) return;
-    this.busy.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     const v = this.profileForm.getRawValue();
     this.auth
       .updateMe$({
-        fullName: v.fullName!,
+        fullName: v.fullName,
         phone: v.phone || undefined,
         email: v.email || undefined,
         birthDate: v.birthDate || undefined,
-        gender: (v.gender as any) || undefined,
+        gender: v.gender || undefined,
         password: v.password || undefined,
       })
       .subscribe({
-        next: () => this.busy.set(false),
-        error: () => this.busy.set(false),
+        next: () => {
+          this.busy.set(false);
+          this.successMessage.set('Perfil actualizado correctamente.');
+          this.profileForm.patchValue({ password: '' });
+        },
+        error: (err) => {
+          this.busy.set(false);
+          this.errorMessage.set(extractHttpErrorMessage(err, 'No pudimos guardar los cambios.'));
+        },
       });
   }
 
-  logout(): void {
+  protected logout(): void {
     this.busy.set(true);
-    this.auth.logout$().subscribe({ next: () => this.busy.set(false), error: () => this.busy.set(false) });
+    this.auth.logout$().subscribe({
+      next: () => {
+        this.busy.set(false);
+        void this.router.navigateByUrl('/');
+      },
+      error: () => {
+        this.busy.set(false);
+        void this.router.navigateByUrl('/');
+      },
+    });
+  }
+
+  private patchProfile(me: MeResponse): void {
+    const p = me.profile;
+    this.profileForm.patchValue({
+      fullName: p?.fullName ?? '',
+      phone: p?.phone ?? '',
+      email: p?.email ?? me.username ?? '',
+      birthDate: p?.birthDate ?? '',
+      gender: p?.gender ?? '',
+      password: '',
+    });
   }
 }
-

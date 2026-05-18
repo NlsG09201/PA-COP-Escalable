@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, switchMap, takeWhile, timer } from 'rxjs';
 import { DASHBOARD_URL } from '../../core/config/dashboard.config';
+import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
 import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './data-access/public-booking.service';
 
 @Component({
@@ -14,15 +15,26 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
     <section class="confirmation-shell" data-testid="public-booking-confirmation">
       <div class="container py-5">
         <div class="confirmation-card mx-auto">
-          <span class="section-eyebrow">Confirmacion publica</span>
+          <span class="section-eyebrow">Confirmación pública</span>
           <h1 class="h3 mt-3 mb-2">Estado de tu reserva</h1>
-          <p class="text-muted mb-4">Aqui puedes verificar si el horario quedo reservado y confirmado en el sistema.</p>
+          <p class="text-muted mb-4">Aquí puedes verificar si el horario quedó reservado y confirmado en el sistema.</p>
 
+          @if (loading()) {
+            <div class="text-center py-5" aria-live="polite" data-testid="confirmation-loading">
+              <div class="spinner-border text-primary mb-2" role="status"></div>
+              <p class="text-muted small mb-0">Consultando estado de la reserva…</p>
+            </div>
+          } @else if (loadError() && !booking()) {
+            <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert" data-testid="confirmation-error">
+              <span>{{ loadError() }}</span>
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="refreshNow()">Reintentar</button>
+            </div>
+          } @else {
           <div class="status-banner" data-testid="confirmation-auto-refresh">
             <div>
-              <strong>Actualizacion automatica</strong>
+              <strong>Actualización automática</strong>
               <p class="mb-0 text-muted small">
-                {{ autoRefreshEnabled() ? 'Activa mientras la reserva siga pendiente.' : 'Detenida porque la reserva ya llego a un estado final.' }}
+                {{ autoRefreshEnabled() ? 'Activa mientras la reserva siga pendiente.' : 'Detenida porque la reserva ya llegó a un estado final.' }}
               </p>
             </div>
             <span class="status-pill">{{ lastUpdatedAt() ? ('Actualizado ' + (lastUpdatedAt() | date: 'shortTime')) : 'Sin datos' }}</span>
@@ -61,7 +73,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
               </div>
               <div class="detail-item detail-item-wide" data-testid="confirmation-payment-status">
                 <span>Pago</span>
-                <strong>{{ booking.payment?.status ?? 'SIN INTENCION' }}</strong>
+                <strong>{{ booking.payment?.status ?? 'SIN INTENCIÓN' }}</strong>
               </div>
               <div class="detail-item detail-item-wide" data-testid="confirmation-provider-status">
                 <span>Estado proveedor</span>
@@ -89,7 +101,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
               <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                 <div>
                   <span class="section-eyebrow">Trazabilidad</span>
-                  <h2 class="h5 mt-2 mb-0">Linea de tiempo de la reserva</h2>
+                  <h2 class="h5 mt-2 mb-0">Línea de tiempo de la reserva</h2>
                 </div>
                 <span class="badge rounded-pill text-bg-light">{{ timeline().length }} eventos</span>
               </div>
@@ -109,7 +121,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
                     </p>
                   </article>
                 } @empty {
-                  <div class="detail-item">Aun no hay eventos adicionales para esta reserva.</div>
+                  <div class="detail-item">Aún no hay eventos adicionales para esta reserva.</div>
                 }
               </div>
             </div>
@@ -118,7 +130,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
               <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                 <div>
                   <span class="section-eyebrow">Notificaciones</span>
-                  <h2 class="h5 mt-2 mb-0">Envios registrados</h2>
+                  <h2 class="h5 mt-2 mb-0">Envíos registrados</h2>
                 </div>
                 <span class="badge rounded-pill text-bg-light">{{ notifications().length }}</span>
               </div>
@@ -149,20 +161,31 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
                     }
                   </article>
                 } @empty {
-                  <div class="detail-item">Todavia no hay notificaciones persistidas para esta reserva.</div>
+                  <div class="detail-item">Todavía no hay notificaciones persistidas para esta reserva.</div>
                 }
               </div>
             </div>
           }
 
           <div class="d-flex flex-wrap gap-3 mt-4">
-            <button type="button" class="btn btn-outline-primary" data-testid="confirmation-refresh" (click)="refreshNow()">Actualizar ahora</button>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              data-testid="confirmation-refresh"
+              (click)="refreshNow()"
+              [disabled]="refreshing()">
+              @if (refreshing()) {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              }
+              Actualizar ahora
+            </button>
             @if (booking()?.payment?.checkoutUrl && booking()?.payment?.status !== 'PAID' && booking()?.status !== 'CONFIRMED') {
               <a [href]="booking()?.payment?.checkoutUrl" class="btn btn-primary" data-testid="confirmation-continue-checkout">Continuar checkout sandbox</a>
             }
             <a routerLink="/" class="btn btn-primary">Volver al inicio</a>
             <a [href]="dashboardLoginUrl" class="btn btn-outline-secondary">Ingreso profesional</a>
           </div>
+          }
         </div>
       </div>
     </section>
@@ -194,8 +217,8 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      background: #ede9fe;
-      color: #6d28d9;
+      background: var(--cop-brand-light, #e6f4f3);
+      color: var(--cop-brand-dark, #0a5855);
     }
 
     .detail-grid {
@@ -321,6 +344,9 @@ export class PublicBookingConfirmationComponent {
   protected readonly booking = signal<PublicBookingVm | null>(null);
   protected readonly notifications = signal<PublicNotificationVm[]>([]);
   protected readonly lastUpdatedAt = signal<string | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly refreshing = signal(false);
+  protected readonly loadError = signal('');
   protected readonly autoRefreshEnabled = computed(() => {
     const booking = this.booking();
     if (!booking) {
@@ -334,7 +360,7 @@ export class PublicBookingConfirmationComponent {
       return {
         tone: 'info',
         title: 'Cargando estado de la reserva',
-        detail: 'Estamos consultando la informacion mas reciente.'
+        detail: 'Estamos consultando la información más reciente.'
       };
     }
 
@@ -342,7 +368,7 @@ export class PublicBookingConfirmationComponent {
       return {
         tone: 'success',
         title: 'Reserva confirmada',
-        detail: 'Tu cita ya quedo registrada y el pago aparece como aplicado correctamente.'
+        detail: 'Tu cita ya quedó registrada y el pago aparece como aplicado correctamente.'
       };
     }
 
@@ -350,7 +376,7 @@ export class PublicBookingConfirmationComponent {
       return {
         tone: 'danger',
         title: 'Pre-reserva expirada',
-        detail: 'El horario ya no esta bloqueado. Debes volver al inicio y generar una nueva reserva.'
+        detail: 'El horario ya no está bloqueado. Debes volver al inicio y generar una nueva reserva.'
       };
     }
 
@@ -358,7 +384,7 @@ export class PublicBookingConfirmationComponent {
       return {
         tone: 'danger',
         title: 'Pago no completado',
-        detail: booking.payment.failureReason || 'Puedes volver al checkout sandbox o generar una nueva intencion de pago.'
+        detail: booking.payment.failureReason || 'Puedes volver al checkout sandbox o generar una nueva intención de pago.'
       };
     }
 
@@ -366,7 +392,7 @@ export class PublicBookingConfirmationComponent {
       return {
         tone: 'info',
         title: 'Pago en proceso',
-        detail: 'Estamos esperando la confirmacion final del proveedor. Esta pantalla se seguira actualizando.'
+        detail: 'Estamos esperando la confirmación final del proveedor. Esta pantalla se seguirá actualizando.'
       };
     }
 
@@ -425,7 +451,7 @@ export class PublicBookingConfirmationComponent {
       ...events,
       ...this.notifications().map((notification) => ({
         id: `notification-${notification.id}`,
-        title: `Notificacion ${notification.channel}`,
+        title: `Notificación ${notification.channel}`,
         detail: notification.recipient || notification.templateCode || 'Sin detalle',
         status: notification.status,
         at: notification.sentAt ?? notification.createdAt
@@ -450,38 +476,52 @@ export class PublicBookingConfirmationComponent {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(({ booking, notifications }) => {
-        this.booking.set(booking);
-        this.notifications.set(notifications);
-        this.lastUpdatedAt.set(new Date().toISOString());
+        this.applyBundle(booking, notifications);
       });
   }
 
   protected refreshNow(): void {
     const bookingId = this.activeBookingId();
     if (!bookingId) {
+      this.loadError.set('No se encontró el identificador de la reserva.');
+      this.loading.set(false);
       return;
     }
 
+    this.refreshing.set(true);
+    this.loadError.set('');
     this.loadBookingBundle$(bookingId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ booking, notifications }) => {
-        this.booking.set(booking);
-        this.notifications.set(notifications);
-        this.lastUpdatedAt.set(new Date().toISOString());
+        this.applyBundle(booking, notifications);
+        this.refreshing.set(false);
       });
   }
 
+  private applyBundle(booking: PublicBookingVm | null, notifications: PublicNotificationVm[]): void {
+    this.loading.set(false);
+    if (booking) {
+      this.loadError.set('');
+    }
+    this.booking.set(booking);
+    this.notifications.set(notifications);
+    this.lastUpdatedAt.set(new Date().toISOString());
+  }
+
   private loadBookingBundle$(bookingId: string) {
+    if (!bookingId.trim()) {
+      this.loadError.set('Enlace de confirmación inválido.');
+      return of({ booking: null as PublicBookingVm | null, notifications: [] as PublicNotificationVm[] });
+    }
+
     return forkJoin({
       booking: this.bookingService.getBooking$(bookingId),
-      notifications: this.bookingService.getBookingNotifications$(bookingId)
+      notifications: this.bookingService.getBookingNotifications$(bookingId),
     }).pipe(
-      catchError(() =>
-        of({
-          booking: this.booking(),
-          notifications: this.notifications()
-        })
-      )
+      catchError((err) => {
+        this.loadError.set(extractHttpErrorMessage(err, 'No pudimos cargar el estado de la reserva.'));
+        return of({ booking: null, notifications: [] });
+      }),
     );
   }
 }

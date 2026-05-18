@@ -8,6 +8,8 @@ import { PublicSiteHeaderComponent } from './components/public-site-header.compo
 import { PublicAboutSectionComponent } from './components/public-about-section.component';
 import { PublicGallerySectionComponent } from './components/public-gallery-section.component';
 import { PublicReviewsSectionComponent } from './components/public-reviews-section.component';
+import { PublicSiteFooterComponent } from './components/public-site-footer.component';
+import { PublicTrustStripComponent } from './components/public-trust-strip.component';
 import { PublicSiteFacade } from './data-access/public-site.facade';
 
 @Component({
@@ -19,6 +21,8 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
     PublicHeroSectionComponent,
     PublicGallerySectionComponent,
     PublicReviewsSectionComponent,
+    PublicTrustStripComponent,
+    PublicSiteFooterComponent,
     PublicServiceCatalogComponent,
     PublicPricingGridComponent,
     PublicBookingFlowComponent
@@ -35,36 +39,16 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [selectedDurationMinutes]="facade.selectedService()?.durationMinutes ?? 0"
         [serviceCount]="facade.services().length" />
 
+      <app-public-trust-strip />
+
       <app-public-about-section />
 
       @if (facade.pageError()) {
         <section class="status-strip">
           <div class="container">
             <div class="status-card status-card-danger">
-              <strong>No pudimos completar una parte del flujo publico.</strong>
+              <strong>No pudimos completar una parte del flujo público.</strong>
               <span>{{ facade.pageError() }}</span>
-            </div>
-          </div>
-        </section>
-      }
-
-      @if (facade.loadingSites() && !facade.hasCatalogData()) {
-        <section class="status-strip">
-          <div class="container">
-            <div class="status-card">
-              <strong>Cargando configuracion publica...</strong>
-              <span>Estamos consultando sedes, catalogo y disponibilidad inicial.</span>
-            </div>
-          </div>
-        </section>
-      }
-
-      @if (facade.loadingServices() && facade.sites().length > 0) {
-        <section class="status-strip">
-          <div class="container">
-            <div class="status-card">
-              <strong>Actualizando catalogo para la sede seleccionada...</strong>
-              <span>Los servicios y horarios se sincronizan en tiempo real con la API publica.</span>
             </div>
           </div>
         </section>
@@ -87,7 +71,13 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [bookingForm]="facade.bookingForm"
         [departments]="facade.departments()"
         [selectedDepartment]="facade.selectedDepartment()"
-        [sites]="facade.sites()"
+        [sites]="facade.filteredSites()"
+        [totalSitesCount]="facade.sites().length"
+        [siteSearch]="facade.siteSearch()"
+        [sitesLoadError]="facade.sitesLoadError()"
+        [servicesLoadError]="facade.servicesLoadError()"
+        [loadingSites]="facade.loadingSites()"
+        [loadingServices]="facade.loadingServices()"
         [services]="facade.services()"
         [slots]="facade.availabilitySlots()"
         [bookings]="facade.recentBookings()"
@@ -101,12 +91,17 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
         [submitting]="facade.submitting()"
         [processingPayment]="facade.processingPayment()"
         (departmentChange)="facade.onDepartmentSelected($event)"
+        (siteSearchChange)="facade.setSiteSearch($event)"
+        (retryLoadSites)="facade.retryLoadSites()"
+        (retryLoadServices)="facade.retryLoadServices()"
         (siteChange)="facade.onSiteSelected($event)"
         (serviceChange)="facade.onServiceSelected($event)"
         (slotSelected)="facade.bookingForm.controls.slotStartAt.setValue($event)"
         (submitBooking)="facade.bookAppointment()"
         (prepareCheckout)="facade.prepareCheckout()"
         (payNow)="facade.completePayment()" />
+
+      <app-public-site-footer />
     </div>
   `,
   styles: `
@@ -115,11 +110,11 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
     }
 
     .landing-shell {
-      color: #0f172a;
+      color: var(--cop-ink, #0f1c1e);
       background:
-        radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(124, 58, 237, 0.12), transparent 26%),
-        #f8fafc;
+        radial-gradient(ellipse 80% 50% at 10% -10%, rgba(13, 110, 106, 0.06), transparent 50%),
+        radial-gradient(ellipse 60% 40% at 90% 0%, rgba(30, 107, 154, 0.05), transparent 45%),
+        var(--cop-surface, #faf9f7);
     }
     .status-strip {
       padding: 0 0 1.5rem;

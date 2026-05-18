@@ -21,21 +21,217 @@
 @use "@coreui/coreui/scss/helpers";
 @use "@coreui/coreui/scss/utilities/api";
 
-body {
-  background-color: #f4f7fb;
-  color: #0f172a;
-  font-family:
-    Inter,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  text-rendering: optimizeLegibility;
+/* Centro COP — design tokens (clínica premium) */
+:root {
+  --cop-brand: #0d6e6a;
+  --cop-brand-dark: #0a5855;
+  --cop-brand-light: #e6f4f3;
+  --cop-accent: #1e6b9a;
+  --cop-accent-soft: #e8f2f8;
+
+  --cop-ink: #0f1c1e;
+  --cop-ink-muted: #5c6b6e;
+  --cop-ink-subtle: #8a9799;
+
+  --cop-surface: #faf9f7;
+  --cop-surface-elevated: #ffffff;
+  --cop-border: rgba(15, 28, 30, 0.08);
+  --cop-border-strong: rgba(15, 28, 30, 0.12);
+
+  --cop-radius-sm: 0.75rem;
+  --cop-radius-md: 1.25rem;
+  --cop-radius-lg: 1.75rem;
+  --cop-radius-pill: 999px;
+
+  --cop-shadow-sm: 0 4px 20px rgba(15, 28, 30, 0.04);
+  --cop-shadow-md: 0 16px 48px rgba(15, 28, 30, 0.08);
+  --cop-shadow-lg: 0 24px 64px rgba(15, 28, 30, 0.1);
+
+  --cop-font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --cop-section-y: clamp(3rem, 7vw, 5.5rem);
+
+  --bs-primary: #0d6e6a;
+  --bs-primary-rgb: 13, 110, 106;
+  --bs-link-color: #0d6e6a;
+  --bs-link-hover-color: #0a5855;
 }
 
 html {
   scroll-behavior: smooth;
 }
 
+body {
+  background-color: var(--cop-surface);
+  color: var(--cop-ink);
+  font-family: var(--cop-font);
+  font-size: 1rem;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
 a {
   color: inherit;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--cop-brand);
+  --bs-btn-border-color: var(--cop-brand);
+  --bs-btn-hover-bg: var(--cop-brand-dark);
+  --bs-btn-hover-border-color: var(--cop-brand-dark);
+  --bs-btn-active-bg: var(--cop-brand-dark);
+  --bs-btn-active-border-color: var(--cop-brand-dark);
+  font-weight: 600;
+  border-radius: var(--cop-radius-pill);
+  padding-inline: 1.35rem;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--cop-brand);
+  --bs-btn-border-color: var(--cop-brand);
+  --bs-btn-hover-bg: var(--cop-brand);
+  --bs-btn-hover-border-color: var(--cop-brand);
+  font-weight: 600;
+  border-radius: var(--cop-radius-pill);
+}
+
+.form-control,
+.form-select {
+  border-radius: var(--cop-radius-sm);
+  border-color: var(--cop-border-strong);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--cop-brand);
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 106, 0.15);
+}
+
+/* Secciones compartidas */
+.cop-section-block {
+  padding-block: var(--cop-section-y);
+}
+
+.cop-section-head {
+  text-align: center;
+  max-width: 42rem;
+  margin-inline: auto;
+  margin-bottom: 2.5rem;
+}
+
+.cop-section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--cop-radius-pill);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--cop-brand-light);
+  color: var(--cop-brand-dark);
+}
+
+.cop-section-title {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--cop-ink);
+  margin: 0.85rem 0 0.75rem;
+}
+
+.cop-section-copy {
+  color: var(--cop-ink-muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.cop-card {
+  background: var(--cop-surface-elevated);
+  border: 1px solid var(--cop-border);
+  border-radius: var(--cop-radius-lg);
+  box-shadow: var(--cop-shadow-sm);
+}
+
+.cop-section-muted {
+  background: var(--cop-surface-elevated);
+  border-block: 1px solid var(--cop-border);
+}
+
+.nav-user {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tipografía y accesibilidad (UI Designer / Brand Guardian) */
+h1,
+h2,
+h3,
+h4,
+.h1,
+.h2,
+.h3,
+.h4 {
+  color: var(--cop-ink);
+  letter-spacing: -0.02em;
+}
+
+.text-muted {
+  color: var(--cop-ink-muted) !important;
+}
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+  outline: 2px solid var(--cop-brand);
+  outline-offset: 2px;
+}
+
+.btn-lg {
+  padding-block: 0.75rem;
+  font-size: 1.05rem;
+}
+
+.btn-outline-light {
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.55);
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.12);
+  --bs-btn-hover-border-color: #fff;
+  --bs-btn-hover-color: #fff;
+  font-weight: 600;
+  border-radius: var(--cop-radius-pill);
+}
+
+.cop-card-hover {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.cop-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--cop-shadow-md);
+}
+
+.landing-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

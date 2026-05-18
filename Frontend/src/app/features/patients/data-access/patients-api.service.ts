@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
@@ -10,6 +10,8 @@ export interface PatientVm {
   lastVisit: string;
   status: string;
 }
+
+const SKIP_GLOBAL_LOADER = { headers: new HttpHeaders({ 'X-Skip-Loader': '1' }) };
 
 @Injectable({ providedIn: 'root' })
 export class PatientsApiService {
@@ -31,7 +33,7 @@ export class PatientsApiService {
     return this.http
       .get<{ items?: unknown[]; page?: number; size?: number; total?: number; hasNext?: boolean }>(
         `${API_BASE_URL}/api/patients`,
-        { params },
+        { params, ...SKIP_GLOBAL_LOADER },
       )
       .pipe(
         map((raw) => ({

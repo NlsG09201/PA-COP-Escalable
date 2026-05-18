@@ -8,13 +8,13 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
   imports: [CommonModule, CurrencyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section id="services" class="section-block">
+    <section id="services" class="cop-section-block">
       <div class="container">
-        <div class="section-head">
-          <span class="section-eyebrow">Servicios</span>
-          <h2>Catalogo publico por especialidad</h2>
-          <p>Informacion clara, beneficios visibles y precios preparados para promociones y pagos futuros.</p>
-        </div>
+        <header class="cop-section-head">
+          <span class="cop-section-eyebrow">Servicios</span>
+          <h2 class="cop-section-title">Catálogo por especialidad</h2>
+          <p class="cop-section-copy">Información clara, beneficios visibles y precios transparentes para planificar tu cita.</p>
+        </header>
 
         @for (group of groupedServices(); track group.category) {
           <div class="category-block">
@@ -22,7 +22,7 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
             <div class="row g-4">
               @for (service of group.items; track service.id) {
                 <div class="col-md-6 col-xl-4">
-                  <article class="service-card h-100" [class.service-card-active]="service.id === selectedServiceId">
+                  <article class="service-card cop-card-hover h-100" [class.service-card-active]="service.id === selectedServiceId">
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                       <div>
                         <span class="service-category">{{ service.category }}</span>
@@ -42,7 +42,7 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
                       }
                     </div>
 
-                    <p class="duration-line">Duracion estimada: {{ service.durationMinutes }} min</p>
+                    <p class="duration-line">Duración estimada: {{ service.durationMinutes }} min</p>
 
                     <ul class="service-features">
                       @for (feature of service.features; track feature) {
@@ -68,67 +68,38 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
     }
 
     .category-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #334155;
+      letter-spacing: 0.06em;
+      color: var(--cop-ink-muted, #5c6b6e);
       margin: 0 0 1rem;
-      font-weight: 800;
-    }
-
-    .section-block {
-      padding: 1.5rem 0 4rem;
-    }
-
-    .section-head {
-      max-width: 42rem;
-      margin: 0 auto 2rem;
-      text-align: center;
-    }
-
-    .section-head h2 {
-      font-size: clamp(1.8rem, 4vw, 3rem);
-      line-height: 1.1;
-      margin: 0.85rem 0;
-      font-weight: 800;
-    }
-
-    .section-head p {
-      color: #64748b;
-      font-size: 1rem;
-    }
-
-    .section-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.78rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: #ede9fe;
-      color: #6d28d9;
     }
 
     .service-card {
       height: 100%;
-      border-radius: 1.6rem;
+      border-radius: var(--cop-radius-lg, 1.75rem);
       padding: 1.5rem;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(148, 163, 184, 0.14);
-      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06);
+      background: var(--cop-surface-elevated, #fff);
+      border: 1px solid var(--cop-border, rgba(15, 28, 30, 0.08));
+      box-shadow: var(--cop-shadow-sm);
       display: flex;
       flex-direction: column;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .service-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--cop-shadow-md);
     }
 
     .service-card-active {
-      border-color: rgba(37, 99, 235, 0.3);
-      transform: translateY(-2px);
+      border-color: rgba(13, 110, 106, 0.35);
+      box-shadow: var(--cop-shadow-md);
     }
 
     .service-category {
-      color: #2563eb;
+      color: var(--cop-brand, #0d6e6a);
       font-size: 0.8rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -147,13 +118,13 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
     }
 
     .price-line span {
-      color: #94a3b8;
+      color: var(--cop-ink-subtle, #8a9799);
       text-decoration: line-through;
     }
 
     .duration-line {
       margin: 0 0 1rem;
-      color: #64748b;
+      color: var(--cop-ink-muted, #5c6b6e);
       font-size: 0.92rem;
     }
 
@@ -163,12 +134,12 @@ import { PublicServiceVm } from '../data-access/public-booking.service';
       margin: 0 0 1.5rem;
       display: grid;
       gap: 0.65rem;
-      color: #334155;
+      color: var(--cop-ink-muted, #5c6b6e);
     }
 
     .service-features li::before {
       content: "•";
-      color: #7c3aed;
+      color: var(--cop-brand, #0d6e6a);
       margin-right: 0.5rem;
     }
   `

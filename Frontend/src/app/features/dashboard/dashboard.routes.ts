@@ -197,7 +197,7 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: this.appointmentsTrend.map((x) => x.bucket) },
       yAxis: { type: 'value' },
-      series: [{ type: 'line', smooth: true, areaStyle: {}, data: this.appointmentsTrend.map((x) => x.total), color: '#2563eb' }],
+      series: [{ type: 'line', smooth: true, areaStyle: {}, data: this.appointmentsTrend.map((x) => x.total), color: '#0d6e6a' }],
       grid: { left: 30, right: 15, top: 10, bottom: 30 }
     });
     this.chartRevenue.setOption({
@@ -237,7 +237,7 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: this.j48Monthly.map((x) => x.bucket) },
       yAxis: { type: 'value', minInterval: 1 },
-      series: [{ type: 'bar', data: this.j48Monthly.map((x) => x.total), itemStyle: { color: '#7c3aed' } }],
+      series: [{ type: 'bar', data: this.j48Monthly.map((x) => x.total), itemStyle: { color: '#1e6b9a' } }],
       grid: { left: 40, right: 15, top: 10, bottom: 30 },
     });
   }
