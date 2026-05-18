@@ -33,6 +33,18 @@ services:
         sync: false
       - key: PUBLIC_SITE_URL
         sync: false
+      - key: APP_BOOTSTRAP_ADMIN_USERNAME
+        sync: false
+      - key: APP_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: APP_BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_INTEGRITY_SECRET
+        sync: false
+      - key: WOMPI_EVENTS_SECRET
+        sync: false
 
   - type: web
     name: cop-j48-service
