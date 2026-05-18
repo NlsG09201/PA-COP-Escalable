@@ -94,7 +94,7 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
                 }
                 @if (showDevLoginHint) {
                   <div class="alert alert-secondary py-2 small">
-                    Desarrollo: usuario <strong>nelsonh09</strong> (también puedes usar tu correo vinculado).
+                    Modo desarrollo: usa las credenciales de tu entorno local (.env / Docker).
                   </div>
                 }
                 <button class="btn btn-primary w-100" data-testid="login-submit" [disabled]="form.invalid || loading">
@@ -110,9 +110,6 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
   `,
 })
 export class LoginComponent {
-  private static readonly DEV_DEFAULT_USERNAME = 'nelsonh09';
-  private static readonly DEV_DEFAULT_PASSWORD = 'NelsonH09092001';
-
   private readonly fb = inject(FormBuilder);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
@@ -130,8 +127,8 @@ export class LoginComponent {
   protected sitesLoading = true;
 
   protected readonly form = this.fb.nonNullable.group({
-    username: [isDevMode() ? LoginComponent.DEV_DEFAULT_USERNAME : '', [Validators.required]],
-    password: [isDevMode() ? LoginComponent.DEV_DEFAULT_PASSWORD : '', [Validators.required]],
+    username: ['', [Validators.required]],
+    password: ['', [Validators.required]],
     siteId: ['', [Validators.required]],
   });
 

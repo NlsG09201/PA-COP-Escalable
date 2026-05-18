@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, production-readiness, 'release/**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nest-backend:
+    name: Nest API build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nest-migration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: nest-migration/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Production env guard (smoke)
+        run: node -e "process.env.NODE_ENV='production';process.env.JWT_SECRET='x';process.env.CORS_ORIGINS='https://a.com';process.env.MONGODB_URL='mongodb://localhost';process.env.REDIS_URL='redis://localhost';require('./dist/config/env.validation').assertProductionEnv();console.log('ok')"
+        env:
+          NODE_ENV: production
+
+  frontend:
+    name: Dashboard build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  publicweb:
+    name: PublicWeb build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: PublicWeb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: PublicWeb/package-lock.json
+      - run: npm ci
+      - run: npm run build

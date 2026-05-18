@@ -27,6 +27,12 @@ services:
         value: "true"
       - key: PUBLIC_API_ORIGIN
         sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+      - key: PUBLIC_SITE_URL
+        sync: false
 
   - type: web
     name: cop-j48-service
