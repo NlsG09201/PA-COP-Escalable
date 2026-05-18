@@ -47,6 +47,6 @@ import Redis from 'ioredis';
       inject: [ConfigService],
     },
   ],
-  exports: [IamService, JwtAuthGuard, RolesGuard],
+  exports: [IamService, JwtAuthGuard, RolesGuard, 'REDIS_CLIENT'],
 })
 export class IamModule {}
