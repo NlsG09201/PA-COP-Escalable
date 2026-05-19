@@ -5,7 +5,11 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { assertProductionEnv, isProduction } from './config/env.validation';
+import {
+  assertProductionEnv,
+  isProduction,
+  resolveCorsOrigins,
+} from './config/env.validation';
 
 async function bootstrap() {
   assertProductionEnv();
@@ -16,7 +20,6 @@ async function bootstrap() {
       : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
   const logger = new Logger('Bootstrap');
-
   app.set('trust proxy', 1);
 
   app.use(
@@ -25,13 +28,16 @@ async function bootstrap() {
     }),
   );
 
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  const corsOrigins = resolveCorsOrigins();
 
   if (isProduction() && !corsOrigins.length) {
-    throw new Error('CORS_ORIGINS is required in production');
+    throw new Error(
+      'CORS_ORIGINS or DASHBOARD_URL + PUBLIC_SITE_URL required in production',
+    );
+  }
+
+  if (isProduction() && corsOrigins.length) {
+    logger.log(`CORS origins: ${corsOrigins.join(', ')}`);
   }
 
   app.enableCors({
