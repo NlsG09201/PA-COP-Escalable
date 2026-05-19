@@ -17,13 +17,26 @@ if (!app || !['PublicWeb', 'Frontend'].includes(app)) {
   process.exit(1);
 }
 
-const host = (process.env.RENDER_API_HOST ?? '')
+const rawHost =
+  process.env.RENDER_API_HOST ??
+  process.env.RENDER_API_URL ??
+  process.env.PUBLIC_API_ORIGIN ??
+  '';
+
+const host = rawHost
   .trim()
   .replace(/^https?:\/\//i, '')
   .replace(/\/$/, '');
 
-if (!host) {
-  console.error('Falta RENDER_API_HOST (ej. cop-nest-api.onrender.com)');
+if (!host || host.includes('YOUR_RENDER')) {
+  console.error(`
+[prepare-vercel] Falta RENDER_API_HOST en Vercel.
+
+  Settings → Environment Variables → Production:
+    RENDER_API_HOST = cop-nest-api.onrender.com   (sin https://)
+
+  Root Directory del proyecto: PublicWeb o Frontend (no la raíz del repo).
+`);
   process.exit(1);
 }
 
@@ -48,7 +61,7 @@ const vercel = {
   $schema: 'https://openapi.vercel.sh/vercel.json',
   framework: null,
   installCommand: 'npm ci',
-  buildCommand: `node ../scripts/prepare-vercel.mjs ${app} && npm ci && npm run build`,
+  buildCommand: 'npm run vercel-build',
   outputDirectory,
   rewrites: [
     { source: '/api/(.*)', destination: `https://${host}/api/$1` },

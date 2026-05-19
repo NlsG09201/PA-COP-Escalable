@@ -61,8 +61,8 @@ Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
 ## Paso 4 — Vercel: PublicWeb (15 min)
 
 1. [vercel.com](https://vercel.com) → **Add New Project** → importa el mismo repo.
-2. **Root Directory:** `PublicWeb`
-3. **Environment Variables** (Production):
+2. **Root Directory:** `PublicWeb` (obligatorio; si dejas la raíz del repo el build falla o no encuentra el script).
+3. **Environment Variables** (Production) — marcar **Production** (y Preview si quieres):
 
 | Name | Example |
 |------|---------|
@@ -70,9 +70,7 @@ Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
 | `DASHBOARD_URL` | `https://tu-panel.vercel.app` (tras paso 5) |
 | `PUBLIC_SITE_URL` | `https://tu-web.vercel.app` |
 
-4. **Build Command** (deja el de `vercel.json` o):
-
-   `node ../scripts/prepare-vercel.mjs PublicWeb && npm ci && npm run build`
+4. **Build Command:** `npm run vercel-build` (ya en `vercel.json`; no hace falta cambiarlo).
 
 5. Deploy → copia la URL (ej. `https://cop-public.vercel.app`).
 
