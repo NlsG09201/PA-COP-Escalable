@@ -1,0 +1,15 @@
+.git
+.github
+.cursor
+**/node_modules
+**/dist
+Frontend
+PublicWeb
+ortho_system
+python-auth-api
+services
+docs
+scripts
+*.md
+.env
+.env.*

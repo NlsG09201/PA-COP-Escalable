@@ -127,7 +127,7 @@ En Render (`cop-nest-api`):
 | API no arranca | `JWT_SECRET` débil o CORS vacío en prod | Revisar logs Render |
 | `/health` 503 | Mongo/Redis mal configurados | Revisar `MONGODB_URL` / `REDIS_URL` |
 | 404 en `/api/*` desde Vercel | `RENDER_API_HOST` incorrecto | Re-deploy con variable correcta |
-| `open Dockerfile: no such file` en Render | Servicio Docker creado en la **raíz** del repo | Usar **Blueprint** con `render.yaml`, o Root Directory `nest-migration` + Dockerfile `Dockerfile` |
+| `open Dockerfile: no such file` en Render | Servicio Docker sin ruta al Dockerfile | Ya existe `/Dockerfile` en la raíz (API Nest). Redeploy. Para J48: Root `services/j48-service`. Mejor: **Blueprint** `render.yaml` |
 | Mismo error desplegando el front | PublicWeb/Frontend en Render con Docker | Usar **Vercel** (sin Docker), Root `PublicWeb` o `Frontend` |
 
 ---
