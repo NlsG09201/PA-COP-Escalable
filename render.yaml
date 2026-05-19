@@ -1,4 +1,4 @@
-# Render Blueprint — backend Nest API (espejo de /render.yaml en la raíz del repo)
+# Render Blueprint (raíz del repo). Copia espejo de deploy/render.yaml.
 # Docs: https://render.com/docs/blueprint-spec
 services:
   - type: web

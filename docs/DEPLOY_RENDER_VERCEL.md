@@ -30,8 +30,9 @@ Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
 
 ## Paso 3 — Render: API + J48 (20 min)
 
-1. [render.com](https://render.com) → **New** → **Blueprint**.
-2. Conecta repo `NlsG09201/PA-COP-Escalable`, rama `main`, archivo `deploy/render.yaml`.
+1. [render.com](https://render.com) → **New** → **Blueprint** (no “Web Service” suelto con Docker en la raíz).
+2. Conecta repo `NlsG09201/PA-COP-Escalable`, rama `main`.
+3. Blueprint file: **`render.yaml`** en la raíz (o `deploy/render.yaml` si el asistente lo pide).
 3. Cuando pida variables, rellena:
 
 | Variable | Valor |
@@ -126,6 +127,8 @@ En Render (`cop-nest-api`):
 | API no arranca | `JWT_SECRET` débil o CORS vacío en prod | Revisar logs Render |
 | `/health` 503 | Mongo/Redis mal configurados | Revisar `MONGODB_URL` / `REDIS_URL` |
 | 404 en `/api/*` desde Vercel | `RENDER_API_HOST` incorrecto | Re-deploy con variable correcta |
+| `open Dockerfile: no such file` en Render | Servicio Docker creado en la **raíz** del repo | Usar **Blueprint** con `render.yaml`, o Root Directory `nest-migration` + Dockerfile `Dockerfile` |
+| Mismo error desplegando el front | PublicWeb/Frontend en Render con Docker | Usar **Vercel** (sin Docker), Root `PublicWeb` o `Frontend` |
 
 ---
 
