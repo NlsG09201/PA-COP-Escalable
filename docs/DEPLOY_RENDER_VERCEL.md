@@ -129,6 +129,8 @@ En Render (`cop-nest-api`):
 | 404 en `/api/*` desde Vercel | `RENDER_API_HOST` incorrecto | Re-deploy con variable correcta |
 | `open Dockerfile: no such file` en Render | Servicio Docker sin ruta al Dockerfile | Ya existe `/Dockerfile` en la raíz (API Nest). Redeploy. Para J48: Root `services/j48-service`. Mejor: **Blueprint** `render.yaml` |
 | Mismo error desplegando el front | PublicWeb/Frontend en Render con Docker | Usar **Vercel** (sin Docker), Root `PublicWeb` o `Frontend` |
+| `ENOTFOUND cluster0.xxxxx` | `MONGODB_URL` es el ejemplo de `env.production.example` | Atlas → Connect → copiar URI real con tu cluster (ej. `cluster0.abc12.mongodb.net`) |
+| `ENOTFOUND host` en ioredis | `REDIS_URL` tiene literal `HOST` o placeholder | Upstash/Render → copiar URL completa con hostname real |
 
 ---
 
