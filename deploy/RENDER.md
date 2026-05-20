@@ -31,7 +31,9 @@ git push
 .\deploy\render-desplegar-100.ps1
 ```
 
-La API arranca aunque falte `REDIS_URL` (modo degradado). Para Redis completo: `.\deploy\render-solo-redis.ps1` y pega en Environment.
+La API arranca aunque falte `REDIS_URL` (modo degradado).
+
+**Upstash:** `.\deploy\upstash-redis-a-render.ps1` → guia `deploy/UPSTASH-RENDER.md` (evita WRONGPASS).
 
 ### Configuracion automatica
 
