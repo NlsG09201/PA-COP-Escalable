@@ -44,6 +44,10 @@ Si quieres colecciones vacías “a mano” en Atlas (**Data Explorer** → **Cr
 | `psychological_evaluations` | Evaluaciones |
 | `psychological_snapshots` | Snapshots para J48 |
 | `j48_predictions` | Predicciones J48 |
+| `medical_ai_alerts` | Alertas IA clínicas |
+| `medical_ai_predictions` | Ensemble J48 + RF + XGBoost |
+| `medical_ai_insights` | Insights automáticos |
+| `medical_ai_assistant_threads` | Asistente médico IA |
 | `ortho_3d_jobs` | Jobs 3D ortodoncia |
 | `public_reviews` | Reseñas web pública |
 
