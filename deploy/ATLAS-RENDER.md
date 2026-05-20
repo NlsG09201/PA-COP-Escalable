@@ -15,9 +15,12 @@ y Render termina con `No open ports detected` / `Exited with status 1`, casi sie
    - IP: `0.0.0.0/0`
    - Comentario: `Render y desarrollo`
 5. **Confirm**.
-6. Espera **1–3 minutos** (estado **Active** en la lista).
+6. Espera hasta que la entrada muestre estado **Active** (verde) — puede tardar **2–5 minutos**.
+7. Comprueba que no tengas una regla **Pending** duplicada que bloquee (borra entradas viejas en conflicto).
 
 No hace falta listar IPs de Render una por una; `0.0.0.0/0` es lo habitual para PaaS (Render, Vercel, etc.).
+
+**Importante:** si añadiste `0.0.0.0/0` hace un momento y el deploy sigue fallando, espera 3 minutos y vuelve a **Manual Deploy**. Atlas tarda en propagar la regla.
 
 ## Después
 

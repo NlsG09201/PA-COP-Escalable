@@ -49,18 +49,26 @@ import {
         const uri = config.get<string>('MONGODB_URL');
         return {
           uri,
-          serverSelectionTimeoutMS: 15_000,
-          connectTimeoutMS: 15_000,
+          lazyConnection: true,
+          serverSelectionTimeoutMS: 30_000,
+          connectTimeoutMS: 30_000,
           retryWrites: true,
+          family: 4,
           connectionFactory: (connection: import('mongoose').Connection) => {
+            connection.on('connected', () => {
+              console.error('[cop-nest-api] MongoDB Atlas: conectado');
+            });
             connection.on('error', (err: Error) => {
               const msg = err.message ?? '';
               if (/whitelist|ServerSelection|ECONNREFUSED/i.test(msg)) {
                 console.error(
-                  '[cop-nest-api] MongoDB Atlas: revisa Network Access -> Add IP -> 0.0.0.0/0. Ver deploy/ATLAS-RENDER.md',
+                  '[cop-nest-api] MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0 (Active). Ver deploy/ATLAS-RENDER.md',
                 );
+              } else {
+                console.error(`[cop-nest-api] MongoDB: ${msg}`);
               }
             });
+            void connection.asPromise().catch(() => undefined);
             return connection;
           },
         };
