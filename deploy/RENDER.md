@@ -21,7 +21,19 @@ Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dash
    - `cop-web-public` (Node, carpeta `web-public`)
    - `cop-web-dashboard` (Node, carpeta `web-dashboard`)
 
-### Configuracion automatica (recomendado)
+### Despliegue al 100% (recomendado)
+
+```powershell
+# 1. Push de los cambios (Redis ya no bloquea el arranque; health en /health/live)
+git push
+
+# 2. Configura Render (con API key en .env o interactivo)
+.\deploy\render-desplegar-100.ps1
+```
+
+La API arranca aunque falte `REDIS_URL` (modo degradado). Para Redis completo: `.\deploy\render-solo-redis.ps1` y pega en Environment.
+
+### Configuracion automatica
 
 En la raiz del repo, con `.env` completo y `RENDER_API_KEY=rnd_...`:
 

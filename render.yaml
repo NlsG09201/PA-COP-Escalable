@@ -45,7 +45,7 @@ services:
     dockerfilePath: ./nest-migration/Dockerfile
     dockerContext: ./nest-migration
     plan: starter
-    healthCheckPath: /health
+    healthCheckPath: /health/live
     envVars:
       - key: NODE_ENV
         value: production
@@ -71,13 +71,13 @@ services:
       - key: SEED_COLOMBIA_SITES
         value: "true"
       - key: PUBLIC_API_ORIGIN
-        sync: false
+        value: https://cop-nest-api.onrender.com
       - key: CORS_ORIGINS
-        sync: false
+        value: https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com
       - key: DASHBOARD_URL
-        sync: false
+        value: https://cop-web-dashboard.onrender.com
       - key: PUBLIC_SITE_URL
-        sync: false
+        value: https://cop-web-public.onrender.com
       - key: APP_BOOTSTRAP_ADMIN_USERNAME
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_PASSWORD
@@ -119,7 +119,7 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        sync: false
+        value: https://cop-nest-api.onrender.com
 
   # --- Dashboard clínico Next.js ---
   - type: web
@@ -131,4 +131,4 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        sync: false
+        value: https://cop-nest-api.onrender.com

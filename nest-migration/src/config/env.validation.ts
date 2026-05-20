@@ -345,7 +345,13 @@ export function normalizeRedisUrl(raw: string | undefined): string {
   return compact ? compact[1]! : s;
 }
 
-const REDIS_ENV_KEYS = ['REDIS_URL', 'REDIS_TLS_URL', 'UPSTASH_REDIS_URL'] as const;
+const REDIS_ENV_KEYS = [
+  'REDIS_URL',
+  'REDIS_TLS_URL',
+  'UPSTASH_REDIS_URL',
+  'KEY_VALUE_CONNECTION_STRING',
+  'KV_URL',
+] as const;
 
 /** Primera URI Redis usable (Render Key Value usa redis://red-...). */
 export function resolveRedisUrl(): string {
@@ -425,20 +431,6 @@ export function collectProductionEnvErrors(): string[] {
     );
   }
 
-  const redis = resolveRedisUrl();
-  if (!redis) {
-    const raw = (process.env.REDIS_URL ?? '').trim();
-    if (raw.includes('your-instance.upstash.io')) {
-      errors.push(
-        'REDIS_URL: en Render ELIMINA la fila con your-instance.upstash.io y ANADE REDIS_URL con tu URI rediss:// de Upstash (deploy/render-env.local.txt) o Sync Blueprint cop-redis.',
-      );
-    } else {
-      errors.push(
-        'REDIS_URL: vacía o inválida. Importa deploy/render-upload.env en Environment o Sync Blueprint (cop-redis).',
-      );
-    }
-  }
-
   if (process.env.WOMPI_SKIP_WEBHOOK_VERIFY === 'true') {
     errors.push('WOMPI_SKIP_WEBHOOK_VERIFY no puede ser true en producción.');
   }
@@ -446,12 +438,37 @@ export function collectProductionEnvErrors(): string[] {
   return errors;
 }
 
+/** Avisos (no bloquean arranque). Redis opcional para que Render pase el deploy. */
+export function collectProductionEnvWarnings(): string[] {
+  if (process.env.NODE_ENV !== 'production') return [];
+
+  const warnings: string[] = [];
+  const redis = resolveRedisUrl();
+  if (!redis) {
+    const raw = (process.env.REDIS_URL ?? '').trim();
+    if (raw.includes('your-instance.upstash.io')) {
+      warnings.push(
+        'REDIS_URL: elimina la fila con your-instance.upstash.io y anade URI valida (deploy/render-solo-redis.ps1) o Sync Blueprint cop-redis.',
+      );
+    } else {
+      warnings.push(
+        'REDIS_URL: no configurada; API en modo degradado. Ejecuta .\\deploy\\render-solo-redis.ps1 o Sync Blueprint cop-redis.',
+      );
+    }
+  }
+  return warnings;
+}
+
 export function assertProductionEnv(): void {
+  for (const w of collectProductionEnvWarnings()) {
+    console.error(`[cop-nest-api] WARN: ${w}`);
+  }
+
   const errors = collectProductionEnvErrors();
   if (errors.length) {
     const help =
       'Render NO lee Git para secretos. cop-nest-api -> Environment -> Save Changes -> Manual Deploy. ' +
-      'Script automatico: .\\deploy\\render-fix-interactivo.ps1';
+      'Script: .\\deploy\\render-desplegar-100.ps1';
     throw new Error(
       `Production env check failed (${errors.length} issue(s)):\n- ${errors.join('\n- ')}\n→ ${help}\n→ Ver deploy/RENDER.md`,
     );

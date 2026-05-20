@@ -14,8 +14,7 @@ import { BootstrapAdminService } from './bootstrap-admin.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserAccount, UserAccountSchema } from './user-account.schema';
 import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
-import Redis from 'ioredis';
-import { resolveRedisUrl } from '../../config/env.validation';
+import { createRedisClient } from '../../config/redis.client';
 
 @Module({
   imports: [
@@ -45,7 +44,7 @@ import { resolveRedisUrl } from '../../config/env.validation';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) =>
-        new Redis(resolveRedisUrl() || configService.get<string>('REDIS_URL') || ''),
+        createRedisClient(configService.get<string>('REDIS_URL')),
       inject: [ConfigService],
     },
   ],

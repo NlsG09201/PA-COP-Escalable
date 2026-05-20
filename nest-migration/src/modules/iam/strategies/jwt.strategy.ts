@@ -1,7 +1,7 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { isProduction } from '../../../config/env.validation';
+import { allowJwtWhenRedisDown } from '../../../config/redis.client';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
@@ -28,11 +28,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         if (exists) return null;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (isProduction()) {
+        if (!allowJwtWhenRedisDown()) {
           this.logger.error(`Redis blacklist check failed (${msg}); rejecting token`);
           throw new UnauthorizedException('Session validation unavailable');
         }
-        this.logger.warn(`Redis blacklist check failed (${msg}); allowing token (dev only)`);
+        this.logger.warn(`Redis blacklist check failed (${msg}); allowing token (redis degradado)`);
       }
     }
     // This return value is attached to request.user
