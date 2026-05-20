@@ -50,7 +50,6 @@ import {
         return {
           uri,
           lazyConnection: true,
-          bufferTimeoutMS: 60_000,
           serverSelectionTimeoutMS: 30_000,
           connectTimeoutMS: 30_000,
           retryWrites: true,
