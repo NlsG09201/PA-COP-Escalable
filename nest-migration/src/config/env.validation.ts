@@ -78,6 +78,51 @@ function applyEnvFileContent(
   }
 }
 
+/** Render/K8s monta secret files bajo /etc/secrets/..data/<filename>. */
+function discoverRenderSecretDirs(): string[] {
+  const secretsDir = '/etc/secrets';
+  if (!existsSync(secretsDir)) return [];
+
+  const dirs = new Set<string>([`${secretsDir}/..data`]);
+  try {
+    for (const name of readdirSync(secretsDir)) {
+      if (name === '..data' || name.startsWith('..20')) {
+        dirs.add(`${secretsDir}/${name}`);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return [...dirs].filter((d) => existsSync(d));
+}
+
+function discoverRenderSecretFilePaths(): string[] {
+  const paths = new Set<string>([...RENDER_SECRET_ENV_FILES]);
+
+  for (const dir of discoverRenderSecretDirs()) {
+    for (const base of ['cop-production.env', 'render-upload.env', '.env']) {
+      paths.add(`${dir}/${base}`);
+    }
+    try {
+      for (const name of readdirSync(dir)) {
+        if (name.startsWith('..')) continue;
+        paths.add(`${dir}/${name}`);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  for (const key of RENDER_SECRET_SINGLE_KEYS) {
+    paths.add(`/etc/secrets/${key}`);
+    for (const dir of discoverRenderSecretDirs()) {
+      paths.add(`${dir}/${key}`);
+    }
+  }
+
+  return [...paths];
+}
+
 function logRenderSecretsMountDiagnostic(): void {
   const secretsDir = '/etc/secrets';
   if (!existsSync(secretsDir)) {
@@ -89,8 +134,18 @@ function logRenderSecretsMountDiagnostic(): void {
   try {
     const names = readdirSync(secretsDir);
     console.error(
-      `[cop-nest-api] /etc/secrets (${names.length} file(s)): ${names.join(', ') || '(empty)'}`,
+      `[cop-nest-api] /etc/secrets (${names.length} entries): ${names.join(', ') || '(empty)'}`,
     );
+    for (const dir of discoverRenderSecretDirs()) {
+      try {
+        const inner = readdirSync(dir).filter((n) => !n.startsWith('..'));
+        console.error(
+          `[cop-nest-api] ${dir} (${inner.length} file(s)): ${inner.join(', ') || '(empty — sube cop-production.env en Secret Files)'}`,
+        );
+      } catch {
+        console.error(`[cop-nest-api] ${dir}: could not list`);
+      }
+    }
   } catch {
     console.error('[cop-nest-api] /etc/secrets exists but could not list');
   }
@@ -118,18 +173,29 @@ export function loadRenderSecretEnv(): void {
     }
   }
 
-  for (const filePath of RENDER_SECRET_ENV_FILES) {
+  const secretPaths = discoverRenderSecretFilePaths();
+  for (const filePath of secretPaths) {
     if (!existsSync(filePath)) continue;
-    applyEnvFileContent(readFileSync(filePath, 'utf8'), filePath);
-  }
+    let raw: string;
+    try {
+      raw = readFileSync(filePath, 'utf8');
+    } catch {
+      continue;
+    }
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
 
-  for (const key of RENDER_SECRET_SINGLE_KEYS) {
-    const filePath = `/etc/secrets/${key}`;
-    if (!existsSync(filePath)) continue;
-    const value = readFileSync(filePath, 'utf8').trim();
-    if (!FORCE_OVERRIDE_FROM_SECRETS.has(key) && !shouldOverrideEnv(key, value)) continue;
-    process.env[key] = value;
-    console.error(`[cop-nest-api] Loaded secret file ${filePath}`);
+    if (trimmed.includes('=') && (trimmed.includes('\n') || filePath.endsWith('.env'))) {
+      applyEnvFileContent(raw, filePath);
+      continue;
+    }
+
+    const key = filePath.split('/').pop() ?? '';
+    if (RENDER_SECRET_SINGLE_KEYS.includes(key as (typeof RENDER_SECRET_SINGLE_KEYS)[number])) {
+      if (!FORCE_OVERRIDE_FROM_SECRETS.has(key) && !shouldOverrideEnv(key, trimmed)) continue;
+      process.env[key] = trimmed;
+      console.error(`[cop-nest-api] Loaded secret file ${filePath}`);
+    }
   }
 
   logRenderSecretsMountDiagnostic();

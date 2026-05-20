@@ -113,6 +113,11 @@ if ($redisUrl -and $redisUrl -notmatch 'your-instance\.upstash\.io') {
   Set-RenderEnvVar $serviceId 'REDIS_URL' $redisUrl
 }
 
+# Bundle completo (funciona aunque Secret File quede vacio en ..data)
+$b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content $uploadEnv -Raw)))
+Write-Host "COP_PRODUCTION_ENV_B64..."
+Set-RenderEnvVar $serviceId 'COP_PRODUCTION_ENV_B64' $b64
+
 foreach ($k in @('CORS_ORIGINS', 'J48_URL', 'DASHBOARD_URL', 'PUBLIC_SITE_URL', 'PUBLIC_API_ORIGIN', 'JWT_SECRET', 'APP_BOOTSTRAP_ADMIN_USERNAME', 'APP_BOOTSTRAP_ADMIN_PASSWORD', 'APP_BOOTSTRAP_ADMIN_EMAIL', 'APP_BOOTSTRAP_ADMIN_ORG_ID', 'APP_BOOTSTRAP_ADMIN_RESET', 'APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN', 'SEED_COLOMBIA_SITES')) {
   $v = Get-DotEnvValue $k
   if ($v) { Set-RenderEnvVar $serviceId $k $v }

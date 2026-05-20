@@ -37,6 +37,8 @@ En Render → **cop-nest-api** → **Environment**:
 2. **Eliminar** la variable `REDIS_URL` si su valor contiene `your-instance.upstash.io` (placeholder viejo). Si usas Blueprint con `cop-redis`, no hace falta `REDIS_URL` manual.
 3. **Save Changes** → **Manual Deploy**.
 
+Si en logs ves `/etc/secrets/..data (0 file(s))`, el Secret File está vacío o mal nombrado: el archivo debe llamarse **`cop-production.env`** y contener las líneas `MONGODB_PASSWORD=...` y `REDIS_URL=...`. La app también lee bajo `/etc/secrets/..data/` (montaje K8s de Render).
+
 Alternativas: Secret File `cop-production.env` (contenido de `deploy/render-upload.env`), import **From .env**, o API: `$env:RENDER_API_KEY='rnd_...'; .\deploy\render-configurar-todo.ps1`.
 
 Rellénalas en el asistente del Blueprint o después en cada servicio → **Environment**.
