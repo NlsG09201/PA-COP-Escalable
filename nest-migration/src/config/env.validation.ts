@@ -1,4 +1,86 @@
+import { existsSync, readFileSync } from 'fs';
+
 const INSECURE_JWT_VALUES = new Set(['change_me', 'changeme', 'secret', '']);
+
+/** Archivos montados por Render → Secret Files (un .env o claves sueltas). */
+const RENDER_SECRET_ENV_FILES = [
+  '/etc/secrets/cop-production.env',
+  '/etc/secrets/render-upload.env',
+  '/etc/secrets/.env',
+] as const;
+
+const RENDER_SECRET_SINGLE_KEYS = [
+  'MONGODB_PASSWORD',
+  'REDIS_URL',
+  'JWT_SECRET',
+  'CORS_ORIGINS',
+  'J48_URL',
+] as const;
+
+function isBadRedisValue(raw: string): boolean {
+  const redis = normalizeRedisUrl(raw);
+  if (!redis) return true;
+  const lower = redis.toLowerCase();
+  return (
+    lower.includes('your-instance.upstash.io') ||
+    lower.includes('your_upstash_token') ||
+    lower.includes('example.upstash.io')
+  );
+}
+
+function shouldOverrideEnv(key: string, value: string): boolean {
+  const current = (process.env[key] ?? '').trim();
+  if (!value) return false;
+  if (!current) return true;
+  if (key === 'REDIS_URL' && isBadRedisValue(current)) return true;
+  if (key === 'MONGODB_PASSWORD') return false;
+  if (key === 'MONGODB_URL' && mongoUrlHasPlaceholder(current)) return true;
+  return false;
+}
+
+function applyEnvFileContent(content: string, source: string): void {
+  let count = 0;
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!key || !shouldOverrideEnv(key, value)) continue;
+    process.env[key] = value;
+    count += 1;
+  }
+  if (count > 0) {
+    console.error(`[cop-nest-api] Loaded ${count} env var(s) from ${source}`);
+  }
+}
+
+/**
+ * Render Secret Files: sube deploy/render-upload.env como cop-production.env
+ * (Dashboard → cop-nest-api → Environment → Secret Files).
+ */
+export function loadRenderSecretEnv(): void {
+  for (const filePath of RENDER_SECRET_ENV_FILES) {
+    if (!existsSync(filePath)) continue;
+    applyEnvFileContent(readFileSync(filePath, 'utf8'), filePath);
+  }
+
+  for (const key of RENDER_SECRET_SINGLE_KEYS) {
+    const filePath = `/etc/secrets/${key}`;
+    if (!existsSync(filePath)) continue;
+    const value = readFileSync(filePath, 'utf8').trim();
+    if (!shouldOverrideEnv(key, value)) continue;
+    process.env[key] = value;
+    console.error(`[cop-nest-api] Loaded secret file ${filePath}`);
+  }
+}
 
 const MONGO_PLACEHOLDER_MARKERS = ['<db_password>', '<password>', 'YOUR_PASSWORD'];
 

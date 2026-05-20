@@ -10,11 +10,13 @@ import {
   applyResolvedMongoUrlFromEnv,
   assertProductionEnv,
   isProduction,
+  loadRenderSecretEnv,
   logMongoEnvDiagnostic,
   resolveCorsOrigins,
 } from './config/env.validation';
 
 async function bootstrap() {
+  loadRenderSecretEnv();
   applyResolvedMongoUrlFromEnv();
   applyNormalizedRedisUrlFromEnv();
   logMongoEnvDiagnostic();

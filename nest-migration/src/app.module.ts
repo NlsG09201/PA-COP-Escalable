@@ -26,6 +26,7 @@ import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module
 import {
   applyNormalizedRedisUrlFromEnv,
   applyResolvedMongoUrlFromEnv,
+  loadRenderSecretEnv,
 } from './config/env.validation';
 
 @Module({
@@ -34,6 +35,7 @@ import {
       isGlobal: true,
       load: [
         () => {
+          loadRenderSecretEnv();
           applyResolvedMongoUrlFromEnv();
           applyNormalizedRedisUrlFromEnv();
           return {};
