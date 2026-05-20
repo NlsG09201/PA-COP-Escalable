@@ -14,6 +14,21 @@ export class BootstrapAdminService implements OnModuleInit {
   constructor(@InjectModel(UserAccount.name) private readonly users: Model<UserAccount>) {}
 
   async onModuleInit() {
+    try {
+      await this.runBootstrap();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/buffering timed out|ServerSelection|whitelist|ECONNREFUSED/i.test(msg)) {
+        this.logger.error(
+          `Bootstrap admin omitido (Mongo no conectado): ${msg}. Atlas -> Network Access -> 0.0.0.0/0 Active. Ver deploy/ATLAS-RENDER.md`,
+        );
+      } else {
+        this.logger.error(`Bootstrap admin omitido: ${msg}`);
+      }
+    }
+  }
+
+  private async runBootstrap() {
     const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
     const password = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
     const orgId = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID;

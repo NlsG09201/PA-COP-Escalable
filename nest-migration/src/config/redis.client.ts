@@ -85,8 +85,23 @@ export function createRedisClient(explicitUrl?: string): Redis {
   return client;
 }
 
+/** URL presente y token no parece truncado/placeholder (evita Bull con WRONGPASS al arranque). */
+export function isRedisUrlLooksValid(): boolean {
+  const url = resolveRedisUrl();
+  if (!url) return false;
+  try {
+    const normalized = url.replace(/^redis:\/\//i, 'https://').replace(/^rediss:\/\//i, 'https://');
+    const parsed = new URL(normalized);
+    const pass = decodeURIComponent(parsed.password ?? '');
+    if (pass.length < 16 || /AAAA{4,}|YOUR_UPSTASH|example/i.test(pass)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isRedisConfigured(): boolean {
-  return Boolean(resolveRedisUrl()) && !redisAuthFailed;
+  return isRedisUrlLooksValid() && !redisAuthFailed;
 }
 
 /** Sin Redis o credenciales invalidas: no bloquear JWT por blacklist. */

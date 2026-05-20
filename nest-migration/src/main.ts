@@ -87,4 +87,8 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Application is running on: http://localhost:${port}`);
 }
-bootstrap();
+bootstrap().catch((err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`[cop-nest-api] Arranque fallido: ${msg}`);
+  process.exit(1);
+});

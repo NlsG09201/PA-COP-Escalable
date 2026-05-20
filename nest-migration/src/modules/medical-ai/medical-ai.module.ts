@@ -4,6 +4,7 @@ import { BullModule, getQueueToken } from '@nestjs/bullmq';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { resolveRedisUrl } from '../../config/env.validation';
+import { isRedisUrlLooksValid } from '../../config/redis.client';
 import { IamModule } from '../iam/iam.module';
 import { J48ScoringModule } from '../j48-scoring/j48-scoring.module';
 import { Patient, PatientSchema } from '../patients/patient.schema';
@@ -30,7 +31,7 @@ import { MedicalAiDashboardService } from './medical-ai-dashboard.service';
 import { MedicalAiGateway } from './medical-ai.gateway';
 import { MedicalAiProcessor, MEDICAL_AI_QUEUE } from './medical-ai.processor';
 
-const redisUrl = resolveRedisUrl();
+const redisUrl = isRedisUrlLooksValid() ? resolveRedisUrl() : '';
 
 @Module({
   imports: [
