@@ -32,7 +32,9 @@ if (Test-Path $envFile) {
   Ensure-EnvLine 'PUBLIC_API_ORIGIN' 'https://cop-nest-api.onrender.com'
   Ensure-EnvLine 'DASHBOARD_URL' 'https://cop-web-dashboard.onrender.com'
   Ensure-EnvLine 'PUBLIC_SITE_URL' 'https://cop-web-public.onrender.com'
-  Ensure-EnvLine 'CORS_ORIGINS' 'https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com'
+  Ensure-EnvLine 'VERCEL_PUBLIC_WEB_URL' 'https://pa-cop-escalable-2qx1.vercel.app'
+  Ensure-EnvLine 'CORS_ALLOW_VERCEL' 'true'
+  Ensure-EnvLine 'CORS_ORIGINS' 'https://pa-cop-escalable-2qx1.vercel.app,https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com'
   Ensure-EnvLine 'J48_URL' 'https://cop-j48-python.onrender.com'
 }
 

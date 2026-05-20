@@ -4,11 +4,21 @@
   "installCommand": "node ../scripts/prepare-vercel.mjs PublicWeb && npm ci",
   "buildCommand": "ng build",
   "outputDirectory": "dist/PublicWeb/browser",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/env.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
   ]
 }

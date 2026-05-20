@@ -19,7 +19,8 @@ $keys = @(
   'APP_BOOTSTRAP_ADMIN_EMAIL', 'APP_BOOTSTRAP_ADMIN_ORG_ID',
   'APP_BOOTSTRAP_ADMIN_RESET', 'APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN',
   'PUBLIC_API_ORIGIN', 'DASHBOARD_URL', 'PUBLIC_SITE_URL',
-  'CORS_ORIGINS', 'J48_URL', 'SEED_COLOMBIA_SITES',
+  'VERCEL_PUBLIC_WEB_URL', 'VERCEL_DASHBOARD_URL',
+  'CORS_ALLOW_VERCEL', 'CORS_ORIGINS', 'J48_URL', 'SEED_COLOMBIA_SITES',
   'GOOGLE_CLIENT_ID', 'AI_RELAPSE_URL', 'AI_DIAGNOSIS_URL', 'AI_EMOTION_URL',
   'OPENAI_API_KEY', 'OPENAI_MODEL'
 )
@@ -42,8 +43,32 @@ if ($hasPass) {
   $lines += 'MONGODB_URL=mongodb+srv://nelsonherazoi:<db_password>@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0'
 }
 
+# CORS + Vercel (PublicWeb en pa-cop-escalable-2qx1.vercel.app)
+$defaultVercelPublic = 'https://pa-cop-escalable-2qx1.vercel.app'
+$vercelPublic = $defaultVercelPublic
+$vLine = $lines | Where-Object { $_ -match '^\s*VERCEL_PUBLIC_WEB_URL\s*=' } | Select-Object -First 1
+if ($vLine) {
+  $vercelPublic = (($vLine -split '=', 2)[1]).Trim().Trim('"').Trim("'")
+}
+
+if (-not ($lines | Where-Object { $_ -match '^\s*CORS_ALLOW_VERCEL\s*=' })) {
+  $lines += 'CORS_ALLOW_VERCEL=true'
+}
+
+$origins = @()
+$corsLine = $lines | Where-Object { $_ -match '^\s*CORS_ORIGINS\s*=' } | Select-Object -First 1
+if ($corsLine) {
+  $origins = (($corsLine -split '=', 2)[1]).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+}
+foreach ($o in @($vercelPublic, 'https://cop-web-public.onrender.com', 'https://cop-web-dashboard.onrender.com')) {
+  if ($o -and $origins -notcontains $o) { $origins += $o }
+}
+$lines = @($lines | Where-Object { $_ -notmatch '^\s*CORS_ORIGINS\s*=' })
+$lines += "CORS_ORIGINS=$($origins -join ',')"
+
 $lines | Set-Content -Path $dst -Encoding UTF8
 Write-Host "Creado: $dst"
+Write-Host "  CORS_ORIGINS incluye: $vercelPublic"
 Write-Host ""
 Write-Host "Siguiente paso en Render:"
 Write-Host "  1. cop-nest-api -> Environment"

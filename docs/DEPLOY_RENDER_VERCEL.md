@@ -44,7 +44,8 @@ Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen e
 | `JWT_SECRET` | (Render puede generar) o string largo aleatorio |
 | `J48_URL` | Tras desplegar J48: `https://cop-j48-python.onrender.com` (solo base, **sin** `/predict`) |
 | `PUBLIC_API_ORIGIN` | `https://cop-nest-api.onrender.com` (ajusta si el nombre difiere) |
-| `CORS_ORIGINS` | Vacío al inicio; luego URLs Vercel separadas por coma |
+| `CORS_ALLOW_VERCEL` | `true` (acepta `https://*.vercel.app`) |
+| `CORS_ORIGINS` | `https://pa-cop-escalable-2qx1.vercel.app,https://cop-web-public.onrender.com,...` |
 | `APP_BOOTSTRAP_ADMIN_USERNAME` | Tu usuario admin |
 | `APP_BOOTSTRAP_ADMIN_PASSWORD` | Password fuerte (solo primer arranque) |
 | `APP_BOOTSTRAP_ADMIN_EMAIL` | Tu email |

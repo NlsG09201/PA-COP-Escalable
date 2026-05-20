@@ -54,15 +54,22 @@ if (!apiBaseUrl || apiBaseUrl.includes('YOUR_RENDER') || host.includes('YOUR_REN
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appDir = path.join(repoRoot, app);
 
+const vercelHost = (process.env.VERCEL_URL ?? '').trim().replace(/^https?:\/\//i, '');
+const defaultPublicSite =
+  app === 'PublicWeb' && vercelHost ? `https://${vercelHost}` : '';
+
+const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? '').trim() || defaultPublicSite;
+const dashboardUrl = (process.env.DASHBOARD_URL ?? '').trim();
+
 const envLines = [
   'window.__env = window.__env || {};',
   `window.__env.API_BASE_URL = ${JSON.stringify(apiBaseUrl)};`,
 ];
-if (process.env.DASHBOARD_URL) {
-  envLines.push(`window.__env.DASHBOARD_URL = ${JSON.stringify(process.env.DASHBOARD_URL)};`);
+if (dashboardUrl && !dashboardUrl.includes('your-')) {
+  envLines.push(`window.__env.DASHBOARD_URL = ${JSON.stringify(dashboardUrl)};`);
 }
-if (process.env.PUBLIC_SITE_URL) {
-  envLines.push(`window.__env.PUBLIC_SITE_URL = ${JSON.stringify(process.env.PUBLIC_SITE_URL)};`);
+if (publicSiteUrl && !publicSiteUrl.includes('your-')) {
+  envLines.push(`window.__env.PUBLIC_SITE_URL = ${JSON.stringify(publicSiteUrl)};`);
 }
 
 fs.writeFileSync(path.join(appDir, 'public', 'env.js'), `${envLines.join('\n')}\n`, 'utf8');

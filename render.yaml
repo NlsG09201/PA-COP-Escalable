@@ -77,7 +77,7 @@ services:
       - key: CORS_ALLOW_VERCEL
         value: "true"
       - key: CORS_ORIGINS
-        value: https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com
+        value: https://pa-cop-escalable-2qx1.vercel.app,https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com
       - key: DASHBOARD_URL
         value: https://cop-web-dashboard.onrender.com
       - key: PUBLIC_SITE_URL

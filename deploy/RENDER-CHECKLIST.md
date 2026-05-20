@@ -1,5 +1,17 @@
 # Checklist Render — cop-nest-api no arranca
 
+## API caído (`x-render-routing: no-server`)
+
+Si `https://cop-nest-api.onrender.com/health/live` devuelve **404** y la cabecera `x-render-routing: no-server`:
+
+1. El servicio **no existe** o está **suspendido** en Render.
+2. [Dashboard](https://dashboard.render.com) → **cop-nest-api** → **Resume** o **Manual Deploy**.
+3. Si no aparece: **New → Blueprint** → repo → `render.yaml` → **Apply**.
+4. Configura env (abajo) → **Save** → **Manual Deploy**.
+5. Cuando responda `{"status":"ok"}`, Vercel y Render quedan conectados (CORS: `CORS_ALLOW_VERCEL=true`).
+
+---
+
 Si ves `MONGODB_PASSWORD=missing` y `REDIS_URL=placeholder`, **Render no tiene tus secretos**. Git no los sube.
 
 ## ¿Tienes el código nuevo desplegado?
