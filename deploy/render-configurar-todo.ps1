@@ -123,7 +123,7 @@ try {
   Invoke-RestMethod -Method Post -Uri "https://api.render.com/v1/services/$serviceId/deploys" -Headers $headers -Body '{}' | Out-Null
   Write-Host "Deploy iniciado."
 } catch {
-  Write-Host "Deploy API: $($_.Exception.Message) — haz Manual Deploy en el dashboard."
+  Write-Host "Deploy API: $($_.Exception.Message) - haz Manual Deploy en el dashboard."
 }
 
 Write-Host ""
