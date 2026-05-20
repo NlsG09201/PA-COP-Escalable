@@ -1,6 +1,7 @@
 # API Nest (Centro COP) — build desde la raíz del repo.
 # Render/VPS: Web Service Docker con contexto = raíz del repositorio.
-# Alternativa preferida: Blueprint render.yaml o Root Directory = nest-migration.
+# Requiere que el contexto incluya la carpeta nest-migration (no la ignores en el .dockerignore de la raíz).
+# Alternativa preferida en Blueprint: dockerContext ./nest-migration + nest-migration/Dockerfile.
 
 FROM node:20-alpine AS build
 

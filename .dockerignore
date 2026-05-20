@@ -13,7 +13,9 @@ services/recommendation-engine
 services/image-to-3d-depth
 services/image-to-3d-stub
 services/gateway
-nest-migration
+# No ignorar toda nest-migration: el Dockerfile de la raíz hace COPY nest-migration/
+nest-migration/node_modules
+nest-migration/dist
 python-auth-api
 *.md
 .env

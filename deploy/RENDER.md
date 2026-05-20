@@ -65,6 +65,7 @@ Si el navegador muestra error **CORS**, revisa que `CORS_ORIGINS` incluya exacta
 - **`[ioredis] connect ENOENT %20--tls%20-u`**: `REDIS_URL` incluye el comando `redis-cli --tls -u` delante de la URI. En Render deja solo `rediss://default:...@....upstash.io:6379` (el backend recorta el prefijo desde vía `normalizeRedisUrl`, pero lo correcto es variable limpia).
 - **`MongooseServerSelectionError` / IP whitelist**: en MongoDB Atlas → **Network Access** permite `0.0.0.0/0` (o las IPs de Render). Sin esto la API no arranca y Render mostrará *No open ports detected*.
 - **Puerto**: Nest usa `process.env.PORT` (Render lo inyecta). No hace falta fijar `PORT` manualmente salvo pruebas locales.
+- **`/nest-migration`: not found / checksum del contexto**: Suele pasar si en Render usas el **Dockerfile de la raíz** del repo con **contexto = raíz** y el `.dockerignore` ignoraba toda la carpeta `nest-migration`. En el repo ya está corregido (solo se ignoran `nest-migration/node_modules` y `nest-migration/dist`). Alternativa: en el Blueprint deja `dockerContext: ./nest-migration` + `dockerfilePath: ./nest-migration/Dockerfile` como en `render.yaml`.
 
 ## Dockerfile J48 (contexto raíz)
 
