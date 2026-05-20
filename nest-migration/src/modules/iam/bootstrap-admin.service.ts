@@ -1,20 +1,25 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, ConnectionStates, Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { UserAccount } from './user-account.schema';
 import { SUPER_ADMIN_ROLE } from './roles.constants';
 
 const ELEVATED_ROLES = new Set([SUPER_ADMIN_ROLE, 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN']);
+const MONGO_WAIT_MS = 45_000;
 
 @Injectable()
 export class BootstrapAdminService implements OnModuleInit {
   private readonly logger = new Logger(BootstrapAdminService.name);
 
-  constructor(@InjectModel(UserAccount.name) private readonly users: Model<UserAccount>) {}
+  constructor(
+    @InjectConnection() private readonly mongo: Connection,
+    @InjectModel(UserAccount.name) private readonly users: Model<UserAccount>,
+  ) {}
 
   async onModuleInit() {
     try {
+      await this.waitForMongo();
       await this.runBootstrap();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -26,6 +31,26 @@ export class BootstrapAdminService implements OnModuleInit {
         this.logger.error(`Bootstrap admin omitido: ${msg}`);
       }
     }
+  }
+
+  /** Espera conexión Atlas antes de consultar users (evita buffering timeout de 10s). */
+  private async waitForMongo(): Promise<void> {
+    if (this.mongo.readyState === ConnectionStates.connected) return;
+
+    await Promise.race([
+      this.mongo.asPromise(),
+      new Promise<void>((_, reject) => {
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Mongo no conectó en ${MONGO_WAIT_MS / 1000}s. Atlas → Network Access → 0.0.0.0/0 Active`,
+              ),
+            ),
+          MONGO_WAIT_MS,
+        );
+      }),
+    ]);
   }
 
   private async runBootstrap() {

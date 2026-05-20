@@ -1,10 +1,12 @@
 # MongoDB Atlas + Render (cop-nest-api)
 
-Si ves:
+Si ves alguno de estos mensajes en logs de **cop-nest-api**:
 
-`MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster`
+- `Bootstrap admin omitido (Mongo no conectado): Operation users.findOne() buffering timed out`
+- `MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster`
+- `MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0`
 
-y Render termina con `No open ports detected` / `Exited with status 1`, casi siempre es **Network Access** en Atlas (IP no permitida). La API no abre el puerto HTTP hasta que Mongo conecta.
+casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `0.0.0.0/0` aún en **Pending**. La API puede arrancar pero Mongo y el bootstrap admin fallan hasta que Atlas permita Render.
 
 ## Arreglo (2 minutos)
 
@@ -33,9 +35,26 @@ No hace falta listar IPs de Render una por una; `0.0.0.0/0` es lo habitual para 
 
 | Revisar | Dónde |
 |---------|--------|
-| Usuario/contraseña Atlas | Render → `MONGODB_PASSWORD` o URI completa en `MONGODB_URL` |
+| `0.0.0.0/0` en estado **Active** (no Pending) | Atlas → Network Access |
+| Usuario/contraseña Atlas | Render → `MONGODB_PASSWORD` o URI en `COP_PRODUCTION_ENV_B64` |
+| Misma contraseña que en Atlas → Database Access | Usuario `nelsonherazoi` → Edit → reset password → actualizar Render |
 | Nombre de base `cop` en la URI | `...mongodb.net/cop?...` |
-| Cluster no pausado | Atlas → cluster activo (M0 free a veces se pausa) |
-| Database Access | Usuario con `readWrite` en la base `cop` |
+| Cluster no pausado | Atlas → **Resume** si el cluster M0 está pausado |
+| Database Access | Usuario con rol **Atlas admin** o `readWriteAnyDatabase` en `cop` |
+
+### Comprobar desde Render
+
+Logs correctos:
+
+```
+[cop-nest-api] MongoDB Atlas: conectado
+Bootstrap admin created (SUPER_ADMIN): nelsonherazoi
+```
+
+URL:
+
+- `https://cop-nest-api.onrender.com/health` → `"mongodb": "ok"`
+
+Si `mongodb: error` con `/health/live` ok → solo falta Atlas/red o credenciales.
 
 Guia URI: `docs/MONGODB_ATLAS_COLECCIONES.md`
