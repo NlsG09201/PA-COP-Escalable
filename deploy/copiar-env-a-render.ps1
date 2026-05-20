@@ -35,7 +35,7 @@ if (-not ($out | Where-Object { $_ -match '^\s*MONGODB_PASSWORD\s*=' })) {
     if ($pass -and $pass -notmatch '[<>]') {
       $out = @("MONGODB_PASSWORD=$pass") + $out
       $out += 'MONGODB_URL=mongodb+srv://nelsonherazoi:<db_password>@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0'
-      $out = $out | Where-Object { $_ -notmatch '^\s*MONGODB_URL=mongodb.*NelsonH' }
+      $out = $out | Where-Object { $_ -notmatch '^\s*MONGODB_URL=mongodb(\+srv)?://[^<]+@[^<]+' }
     }
   }
 }
