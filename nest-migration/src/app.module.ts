@@ -52,6 +52,7 @@ import {
           lazyConnection: true,
           serverSelectionTimeoutMS: 30_000,
           connectTimeoutMS: 30_000,
+          socketTimeoutMS: 45_000,
           retryWrites: true,
           family: 4,
           connectionFactory: (connection: import('mongoose').Connection) => {
