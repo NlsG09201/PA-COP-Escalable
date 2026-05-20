@@ -421,7 +421,7 @@ export function collectProductionEnvErrors(): string[] {
   } else if (mongoUrlHasPlaceholder(mongo)) {
     logMongoEnvDiagnostic();
     errors.push(
-      'MongoDB: falta MONGODB_PASSWORD (o COP_PRODUCTION_ENV_B64). Ejecuta .\\deploy\\exportar-cop-production-env-b64.ps1 y pega en cop-nest-api → Environment.',
+      'MongoDB: anade MONGODB_PASSWORD en Render, O pega la URI completa de Atlas en MONGODB_URL (desde tu .env local, una sola linea), O COP_PRODUCTION_ENV_B64. Luego Save Changes.',
     );
   }
 
@@ -430,7 +430,7 @@ export function collectProductionEnvErrors(): string[] {
     const raw = (process.env.REDIS_URL ?? '').trim();
     if (raw.includes('your-instance.upstash.io')) {
       errors.push(
-        'REDIS_URL: borra la variable vieja con your-instance.upstash.io. Usa COP_PRODUCTION_ENV_B64 (deploy/exportar-cop-production-env-b64.ps1) o Sync Blueprint cop-redis.',
+        'REDIS_URL: en Render ELIMINA la fila con your-instance.upstash.io y ANADE REDIS_URL con tu URI rediss:// de Upstash (deploy/render-env.local.txt) o Sync Blueprint cop-redis.',
       );
     } else {
       errors.push(
@@ -449,8 +449,11 @@ export function collectProductionEnvErrors(): string[] {
 export function assertProductionEnv(): void {
   const errors = collectProductionEnvErrors();
   if (errors.length) {
+    const help =
+      'Render NO lee Git para secretos. cop-nest-api -> Environment -> Save Changes -> Manual Deploy. ' +
+      'Script automatico: .\\deploy\\render-fix-interactivo.ps1';
     throw new Error(
-      `Production env check failed (${errors.length} issue(s)):\n- ${errors.join('\n- ')}\n→ Render: cop-nest-api → Environment → Save → Manual Deploy. Ver deploy/RENDER.md`,
+      `Production env check failed (${errors.length} issue(s)):\n- ${errors.join('\n- ')}\n→ ${help}\n→ Ver deploy/RENDER.md`,
     );
   }
 }
