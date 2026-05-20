@@ -2,7 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <script>
+    window.__env = window.__env || {};
+    if (location.hostname.endsWith('.vercel.app') && !window.__env.API_BASE_URL) {
+      window.__env.API_BASE_URL = 'https://cop-nest-api.onrender.com';
+    }
+  </script>
   <script src="/env.js"></script>
+  <script>
+    if (location.hostname.endsWith('.vercel.app') && !window.__env.API_BASE_URL) {
+      window.__env.API_BASE_URL = 'https://cop-nest-api.onrender.com';
+    }
+  </script>
   <title>Centro COP · Panel clínico</title>
   <meta name="description" content="Panel administrativo del Centro Odontológico y Psicológico COP.">
   <base href="/">

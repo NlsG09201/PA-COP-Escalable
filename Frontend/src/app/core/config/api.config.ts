@@ -1,8 +1,14 @@
+const DEFAULT_RENDER_API = 'https://cop-nest-api.onrender.com';
+
+function isVercelHost(): boolean {
+  return typeof window !== 'undefined' && /\.vercel\.app$/i.test(window.location.hostname);
+}
+
 function resolveApiBaseUrl(): string {
   const raw = (globalThis as { __env?: { API_BASE_URL?: string } }).__env?.API_BASE_URL;
 
-  // Cadena vacía = mismo origen (dashboard nginx hace proxy a /api).
-  if (raw === '') return '';
+  // Cadena vacía = mismo origen (nginx → gateway). En Vercel usar API en Render.
+  if (raw === '') return isVercelHost() ? DEFAULT_RENDER_API : '';
 
   if (typeof raw === 'string' && raw.trim() !== '') {
     return raw.trim().replace(/\/$/, '');

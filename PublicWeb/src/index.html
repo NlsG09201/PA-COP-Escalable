@@ -2,7 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <script>
+    window.__env = window.__env || {};
+    if (location.hostname.endsWith('.vercel.app') && !window.__env.API_BASE_URL) {
+      window.__env.API_BASE_URL = 'https://cop-nest-api.onrender.com';
+    }
+  </script>
   <script src="/env.js"></script>
+  <script>
+    if (location.hostname.endsWith('.vercel.app') && !window.__env.API_BASE_URL) {
+      window.__env.API_BASE_URL = 'https://cop-nest-api.onrender.com';
+    }
+  </script>
   <title>Centro Odontológico y Psicológico COP · Reserva tu cita</title>
   <meta name="description" content="Centro COP: odontología y psicología en Colombia. Reserva en línea, sedes por departamento y atención clínica integral.">
   <base href="/">
