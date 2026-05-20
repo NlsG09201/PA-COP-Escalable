@@ -15,7 +15,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UserAccount, UserAccountSchema } from './user-account.schema';
 import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
 import Redis from 'ioredis';
-import { normalizeRedisUrl } from '../../config/env.validation';
+import { resolveRedisUrl } from '../../config/env.validation';
 
 @Module({
   imports: [
@@ -45,7 +45,7 @@ import { normalizeRedisUrl } from '../../config/env.validation';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) =>
-        new Redis(normalizeRedisUrl(configService.get<string>('REDIS_URL'))),
+        new Redis(resolveRedisUrl() || configService.get<string>('REDIS_URL') || ''),
       inject: [ConfigService],
     },
   ],

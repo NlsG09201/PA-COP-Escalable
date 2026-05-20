@@ -2,7 +2,25 @@
 
 Los logs confirman que **cop-nest-api** arranca sin las variables correctas. **Git no configura Render.**
 
-## Paso 1 — Solo Mongo (2 minutos)
+## Solución rápida — importar `.env` en Render (recomendado)
+
+En tu PC:
+
+```powershell
+.\deploy\generar-render-upload-env.ps1
+```
+
+Eso crea **`deploy/render-upload.env`** (no se sube a Git).
+
+En Render:
+
+1. **cop-nest-api** → **Environment**
+2. **Add Environment Variable** → **From .env file** (o "Upload .env")
+3. Selecciona `deploy/render-upload.env`
+4. **Elimina** la variable **`REDIS_URL`** antigua si el valor contiene `your-instance.upstash.io` (quédate con la importada)
+5. **Save Changes** → **Manual Deploy**
+
+## Paso 1 — Solo Mongo (manual)
 
 1. [dashboard.render.com](https://dashboard.render.com) → servicio **`cop-nest-api`** (icono de engranaje, no las webs Next).
 2. Menú izquierdo → **Environment**.

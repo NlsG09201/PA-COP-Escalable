@@ -68,7 +68,7 @@ export function logMongoEnvDiagnostic(): void {
     `MONGODB_URL=${url ? (mongoUrlHasPlaceholder(url) ? 'placeholder' : 'ok') : 'missing'}`,
     `DATABASE_URL=${dbUrl.startsWith('mongodb') ? (mongoUrlHasPlaceholder(dbUrl) ? 'placeholder' : 'ok') : 'unset'}`,
     `MONGODB_PASSWORD=${pass ? `set(len=${pass.length})` : 'missing'}`,
-    `REDIS_URL=${redisUrlStatus(process.env.REDIS_URL)}`,
+    `REDIS_URL=${redisUrlStatus(resolveRedisUrl() || process.env.REDIS_URL)}`,
   ];
   console.error(`[cop-nest-api] Env check: ${parts.join(' ')}`);
 }
@@ -137,11 +137,34 @@ export function normalizeRedisUrl(raw: string | undefined): string {
   return compact ? compact[1]! : s;
 }
 
+const REDIS_ENV_KEYS = ['REDIS_URL', 'REDIS_TLS_URL', 'UPSTASH_REDIS_URL'] as const;
+
+/** Primera URI Redis usable (Render Key Value usa redis://red-...). */
+export function resolveRedisUrl(): string {
+  for (const key of REDIS_ENV_KEYS) {
+    const normalized = normalizeRedisUrl(process.env[key]);
+    if (!normalized) continue;
+    const lower = normalized.toLowerCase();
+    if (
+      lower.includes('your-instance.upstash.io') ||
+      lower.includes('your_upstash_token') ||
+      lower.includes('example.upstash.io')
+    ) {
+      continue;
+    }
+    if (lower.startsWith('redis://') || lower.startsWith('rediss://')) {
+      return normalized;
+    }
+  }
+  return '';
+}
+
 /** Aplica normalización a process.env para que Config / ioredis reciban solo la URI. */
 export function applyNormalizedRedisUrlFromEnv(): void {
-  const current = process.env.REDIS_URL;
-  if (current === undefined || current === '') return;
-  process.env.REDIS_URL = normalizeRedisUrl(current);
+  const resolved = resolveRedisUrl();
+  if (resolved) {
+    process.env.REDIS_URL = resolved;
+  }
 }
 
 /** Orígenes permitidos: CORS_ORIGINS o, si falta, DASHBOARD_URL + PUBLIC_SITE_URL. */
@@ -194,24 +217,16 @@ export function collectProductionEnvErrors(): string[] {
     );
   }
 
-  const redis = normalizeRedisUrl(process.env.REDIS_URL);
+  const redis = resolveRedisUrl();
   if (!redis) {
-    errors.push(
-      'REDIS_URL: vacía. Sync Blueprint (servicio cop-redis) y borra REDIS_URL manual con placeholder en Environment; o pega rediss:// de Upstash.',
-    );
-  } else if (!redis.startsWith('redis://') && !redis.startsWith('rediss://')) {
-    errors.push(
-      'REDIS_URL: debe empezar por redis:// o rediss:// (sin prefijo redis-cli).',
-    );
-  } else {
-    const redisLower = redis.toLowerCase();
-    if (
-      redisLower.includes('your-instance.upstash.io') ||
-      redisLower.includes('your_upstash_token') ||
-      redisLower.includes('example.upstash.io')
-    ) {
+    const raw = (process.env.REDIS_URL ?? '').trim();
+    if (raw.includes('your-instance.upstash.io')) {
       errors.push(
-        'REDIS_URL: sigue siendo el placeholder de ejemplo; pega la URL real de Upstash.',
+        'REDIS_URL: borra la variable vieja con your-instance.upstash.io en Environment. Importa deploy/render-upload.env o pega rediss:// de Upstash (prepared-ram-78507...).',
+      );
+    } else {
+      errors.push(
+        'REDIS_URL: vacía o inválida. Importa deploy/render-upload.env en Environment o Sync Blueprint (cop-redis).',
       );
     }
   }

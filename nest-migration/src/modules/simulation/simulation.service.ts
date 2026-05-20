@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
-import { normalizeRedisUrl } from '../../config/env.validation';
+import { resolveRedisUrl } from '../../config/env.validation';
 
 @Injectable()
 export class SimulationService {
@@ -9,7 +9,7 @@ export class SimulationService {
 
   constructor(private configService: ConfigService) {
     this.redis = new Redis(
-      normalizeRedisUrl(this.configService.get<string>('REDIS_URL')),
+      resolveRedisUrl() || this.configService.get<string>('REDIS_URL') || '',
     );
   }
 
