@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 
 const INSECURE_JWT_VALUES = new Set(['change_me', 'changeme', 'secret', '']);
 
@@ -17,6 +17,13 @@ const RENDER_SECRET_SINGLE_KEYS = [
   'J48_URL',
 ] as const;
 
+/** Siempre reemplazar desde secret file / COP_PRODUCTION_ENV* (Render suele dejar placeholders). */
+const FORCE_OVERRIDE_FROM_SECRETS = new Set([
+  'MONGODB_PASSWORD',
+  'REDIS_URL',
+  'MONGODB_URL',
+]);
+
 function isBadRedisValue(raw: string): boolean {
   const redis = normalizeRedisUrl(raw);
   if (!redis) return true;
@@ -33,12 +40,19 @@ function shouldOverrideEnv(key: string, value: string): boolean {
   if (!value) return false;
   if (!current) return true;
   if (key === 'REDIS_URL' && isBadRedisValue(current)) return true;
-  if (key === 'MONGODB_PASSWORD') return false;
+  if (key === 'MONGODB_PASSWORD') {
+    if (!current) return true;
+    return mongoUrlHasPlaceholder(process.env.MONGODB_URL ?? '');
+  }
   if (key === 'MONGODB_URL' && mongoUrlHasPlaceholder(current)) return true;
   return false;
 }
 
-function applyEnvFileContent(content: string, source: string): void {
+function applyEnvFileContent(
+  content: string,
+  source: string,
+  forceKeys: ReadonlySet<string> = FORCE_OVERRIDE_FROM_SECRETS,
+): void {
   let count = 0;
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -53,7 +67,9 @@ function applyEnvFileContent(content: string, source: string): void {
     ) {
       value = value.slice(1, -1);
     }
-    if (!key || !shouldOverrideEnv(key, value)) continue;
+    if (!key) continue;
+    const force = forceKeys.has(key);
+    if (!force && !shouldOverrideEnv(key, value)) continue;
     process.env[key] = value;
     count += 1;
   }
@@ -62,11 +78,46 @@ function applyEnvFileContent(content: string, source: string): void {
   }
 }
 
+function logRenderSecretsMountDiagnostic(): void {
+  const secretsDir = '/etc/secrets';
+  if (!existsSync(secretsDir)) {
+    console.error(
+      '[cop-nest-api] /etc/secrets not mounted — usa Secret File cop-production.env, COP_PRODUCTION_ENV_B64, o variables en Environment',
+    );
+    return;
+  }
+  try {
+    const names = readdirSync(secretsDir);
+    console.error(
+      `[cop-nest-api] /etc/secrets (${names.length} file(s)): ${names.join(', ') || '(empty)'}`,
+    );
+  } catch {
+    console.error('[cop-nest-api] /etc/secrets exists but could not list');
+  }
+}
+
 /**
  * Render Secret Files: sube deploy/render-upload.env como cop-production.env
  * (Dashboard → cop-nest-api → Environment → Secret Files).
  */
 export function loadRenderSecretEnv(): void {
+  const inline = (process.env.COP_PRODUCTION_ENV ?? '').trim();
+  if (inline) {
+    applyEnvFileContent(inline, 'COP_PRODUCTION_ENV');
+  }
+
+  const b64 = (process.env.COP_PRODUCTION_ENV_B64 ?? '').trim();
+  if (b64) {
+    try {
+      applyEnvFileContent(
+        Buffer.from(b64, 'base64').toString('utf8'),
+        'COP_PRODUCTION_ENV_B64',
+      );
+    } catch {
+      console.error('[cop-nest-api] COP_PRODUCTION_ENV_B64 invalid (not base64 UTF-8)');
+    }
+  }
+
   for (const filePath of RENDER_SECRET_ENV_FILES) {
     if (!existsSync(filePath)) continue;
     applyEnvFileContent(readFileSync(filePath, 'utf8'), filePath);
@@ -76,10 +127,12 @@ export function loadRenderSecretEnv(): void {
     const filePath = `/etc/secrets/${key}`;
     if (!existsSync(filePath)) continue;
     const value = readFileSync(filePath, 'utf8').trim();
-    if (!shouldOverrideEnv(key, value)) continue;
+    if (!FORCE_OVERRIDE_FROM_SECRETS.has(key) && !shouldOverrideEnv(key, value)) continue;
     process.env[key] = value;
     console.error(`[cop-nest-api] Loaded secret file ${filePath}`);
   }
+
+  logRenderSecretsMountDiagnostic();
 }
 
 const MONGO_PLACEHOLDER_MARKERS = ['<db_password>', '<password>', 'YOUR_PASSWORD'];
@@ -295,7 +348,7 @@ export function collectProductionEnvErrors(): string[] {
   } else if (mongoUrlHasPlaceholder(mongo)) {
     logMongoEnvDiagnostic();
     errors.push(
-      'MongoDB: MONGODB_PASSWORD vacía en Render (cop-nest-api → Environment). El archivo deploy/env.production.example en Git NO se aplica solo — debes pegar la variable en el dashboard.',
+      'MongoDB: falta MONGODB_PASSWORD (o COP_PRODUCTION_ENV_B64). Ejecuta .\\deploy\\exportar-cop-production-env-b64.ps1 y pega en cop-nest-api → Environment.',
     );
   }
 
@@ -304,7 +357,7 @@ export function collectProductionEnvErrors(): string[] {
     const raw = (process.env.REDIS_URL ?? '').trim();
     if (raw.includes('your-instance.upstash.io')) {
       errors.push(
-        'REDIS_URL: borra la variable vieja con your-instance.upstash.io en Environment. Importa deploy/render-upload.env o pega rediss:// de Upstash (prepared-ram-78507...).',
+        'REDIS_URL: borra la variable vieja con your-instance.upstash.io. Usa COP_PRODUCTION_ENV_B64 (deploy/exportar-cop-production-env-b64.ps1) o Sync Blueprint cop-redis.',
       );
     } else {
       errors.push(

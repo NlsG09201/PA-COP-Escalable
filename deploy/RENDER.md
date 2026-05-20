@@ -21,8 +21,23 @@ Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dash
 
 ## Paso 2 — Variables obligatorias (Environment)
 
-> **Logs `MONGODB_PASSWORD=missing` + `REDIS_URL placeholder`:** en Render faltan esas dos variables reales. No basta con editar `env.production.example` en Git. Sube desde tu `.env` local: `$env:RENDER_API_KEY='rnd_...'; .\deploy\render-sync-env.ps1` → **Manual Deploy**. O pégalas a mano en **cop-nest-api → Environment**.
+> **Logs `MONGODB_PASSWORD=missing` + `REDIS_URL placeholder`:** Git no configura Render. Elige **una** opción abajo y luego **Manual Deploy**.
 
+### Arreglo rápido (recomendado)
+
+En tu PC (PowerShell, raíz del repo):
+
+```powershell
+.\deploy\exportar-cop-production-env-b64.ps1
+```
+
+En Render → **cop-nest-api** → **Environment**:
+
+1. **Add** → clave `COP_PRODUCTION_ENV_B64` → pegar el valor del portapapeles (una sola línea).
+2. **Eliminar** la variable `REDIS_URL` si su valor contiene `your-instance.upstash.io` (placeholder viejo). Si usas Blueprint con `cop-redis`, no hace falta `REDIS_URL` manual.
+3. **Save Changes** → **Manual Deploy**.
+
+Alternativas: Secret File `cop-production.env` (contenido de `deploy/render-upload.env`), import **From .env**, o API: `$env:RENDER_API_KEY='rnd_...'; .\deploy\render-configurar-todo.ps1`.
 
 Rellénalas en el asistente del Blueprint o después en cada servicio → **Environment**.
 
