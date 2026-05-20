@@ -23,14 +23,15 @@ Abre `deploy/render-env.local.txt` y copia la línea `MONGODB_PASSWORD=...`.
 
 ## Paso 2 — Redis (elige una opción)
 
-### Opción A — Blueprint con Redis de Render (recomendado)
+### Opción A — Blueprint con Key Value `cop-redis` (recomendado)
 
-El `render.yaml` del repo define el servicio **`cop-redis`** y enlaza `REDIS_URL` automáticamente.
+El `render.yaml` define **`cop-redis`** (tipo `keyvalue`, plan `starter`) y enlaza `REDIS_URL` automáticamente.
 
-1. Render → tu Blueprint / proyecto → **Sync Blueprint** (o vuelve a aplicar el blueprint).
-2. Espera a que se cree **`cop-redis`**.
-3. En **cop-nest-api → Environment**, **borra** `REDIS_URL` si sigue con `your-instance.upstash.io` (el blueprint la reemplazará por la URL interna).
-4. **Manual Deploy** de `cop-nest-api`.
+1. Haz **push** del `render.yaml` corregido (no uses `plan: free` en Redis).
+2. Render → **Sync Blueprint**.
+3. Comprueba que existe el servicio **`cop-redis`** en el dashboard.
+4. En **cop-nest-api → Environment**, **elimina** la variable manual `REDIS_URL` si tiene `your-instance.upstash.io` (puede tapar la del Blueprint).
+5. **Manual Deploy** de `cop-nest-api`.
 
 ### Opción B — Seguir con Upstash
 

@@ -41,6 +41,23 @@ export function resolveMongoPassword(): string {
   return '';
 }
 
+function redisUrlStatus(raw: string | undefined): string {
+  const redis = normalizeRedisUrl(raw);
+  if (!redis) return 'missing';
+  const lower = redis.toLowerCase();
+  if (
+    lower.includes('your-instance.upstash.io') ||
+    lower.includes('your_upstash_token') ||
+    lower.includes('example.upstash.io')
+  ) {
+    return 'placeholder';
+  }
+  if (lower.startsWith('redis://') || lower.startsWith('rediss://')) {
+    return `ok(${lower.startsWith('rediss://') ? 'tls' : 'plain'})`;
+  }
+  return 'invalid';
+}
+
 /** Log seguro en Render (sin secretos) para ver qué variables llegaron al contenedor. */
 export function logMongoEnvDiagnostic(): void {
   if (process.env.NODE_ENV !== 'production') return;
@@ -51,8 +68,9 @@ export function logMongoEnvDiagnostic(): void {
     `MONGODB_URL=${url ? (mongoUrlHasPlaceholder(url) ? 'placeholder' : 'ok') : 'missing'}`,
     `DATABASE_URL=${dbUrl.startsWith('mongodb') ? (mongoUrlHasPlaceholder(dbUrl) ? 'placeholder' : 'ok') : 'unset'}`,
     `MONGODB_PASSWORD=${pass ? `set(len=${pass.length})` : 'missing'}`,
+    `REDIS_URL=${redisUrlStatus(process.env.REDIS_URL)}`,
   ];
-  console.error(`[cop-nest-api] Mongo env: ${parts.join(' ')}`);
+  console.error(`[cop-nest-api] Env check: ${parts.join(' ')}`);
 }
 
 /**
@@ -179,7 +197,7 @@ export function collectProductionEnvErrors(): string[] {
   const redis = normalizeRedisUrl(process.env.REDIS_URL);
   if (!redis) {
     errors.push(
-      'REDIS_URL: vacía. Upstash → Redis URL (rediss://...) → pegar en cop-nest-api → Environment.',
+      'REDIS_URL: vacía. Sync Blueprint (servicio cop-redis) y borra REDIS_URL manual con placeholder en Environment; o pega rediss:// de Upstash.',
     );
   } else if (!redis.startsWith('redis://') && !redis.startsWith('rediss://')) {
     errors.push(

@@ -2,9 +2,9 @@
 # Ver comentarios en ../render.yaml
 
 services:
-  - type: redis
+  - type: keyvalue
     name: cop-redis
-    plan: free
+    plan: starter
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
 
@@ -32,7 +32,7 @@ services:
         sync: false
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: cop-redis
           property: connectionString
       - key: JWT_SECRET

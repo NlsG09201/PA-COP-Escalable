@@ -5,10 +5,11 @@
 # ten listas las URLs (no uses placeholders en MONGODB_URL / REDIS_URL).
 
 services:
-  # Redis interno (evita pegar REDIS_URL de Upstash en Environment). Tras sync Blueprint, REDIS_URL se inyecta solo.
-  - type: redis
+  # Key Value (Redis). Tras Sync Blueprint, REDIS_URL se inyecta en cop-nest-api.
+  # Borra REDIS_URL manual en Environment si aún tiene el placeholder de Upstash.
+  - type: keyvalue
     name: cop-redis
-    plan: free
+    plan: starter
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
 
@@ -39,7 +40,7 @@ services:
         sync: false
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: cop-redis
           property: connectionString
       - key: JWT_SECRET
