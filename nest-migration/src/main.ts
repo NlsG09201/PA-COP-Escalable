@@ -6,12 +6,14 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import {
+  applyNormalizedRedisUrlFromEnv,
   assertProductionEnv,
   isProduction,
   resolveCorsOrigins,
 } from './config/env.validation';
 
 async function bootstrap() {
+  applyNormalizedRedisUrlFromEnv();
   assertProductionEnv();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

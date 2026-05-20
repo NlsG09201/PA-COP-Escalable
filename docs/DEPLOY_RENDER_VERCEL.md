@@ -1,6 +1,8 @@
 # Despliegue: MongoDB Atlas + Render + Vercel
 
-Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
+> **¿Solo Render (Next + Nest + J48)?** Usa el Blueprint **`render.yaml`** y la guía dedicada **[deploy/RENDER.md](../deploy/RENDER.md)**.
+
+Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen en **Angular en Vercel**. Tiempo estimado: 1–2 h la primera vez.
 
 ---
 
@@ -40,7 +42,7 @@ Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
 | `MONGODB_URL` | URI Atlas del paso 1 |
 | `REDIS_URL` | URI Redis paso 2 |
 | `JWT_SECRET` | (Render puede generar) o string largo aleatorio |
-| `J48_URL` | Tras desplegar J48: `https://cop-j48-service.onrender.com/predict` |
+| `J48_URL` | Tras desplegar J48: `https://cop-j48-python.onrender.com` (solo base, **sin** `/predict`) |
 | `PUBLIC_API_ORIGIN` | `https://cop-nest-api.onrender.com` (ajusta si el nombre difiere) |
 | `CORS_ORIGINS` | Vacío al inicio; luego URLs Vercel separadas por coma |
 | `APP_BOOTSTRAP_ADMIN_USERNAME` | Tu usuario admin |
@@ -55,7 +57,7 @@ Guía paso a paso para **Centro COP**. Tiempo estimado: 1–2 h la primera vez.
 
    Respuesta esperada: `"status":"ok"` y checks `mongodb`/`redis` en `ok`.
 
-5. En **cop-j48-service** → copia la URL pública y actualiza `J48_URL` en **cop-nest-api** → **Manual Deploy**.
+5. En **cop-j48-python** → copia la URL pública y actualiza `J48_URL` en **cop-nest-api** → **Manual Deploy**.
 
 ---
 

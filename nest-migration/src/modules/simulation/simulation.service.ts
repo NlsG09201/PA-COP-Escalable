@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
+import { normalizeRedisUrl } from '../../config/env.validation';
 
 @Injectable()
 export class SimulationService {
   private redis: Redis;
 
   constructor(private configService: ConfigService) {
-    this.redis = new Redis(this.configService.get<string>('REDIS_URL'));
+    this.redis = new Redis(
+      normalizeRedisUrl(this.configService.get<string>('REDIS_URL')),
+    );
   }
 
   async getSimulationResult(simulationId: string) {

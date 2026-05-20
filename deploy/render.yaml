@@ -1,6 +1,15 @@
-# Render Blueprint — backend Nest API (espejo de /render.yaml en la raíz del repo)
-# Docs: https://render.com/docs/blueprint-spec
+# Espejo de render.yaml en la raíz — usar uno u otro como Blueprint en Render.
+# Ver comentarios en ../render.yaml
+
 services:
+  - type: web
+    name: cop-j48-python
+    runtime: docker
+    dockerfilePath: ./deploy/docker/j48-python.Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+
   - type: web
     name: cop-nest-api
     runtime: docker
@@ -39,17 +48,49 @@ services:
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_EMAIL
         sync: false
+      - key: APP_BOOTSTRAP_ADMIN_ORG_ID
+        sync: false
       - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
         sync: false
       - key: WOMPI_INTEGRITY_SECRET
         sync: false
       - key: WOMPI_EVENTS_SECRET
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: AI_DIAGNOSIS_URL
+        sync: false
+      - key: AI_EMOTION_URL
+        sync: false
+      - key: AI_RELAPSE_URL
+        sync: false
 
   - type: web
-    name: cop-j48-service
-    runtime: docker
-    dockerfilePath: ./services/j48-service/Dockerfile
-    dockerContext: ./services/j48-service
+    name: cop-web-public
+    runtime: node
+    rootDir: web-public
     plan: starter
-    healthCheckPath: /health
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+
+  - type: web
+    name: cop-web-dashboard
+    runtime: node
+    rootDir: web-dashboard
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

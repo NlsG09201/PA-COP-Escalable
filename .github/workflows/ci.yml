@@ -62,3 +62,53 @@ jobs:
           cache-dependency-path: PublicWeb/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  web-public:
+    name: Next.js Public Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web-public/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+
+  web-dashboard:
+    name: Next.js Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web-dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+
+  j48-python:
+    name: J48 Python train smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r services/j48-python/requirements.txt
+      - run: python services/j48-python/train/train_from_arff.py
+        env:
+          J48_ARFF_PATH: datasets/relapse_risk_j48.arff
+          J48_MODEL_PATH: /tmp/j48_test.joblib

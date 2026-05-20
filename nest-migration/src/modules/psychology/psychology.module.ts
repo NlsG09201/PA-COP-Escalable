@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { IamModule } from '../iam/iam.module';
 import { PsychologyController } from './psychology.controller';
 import { PsychTestsAliasController } from './psych-tests-alias.controller';
 import { PsychologyService } from './psychology.service';
@@ -11,6 +12,7 @@ import {
 
 @Module({
   imports: [
+    IamModule,
     MongooseModule.forFeature([
       { name: PsychologySession.name, schema: PsychologySessionSchema },
       { name: PsychologicalEvaluation.name, schema: PsychologicalEvaluationSchema },

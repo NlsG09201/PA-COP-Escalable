@@ -1,6 +1,20 @@
-# Render Blueprint (raíz del repo). Copia espejo de deploy/render.yaml.
-# Docs: https://render.com/docs/blueprint-spec
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Desde el dashboard: New → Blueprint → conecta repo → usa este archivo en la raíz.
+#
+# Antes del primer deploy: crea MongoDB Atlas + Redis (Upstash o Render Redis) y
+# ten listas las URLs (no uses placeholders en MONGODB_URL / REDIS_URL).
+
 services:
+  # --- IA J48 (Python FastAPI + scikit-learn) — desplegar primero y copiar URL pública ---
+  - type: web
+    name: cop-j48-python
+    runtime: docker
+    dockerfilePath: ./deploy/docker/j48-python.Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+
+  # --- API NestJS ---
   - type: web
     name: cop-nest-api
     runtime: docker
@@ -19,6 +33,7 @@ services:
         generateValue: true
       - key: JWT_ACCESS_EXPIRES
         value: 45m
+      # Base URL del servicio J48 (sin /predict). Ej: https://cop-j48-python.onrender.com
       - key: J48_URL
         sync: false
       - key: GOOGLE_CLIENT_ID
@@ -39,17 +54,51 @@ services:
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_EMAIL
         sync: false
+      - key: APP_BOOTSTRAP_ADMIN_ORG_ID
+        sync: false
       - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
         sync: false
       - key: WOMPI_INTEGRITY_SECRET
         sync: false
       - key: WOMPI_EVENTS_SECRET
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: AI_DIAGNOSIS_URL
+        sync: false
+      - key: AI_EMOTION_URL
+        sync: false
+      - key: AI_RELAPSE_URL
+        sync: false
 
+  # --- Web pública Next.js ---
   - type: web
-    name: cop-j48-service
-    runtime: docker
-    dockerfilePath: ./services/j48-service/Dockerfile
-    dockerContext: ./services/j48-service
+    name: cop-web-public
+    runtime: node
+    rootDir: web-public
     plan: starter
-    healthCheckPath: /health
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+
+  # --- Dashboard clínico Next.js ---
+  - type: web
+    name: cop-web-dashboard
+    runtime: node
+    rootDir: web-dashboard
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

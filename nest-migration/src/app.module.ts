@@ -23,10 +23,19 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PsychologyModule } from './modules/psychology/psychology.module';
 import { AiProxyModule } from './modules/ai-proxy/ai-proxy.module';
 import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module';
+import { applyNormalizedRedisUrlFromEnv } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [
+        () => {
+          applyNormalizedRedisUrlFromEnv();
+          return {};
+        },
+      ],
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({

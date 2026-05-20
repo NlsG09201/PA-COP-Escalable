@@ -1,4 +1,5 @@
-import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Req, UseInterceptors } from '@nestjs/common';
+import { TenancyInterceptor } from '../tenancy/tenancy.interceptor';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../iam/guards/jwt-auth.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
@@ -10,6 +11,7 @@ import { TenantContext } from '../tenancy/tenancy.interceptor';
 @ApiBearerAuth()
 @Controller('api/psych-tests')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(TenancyInterceptor)
 export class PsychTestsAliasController {
   constructor(private readonly psychology: PsychologyService) {}
 

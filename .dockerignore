@@ -1,15 +1,20 @@
+# Contexto Docker cuando dockerContext es la raíz (p. ej. J48 en Render)
 .git
 .github
-.cursor
+**/.next
 **/node_modules
-**/dist
 Frontend
 PublicWeb
 ortho_system
+services/j48-service
+services/ai-diagnosis-service
+services/emotion-analysis-service
+services/recommendation-engine
+services/image-to-3d-depth
+services/image-to-3d-stub
+services/gateway
+nest-migration
 python-auth-api
-services
-docs
-scripts
 *.md
 .env
 .env.*
