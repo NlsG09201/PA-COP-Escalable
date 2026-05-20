@@ -20,6 +20,9 @@ import { ServicesModule } from './modules/services/services.module';
 import { OdontologyModule } from './modules/odontology/odontology.module';
 import { ApiCompatModule } from './modules/api-compat/api-compat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PsychologyModule } from './modules/psychology/psychology.module';
+import { AiProxyModule } from './modules/ai-proxy/ai-proxy.module';
+import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     PublicSiteModule,
     ServicesModule,
     OdontologyModule,
+    PsychologyModule,
+    AiProxyModule,
+    PaymentsIntlModule,
     ApiCompatModule,
   ],
   controllers: [HealthController],

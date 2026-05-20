@@ -236,6 +236,14 @@ services:
       TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
       # URL base que ven navegadores / Wompi (sin barra final). Dev: gateway en el host.
       PUBLIC_API_ORIGIN: ${PUBLIC_API_ORIGIN:-http://localhost:8080}
+      J48_URL: ${J48_URL:-http://j48-python:8080}
+      AI_DIAGNOSIS_URL: ${AI_DIAGNOSIS_URL:-http://ai-diagnosis-service:8090}
+      AI_EMOTION_URL: ${AI_EMOTION_URL:-http://emotion-analysis-service:8091}
+      AI_RELAPSE_URL: ${AI_RELAPSE_URL:-http://recommendation-engine:8092}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       # Orígenes permitidos CORS (coma). Vacío = Nest acepta cualquier origen (solo recomendable en dev).
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     depends_on:
@@ -261,13 +269,33 @@ services:
     depends_on:
       nest-backend:
         condition: service_healthy
-      j48-service:
+      j48-python:
         condition: service_healthy
+
+  j48-python:
+    build:
+      context: ./services/j48-python
+    profiles: ["core"]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      J48_ARFF_PATH: /data/relapse_risk_j48.arff
+      J48_MODEL_PATH: /models/j48_sklearn.joblib
+      J48_AUTO_TRAIN: ${J48_AUTO_TRAIN:-true}
+    volumes:
+      - ./datasets/relapse_risk_j48.arff:/data/relapse_risk_j48.arff:ro
+      - j48_models:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
 
   j48-service:
     build:
       context: ./services/j48-service
-    profiles: ["core"]
+    profiles: ["j48-java"]
     security_opt:
       - no-new-privileges:true
     user: "0:0"

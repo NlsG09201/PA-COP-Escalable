@@ -304,7 +304,7 @@ export class J48ScoringService {
   }
 
   private async callJ48Predict(features: Record<string, unknown>): Promise<any> {
-    const base = process.env.J48_URL ?? 'http://j48-service:8080';
+    const base = (process.env.J48_URL ?? 'http://j48-python:8080').replace(/\/predict\/?$/, '');
     const res = await fetch(`${base}/predict`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
