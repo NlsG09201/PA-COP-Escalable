@@ -72,6 +72,10 @@ services:
         value: "true"
       - key: PUBLIC_API_ORIGIN
         value: https://cop-nest-api.onrender.com
+      # Incluye tus URLs Vercel si usas despliegue allí, ej. https://pa-cop-escalable-2qx1.vercel.app
+      # (o deja solo Render: el API también acepta *.vercel.app con CORS_ALLOW_VERCEL=true)
+      - key: CORS_ALLOW_VERCEL
+        value: "true"
       - key: CORS_ORIGINS
         value: https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com
       - key: DASHBOARD_URL

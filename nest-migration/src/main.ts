@@ -13,6 +13,8 @@ import {
   isProduction,
   loadRenderSecretEnv,
   logMongoEnvDiagnostic,
+  isCorsOriginAllowed,
+  isVercelCorsAllowed,
   resolveCorsOrigins,
 } from './config/env.validation';
 
@@ -54,9 +56,19 @@ async function bootstrap() {
   if (isProduction() && corsOrigins.length) {
     logger.log(`CORS origins: ${corsOrigins.join(', ')}`);
   }
+  if (isProduction() && isVercelCorsAllowed()) {
+    logger.log('CORS: *.vercel.app allowed (set CORS_ALLOW_VERCEL=false to disable)');
+  }
+
+  const corsOrigin =
+    corsOrigins.length || isVercelCorsAllowed()
+      ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          callback(null, isCorsOriginAllowed(origin, corsOrigins));
+        }
+      : true;
 
   app.enableCors({
-    origin: corsOrigins.length ? corsOrigins : true,
+    origin: corsOrigin,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
     exposedHeaders: ['Authorization'],

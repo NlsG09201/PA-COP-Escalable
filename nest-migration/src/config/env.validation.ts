@@ -399,6 +399,22 @@ export function resolveCorsOrigins(): string[] {
   return [...new Set(derived)];
 }
 
+const VERCEL_ORIGIN_RE = /^https:\/\/[\w.-]+\.vercel\.app$/i;
+
+/** Permite previews Vercel (*.vercel.app). Desactivar con CORS_ALLOW_VERCEL=false. */
+export function isVercelCorsAllowed(): boolean {
+  return (process.env.CORS_ALLOW_VERCEL ?? 'true').trim().toLowerCase() !== 'false';
+}
+
+export function isCorsOriginAllowed(
+  origin: string | undefined,
+  allowedOrigins: string[],
+): boolean {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  return isVercelCorsAllowed() && VERCEL_ORIGIN_RE.test(origin);
+}
+
 /** Lista de problemas de configuración en producción (para un solo mensaje en logs de Render). */
 export function collectProductionEnvErrors(): string[] {
   if (process.env.NODE_ENV !== 'production') {

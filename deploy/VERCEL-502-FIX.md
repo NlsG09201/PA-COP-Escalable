@@ -22,9 +22,22 @@ En el navegador:
 | `PUBLIC_SITE_URL` | `https://pa-cop-escalable-2qx1.vercel.app` |
 | `DASHBOARD_URL` | URL de tu panel en Vercel |
 
-### 2. CORS en Render
+### 2. API en Render debe estar **vivo**
 
-En **cop-nest-api** → Environment:
+Abre en el navegador:
+
+```text
+https://cop-nest-api.onrender.com/health/live
+```
+
+- Si ves **404** y la cabecera `x-render-routing: no-server` → el servicio **no existe o está suspendido**. En [dashboard.render.com](https://dashboard.render.com): crea el Blueprint (`render.yaml`) o reactiva **cop-nest-api**, configura `MONGODB_PASSWORD` / `REDIS_URL` (ver `deploy/RENDER.md`) y haz **Manual Deploy**.
+- Si ves `{"status":"ok"}` → el API está arriba; sigue con CORS abajo.
+
+### 3. CORS en Render (Vercel)
+
+Con el código actual, cualquier origen `https://*.vercel.app` se acepta si `CORS_ALLOW_VERCEL` no es `false` (por defecto `true` tras redeploy del API).
+
+Opcional, para dominios propios fuera de `vercel.app`, en **cop-nest-api** → Environment:
 
 ```text
 CORS_ORIGINS=https://pa-cop-escalable-2qx1.vercel.app,https://TU-PANEL.vercel.app
@@ -32,11 +45,11 @@ CORS_ORIGINS=https://pa-cop-escalable-2qx1.vercel.app,https://TU-PANEL.vercel.ap
 
 Guardar y **Manual Deploy** del API.
 
-### 3. Subir código y redeploy en Vercel
+### 4. Subir código y redeploy en Vercel
 
 Haz push de los cambios (`vercel.json`, `prepare-vercel.mjs`, `index.html`, `api.config.ts`) y **Redeploy** el proyecto PublicWeb (sin caché si puedes).
 
-### 4. Comprobar
+### 5. Comprobar
 
 1. Abre `https://TU-APP.vercel.app/env.js`  
    - Debe verse `API_BASE_URL` con `https://...onrender.com` (no `""`).
