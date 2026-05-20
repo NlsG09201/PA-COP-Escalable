@@ -36,11 +36,14 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # --- Redis -----------------------------------------------------------
     import redis.asyncio as aioredis
 
-    redis_pool = aioredis.Redis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        decode_responses=True,
-    )
+    if settings.REDIS_URL:
+        redis_pool = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    else:
+        redis_pool = aioredis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            decode_responses=True,
+        )
     application.state.redis = redis_pool
 
     # --- MongoDB ---------------------------------------------------------

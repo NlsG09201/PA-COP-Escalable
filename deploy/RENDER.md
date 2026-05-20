@@ -13,11 +13,23 @@ Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dash
 1. Render Dashboard → **New** → **Blueprint**
 2. Selecciona el repositorio y la rama (`main` o la que uses)
 3. **Blueprint path:** `render.yaml` (raíz) o `deploy/render.yaml` (mismo contenido)
-4. **Apply** — Render creará 4 Web Services:
+4. **Apply** — Render creara 5 Web Services + Redis:
+   - `cop-redis` (Key Value, opcional si usas Upstash)
+   - `cop-recommendation-engine` (Docker, IA ensemble + relapse)
    - `cop-j48-python` (Docker, entrena al arrancar con el ARFF del repo)
    - `cop-nest-api` (Docker Nest)
    - `cop-web-public` (Node, carpeta `web-public`)
    - `cop-web-dashboard` (Node, carpeta `web-dashboard`)
+
+### Configuracion automatica (recomendado)
+
+En la raiz del repo, con `.env` completo y `RENDER_API_KEY=rnd_...`:
+
+```powershell
+.\deploy\configurar-plataforma-completa.ps1
+```
+
+Sin API key, el mismo script genera `render-upload.env` y copia `COP_PRODUCTION_ENV_B64` al portapapeles.
 
 ## Paso 2 — Variables obligatorias (Environment)
 

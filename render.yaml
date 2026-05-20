@@ -13,6 +13,22 @@ services:
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
 
+  # --- Motor IA (ensemble RF/XGBoost/J48 + relapse) — URL en AI_RELAPSE_URL del API ---
+  - type: web
+    name: cop-recommendation-engine
+    runtime: docker
+    dockerfilePath: ./deploy/docker/recommendation-engine.Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: RECO_MONGODB_URI
+        sync: false
+      - key: RECO_MONGODB_DB
+        value: cop
+      - key: RECO_REDIS_URL
+        sync: false
+
   # --- IA J48 (Python FastAPI + scikit-learn) — desplegar primero y copiar URL pública ---
   - type: web
     name: cop-j48-python

@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     MONGODB_URI: str = "mongodb://cop:cop_dev_password_change_me@localhost:27017/cop?authSource=admin"
     MONGODB_DB: str = "cop"
+    REDIS_URL: str | None = None
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
