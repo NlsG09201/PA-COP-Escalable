@@ -68,6 +68,15 @@ export function assertProductionEnv(): void {
   if (!mongo) {
     throw new Error('MONGODB_URL is required when NODE_ENV=production');
   }
+  if (
+    mongo.includes('<db_password>') ||
+    mongo.includes('YOUR_PASSWORD') ||
+    mongo.includes('PASSWORD@')
+  ) {
+    throw new Error(
+      'MONGODB_URL still contains a placeholder password. Replace <db_password> with your Atlas user password in Render Environment.',
+    );
+  }
 
   const redis = normalizeRedisUrl(process.env.REDIS_URL);
   if (!redis) {
@@ -76,6 +85,16 @@ export function assertProductionEnv(): void {
   if (!redis.startsWith('redis://') && !redis.startsWith('rediss://')) {
     throw new Error(
       'REDIS_URL must start with redis:// or rediss:// (Upstash: use the TLS URL rediss://... from the console, not redis-cli)',
+    );
+  }
+  const redisLower = redis.toLowerCase();
+  if (
+    redisLower.includes('your-instance.upstash.io') ||
+    redisLower.includes('your_upstash_token') ||
+    redisLower.includes('example.upstash.io')
+  ) {
+    throw new Error(
+      'REDIS_URL is still the example placeholder (your-instance.upstash.io). In Upstash Console copy the real rediss:// URL and paste only that in Render → Environment → REDIS_URL.',
     );
   }
 
