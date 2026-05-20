@@ -8,7 +8,8 @@ Si `https://cop-nest-api.onrender.com/health/live` devuelve **404** y la cabecer
 2. [Dashboard](https://dashboard.render.com) → **cop-nest-api** → **Resume** o **Manual Deploy**.
 3. Si no aparece: **New → Blueprint** → repo → `render.yaml` → **Apply**.
 4. Configura env (abajo) → **Save** → **Manual Deploy**.
-5. Cuando responda `{"status":"ok"}`, Vercel y Render quedan conectados (CORS: `CORS_ALLOW_VERCEL=true`).
+5. Cuando responda `{"status":"ok"}`, Vercel y Render quedan conectados.
+6. En Vercel (PublicWeb), tras push con proxy: `https://TU-APP.vercel.app/render-api/health/live` debe responder JSON (sin error CORS en el navegador).
 
 ---
 

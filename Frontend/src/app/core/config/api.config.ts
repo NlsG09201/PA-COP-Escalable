@@ -1,3 +1,4 @@
+const VERCEL_API_PROXY = '/render-api';
 const DEFAULT_RENDER_API = 'https://cop-nest-api.onrender.com';
 
 function isVercelHost(): boolean {
@@ -7,12 +8,15 @@ function isVercelHost(): boolean {
 function resolveApiBaseUrl(): string {
   const raw = (globalThis as { __env?: { API_BASE_URL?: string } }).__env?.API_BASE_URL;
 
-  // Cadena vacía = mismo origen (nginx → gateway). En Vercel usar API en Render.
-  if (raw === '') return isVercelHost() ? DEFAULT_RENDER_API : '';
-
   if (typeof raw === 'string' && raw.trim() !== '') {
-    return raw.trim().replace(/\/$/, '');
+    const v = raw.trim().replace(/\/$/, '');
+    if (v.startsWith('/')) return v;
+    return v;
   }
+
+  if (raw === '') return isVercelHost() ? VERCEL_API_PROXY : '';
+
+  if (isVercelHost()) return VERCEL_API_PROXY;
 
   return 'http://localhost:8080';
 }
@@ -23,6 +27,9 @@ export const API_BASE_URL = resolveApiBaseUrl();
  * Para comparar/normalizar URLs (p. ej. GLB JWT) cuando el API va por proxy relativo (:5173 + /api).
  */
 export function apiOriginForRequests(): string {
+  if (API_BASE_URL.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${API_BASE_URL}`.replace(/\/$/, '');
+  }
   if (API_BASE_URL !== '') return API_BASE_URL.replace(/\/$/, '');
 
   if (typeof window !== 'undefined' && window.location?.origin) {

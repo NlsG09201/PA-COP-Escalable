@@ -4,18 +4,26 @@
  *
  * Variables (Vercel → Settings → Environment Variables, Production):
  *   RENDER_API_HOST  — ej. cop-nest-api.onrender.com (sin https://)
- *   API_BASE_URL     — opcional; si falta, se usa https://RENDER_API_HOST
- *   DASHBOARD_URL    — opcional
- *   PUBLIC_SITE_URL  — opcional
+ *   API_BASE_URL     — opcional; en Vercel se usa proxy /render-api si VERCEL_API_PROXY≠false
+ *   PUBLIC_SITE_URL  — opcional; si falta, se usa https://VERCEL_URL
+ *   DASHBOARD_URL    — opcional (omitir placeholders your-*.vercel.app)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const API_PROXY_PREFIX = '/render-api';
+
 const app = process.argv[2];
 if (!app || !['PublicWeb', 'Frontend'].includes(app)) {
   console.error('Uso: node scripts/prepare-vercel.mjs <PublicWeb|Frontend>');
   process.exit(1);
+}
+
+function isPlaceholderUrl(value) {
+  const v = (value ?? '').trim().toLowerCase();
+  if (!v) return true;
+  return v.includes('your-') || v.includes('your_') || v.includes('placeholder');
 }
 
 const rawHost =
@@ -29,46 +37,56 @@ const host = rawHost
   .replace(/^https?:\/\//i, '')
   .replace(/\/$/, '');
 
-let apiBaseUrl = (process.env.API_BASE_URL ?? '').trim().replace(/\/$/, '');
-if (!apiBaseUrl && host) {
-  apiBaseUrl = `https://${host}`;
+let renderApiUrl = (process.env.API_BASE_URL ?? '').trim().replace(/\/$/, '');
+if (!renderApiUrl && host) {
+  renderApiUrl = `https://${host}`;
 }
 
-if (!apiBaseUrl || apiBaseUrl.includes('YOUR_RENDER') || host.includes('YOUR_RENDER')) {
+if (!renderApiUrl || renderApiUrl.includes('YOUR_RENDER') || host.includes('YOUR_RENDER')) {
   console.error(`
 [prepare-vercel] Falta la URL del API en Vercel.
 
-  Settings → Environment Variables → Production (marca Production):
+  Settings → Environment Variables → Production:
     RENDER_API_HOST = cop-nest-api.onrender.com
 
-  (sin https://, sin rutas; usa el host real de tu servicio en Render)
-
-  Opcional: API_BASE_URL = https://cop-nest-api.onrender.com
-
-  Root Directory del proyecto: PublicWeb o Frontend (no la raíz del repo).
-  Luego: Deployments → Redeploy (sin cache si puedes).
+  Root Directory: PublicWeb o Frontend (no la raíz del repo).
+  Luego: Deployments → Redeploy.
 `);
   process.exit(1);
 }
+
+const onVercel = process.env.VERCEL === '1';
+const useApiProxy =
+  onVercel && (process.env.VERCEL_API_PROXY ?? 'true').trim().toLowerCase() !== 'false';
+
+const clientApiBase = useApiProxy ? API_PROXY_PREFIX : renderApiUrl;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appDir = path.join(repoRoot, app);
 
 const vercelHost = (process.env.VERCEL_URL ?? '').trim().replace(/^https?:\/\//i, '');
+const vercelPublicFromEnv = (process.env.VERCEL_PUBLIC_WEB_URL ?? '').trim();
 const defaultPublicSite =
   app === 'PublicWeb' && vercelHost ? `https://${vercelHost}` : '';
 
-const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? '').trim() || defaultPublicSite;
-const dashboardUrl = (process.env.DASHBOARD_URL ?? '').trim();
+let publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? '').trim() || defaultPublicSite;
+if (isPlaceholderUrl(publicSiteUrl)) {
+  publicSiteUrl = defaultPublicSite || vercelPublicFromEnv;
+}
+
+let dashboardUrl = (process.env.DASHBOARD_URL ?? '').trim();
+if (isPlaceholderUrl(dashboardUrl)) {
+  dashboardUrl = '';
+}
 
 const envLines = [
   'window.__env = window.__env || {};',
-  `window.__env.API_BASE_URL = ${JSON.stringify(apiBaseUrl)};`,
+  `window.__env.API_BASE_URL = ${JSON.stringify(clientApiBase)};`,
 ];
-if (dashboardUrl && !dashboardUrl.includes('your-')) {
+if (dashboardUrl) {
   envLines.push(`window.__env.DASHBOARD_URL = ${JSON.stringify(dashboardUrl)};`);
 }
-if (publicSiteUrl && !publicSiteUrl.includes('your-')) {
+if (publicSiteUrl) {
   envLines.push(`window.__env.PUBLIC_SITE_URL = ${JSON.stringify(publicSiteUrl)};`);
 }
 
@@ -79,14 +97,22 @@ const outputDirectory =
 
 const installCommand = `node ../scripts/prepare-vercel.mjs ${app} && npm ci`;
 
-/** Solo SPA; el API se llama por URL absoluta en env.js (evita rewrites rotos a YOUR_RENDER_API_HOST). */
+const rewrites = [];
+if (useApiProxy) {
+  rewrites.push({
+    source: `${API_PROXY_PREFIX}/:path*`,
+    destination: `${renderApiUrl}/:path*`,
+  });
+}
+rewrites.push({ source: '/(.*)', destination: '/index.html' });
+
 const vercel = {
   $schema: 'https://openapi.vercel.sh/vercel.json',
   framework: null,
   installCommand,
   buildCommand: 'ng build',
   outputDirectory,
-  rewrites: [{ source: '/(.*)', destination: '/index.html' }],
+  rewrites,
   headers: [
     {
       source: '/env.js',
@@ -96,4 +122,6 @@ const vercel = {
 };
 
 fs.writeFileSync(path.join(appDir, 'vercel.json'), `${JSON.stringify(vercel, null, 2)}\n`, 'utf8');
-console.log(`[prepare-vercel] ${app}: API_BASE_URL=${apiBaseUrl} (env.js + vercel.json SPA)`);
+
+const mode = useApiProxy ? `proxy ${API_PROXY_PREFIX} → ${renderApiUrl}` : `direct ${clientApiBase}`;
+console.log(`[prepare-vercel] ${app}: ${mode}`);

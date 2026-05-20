@@ -6,6 +6,10 @@
   "outputDirectory": "dist/PublicWeb/browser",
   "rewrites": [
     {
+      "source": "/render-api/:path*",
+      "destination": "https://cop-nest-api.onrender.com/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

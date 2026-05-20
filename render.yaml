@@ -54,6 +54,9 @@ services:
       # Si MONGODB_URL sigue con <db_password>, define solo esta variable (contraseña Atlas):
       - key: MONGODB_PASSWORD
         sync: false
+      # Pegar valor generado con: .\deploy\exportar-cop-production-env-b64.ps1
+      - key: COP_PRODUCTION_ENV_B64
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue

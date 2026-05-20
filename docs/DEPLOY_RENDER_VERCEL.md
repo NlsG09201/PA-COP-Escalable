@@ -71,15 +71,18 @@ Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen e
 | Name | Example |
 |------|---------|
 | `RENDER_API_HOST` | `cop-nest-api.onrender.com` (host real de Render, **sin** `https://`) |
-| `API_BASE_URL` | Opcional: `https://cop-nest-api.onrender.com` (si prefieres fijar la URL completa) |
-| `DASHBOARD_URL` | `https://tu-panel.vercel.app` (tras paso 5) |
 | `PUBLIC_SITE_URL` | `https://tu-web.vercel.app` |
+| `VERCEL_API_PROXY` | `true` (por defecto; proxy `/render-api` → Render, sin CORS) |
 
-4. **Install / build:** `vercel.json` ejecuta `prepare-vercel` en **install** y genera `public/env.js` con la URL del API. No uses el placeholder `YOUR_RENDER_API_HOST` del repo antiguo.
+No uses `DASHBOARD_URL` con placeholders `your-*.vercel.app` (se ignoran en el build).
 
-5. Si en el navegador ves `502` en `https://TU-APP.vercel.app/public/sites` con cabecera `X-Vercel-Error: DNS_HOSTNAME_NOT_FOUND`, falta `RENDER_API_HOST` o el deploy no corrió `prepare-vercel`. Corrige la variable y **Redeploy**.
+4. **Install / build:** `prepare-vercel` genera `env.js` con `API_BASE_URL="/render-api"` y rewrites en `vercel.json`.
 
-6. Deploy → copia la URL (ej. `https://cop-public.vercel.app`). En Network las peticiones deben ir a `https://cop-nest-api.onrender.com/public/...`, no a `TU-APP.vercel.app/public/...`.
+5. Tras deploy, comprueba:
+   - `https://TU-APP.vercel.app/env.js` → `API_BASE_URL="/render-api"`
+   - `https://TU-APP.vercel.app/render-api/health/live` → JSON cuando Render esté Live
+
+6. Si ves **404** en `/render-api/...` con `x-render-routing: no-server`, el API en Render no está activo (Paso 3).
 
 7. Vuelve a **Render** → `cop-nest-api` → Environment → actualiza:
 
@@ -129,7 +132,7 @@ En Render (`cop-nest-api`):
 
 | Síntoma | Causa probable | Acción |
 |---------|----------------|--------|
-| CORS error en navegador | Falta URL en `CORS_ORIGINS` | Añadir origen exacto `https://....vercel.app` |
+| CORS error en navegador | Petición cross-origin directa a Render | Redeploy con proxy `/render-api` (código actual) o añadir URL en `CORS_ORIGINS` |
 | API no arranca | `JWT_SECRET` débil o CORS vacío en prod | Revisar logs Render |
 | `/health` 503 | Mongo/Redis mal configurados | Revisar `MONGODB_URL` / `REDIS_URL` |
 | 404 en `/api/*` desde Vercel | `RENDER_API_HOST` incorrecto | Re-deploy con variable correcta |
