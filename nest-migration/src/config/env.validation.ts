@@ -144,61 +144,72 @@ export function resolveCorsOrigins(): string[] {
   return [...new Set(derived)];
 }
 
-export function assertProductionEnv(): void {
+/** Lista de problemas de configuración en producción (para un solo mensaje en logs de Render). */
+export function collectProductionEnvErrors(): string[] {
   if (process.env.NODE_ENV !== 'production') {
-    return;
+    return [];
   }
+
+  const errors: string[] = [];
 
   const jwt = (process.env.JWT_SECRET ?? '').trim();
   if (!jwt || INSECURE_JWT_VALUES.has(jwt.toLowerCase())) {
-    throw new Error(
-      'JWT_SECRET must be set to a strong random value when NODE_ENV=production',
+    errors.push(
+      'JWT_SECRET: usa un valor aleatorio fuerte (Render puede generarlo con generateValue en render.yaml).',
     );
   }
 
   const cors = resolveCorsOrigins();
   if (!cors.length) {
-    throw new Error(
-      'Set CORS_ORIGINS (comma-separated) or both DASHBOARD_URL and PUBLIC_SITE_URL in Render. Example: CORS_ORIGINS=https://tu-panel.vercel.app,https://tu-web.vercel.app',
+    errors.push(
+      'CORS: define CORS_ORIGINS o DASHBOARD_URL + PUBLIC_SITE_URL (URLs https de tus frontends).',
     );
   }
 
   const mongo = resolveMongoUrl();
   if (!mongo) {
-    throw new Error(
-      'MONGODB_URL or MONGODB_PASSWORD is required when NODE_ENV=production',
-    );
-  }
-  if (mongoUrlHasPlaceholder(mongo)) {
+    errors.push('MONGODB_URL o MONGODB_PASSWORD: al menos uno con valor real.');
+  } else if (mongoUrlHasPlaceholder(mongo)) {
     logMongoEnvDiagnostic();
-    throw new Error(
-      'MongoDB password missing on service cop-nest-api. Render → cop-nest-api → Environment → Add MONGODB_PASSWORD = Atlas user password (no quotes) → Save → Manual Deploy. Or paste the full URI in MONGODB_URL without <db_password>. See deploy/RENDER.md',
+    errors.push(
+      'MongoDB: MONGODB_PASSWORD vacía en Render (cop-nest-api → Environment). El archivo deploy/env.production.example en Git NO se aplica solo — debes pegar la variable en el dashboard.',
     );
   }
 
   const redis = normalizeRedisUrl(process.env.REDIS_URL);
   if (!redis) {
-    throw new Error('REDIS_URL is required when NODE_ENV=production');
-  }
-  if (!redis.startsWith('redis://') && !redis.startsWith('rediss://')) {
-    throw new Error(
-      'REDIS_URL must start with redis:// or rediss:// (Upstash: use the TLS URL rediss://... from the console, not redis-cli)',
+    errors.push(
+      'REDIS_URL: vacía. Upstash → Redis URL (rediss://...) → pegar en cop-nest-api → Environment.',
     );
-  }
-  const redisLower = redis.toLowerCase();
-  if (
-    redisLower.includes('your-instance.upstash.io') ||
-    redisLower.includes('your_upstash_token') ||
-    redisLower.includes('example.upstash.io')
-  ) {
-    throw new Error(
-      'REDIS_URL is still the example placeholder (your-instance.upstash.io). In Upstash Console copy the real rediss:// URL and paste only that in Render → Environment → REDIS_URL.',
+  } else if (!redis.startsWith('redis://') && !redis.startsWith('rediss://')) {
+    errors.push(
+      'REDIS_URL: debe empezar por redis:// o rediss:// (sin prefijo redis-cli).',
     );
+  } else {
+    const redisLower = redis.toLowerCase();
+    if (
+      redisLower.includes('your-instance.upstash.io') ||
+      redisLower.includes('your_upstash_token') ||
+      redisLower.includes('example.upstash.io')
+    ) {
+      errors.push(
+        'REDIS_URL: sigue siendo el placeholder de ejemplo; pega la URL real de Upstash.',
+      );
+    }
   }
 
   if (process.env.WOMPI_SKIP_WEBHOOK_VERIFY === 'true') {
+    errors.push('WOMPI_SKIP_WEBHOOK_VERIFY no puede ser true en producción.');
+  }
+
+  return errors;
+}
+
+export function assertProductionEnv(): void {
+  const errors = collectProductionEnvErrors();
+  if (errors.length) {
     throw new Error(
-      'WOMPI_SKIP_WEBHOOK_VERIFY must not be true in production',
+      `Production env check failed (${errors.length} issue(s)):\n- ${errors.join('\n- ')}\n→ Render: cop-nest-api → Environment → Save → Manual Deploy. Ver deploy/RENDER.md`,
     );
   }
 }

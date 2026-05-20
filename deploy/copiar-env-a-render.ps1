@@ -46,3 +46,4 @@ Write-Host "Copiado al portapapeles ($($out.Count) variables para cop-nest-api):
 Write-Host $text
 Write-Host ""
 Write-Host "Render → cop-nest-api → Environment → pega y guarda → Manual Deploy."
+Write-Host "IMPORTANTE: subir env.production.example a Git NO configura Render; debes pegar aqui."
