@@ -9,6 +9,7 @@ const nav = [
   { href: "/dashboard", label: "Resumen", roles: ["ADMIN", "ORG_ADMIN", "SITE_ADMIN", "MEDICO", "PROFESSIONAL", "ODONTOLOGO", "PSICOLOGO", "RECEPCIONISTA"] },
   { href: "/appointments", label: "Agenda", roles: ["ADMIN", "MEDICO", "PROFESSIONAL", "ODONTOLOGO", "PSICOLOGO", "RECEPCIONISTA"] },
   { href: "/patients", label: "Pacientes", roles: ["ADMIN", "MEDICO", "PROFESSIONAL", "ODONTOLOGO", "PSICOLOGO", "RECEPCIONISTA"] },
+  { href: "/medical-ai", label: "IA Médica", roles: ["PSICOLOGO", "MEDICO", "PROFESSIONAL", "ADMIN", "ODONTOLOGO", "ORG_ADMIN", "SITE_ADMIN"] },
   { href: "/psychology", label: "Psicología", roles: ["PSICOLOGO", "MEDICO", "PROFESSIONAL", "ADMIN"] },
   { href: "/j48", label: "IA J48", roles: ["PSICOLOGO", "ADMIN", "MEDICO"] },
   { href: "/admin", label: "Administración", roles: ["ADMIN", "ORG_ADMIN", "SITE_ADMIN", "SUPER_ADMIN"] },

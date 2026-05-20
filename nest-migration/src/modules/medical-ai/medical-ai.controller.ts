@@ -120,7 +120,7 @@ export class MedicalAiController {
     return this.assistant.chat(patientId, req.tenant, req.user.userId, dto.message);
   }
 
-  @Post('patients/:patientId/assistant/summary')
+  @Get('patients/:patientId/assistant/summary')
   @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
   assistantSummary(
     @Param('patientId') patientId: string,
