@@ -1,4 +1,5 @@
 .env*
+deploy/render-env.local.txt
 .env.local
 .env.*.local
 *.log

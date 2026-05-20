@@ -5,6 +5,13 @@
 # ten listas las URLs (no uses placeholders en MONGODB_URL / REDIS_URL).
 
 services:
+  # Redis interno (evita pegar REDIS_URL de Upstash en Environment). Tras sync Blueprint, REDIS_URL se inyecta solo.
+  - type: redis
+    name: cop-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
   # --- IA J48 (Python FastAPI + scikit-learn) — desplegar primero y copiar URL pública ---
   - type: web
     name: cop-j48-python
@@ -31,7 +38,10 @@ services:
       - key: MONGODB_PASSWORD
         sync: false
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: cop-redis
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES

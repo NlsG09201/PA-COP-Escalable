@@ -2,6 +2,12 @@
 # Ver comentarios en ../render.yaml
 
 services:
+  - type: redis
+    name: cop-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
   - type: web
     name: cop-j48-python
     runtime: docker
@@ -25,7 +31,10 @@ services:
       - key: MONGODB_PASSWORD
         sync: false
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: cop-redis
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES
