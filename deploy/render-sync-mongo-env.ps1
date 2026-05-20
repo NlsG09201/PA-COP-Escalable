@@ -72,13 +72,11 @@ if (-not $serviceId) {
   Write-Error "No se encontró el servicio '$ServiceName' en tu cuenta Render."
 }
 
-$body = @{
-  envVars = @(
-    @{ key = 'MONGODB_PASSWORD'; value = $mongoPass }
-  )
-} | ConvertTo-Json -Depth 5
+# Solo actualiza una variable (PUT /env-vars reemplaza TODAS las del servicio).
+$body = @{ value = $mongoPass } | ConvertTo-Json
+$key = [uri]::EscapeDataString('MONGODB_PASSWORD')
 
 Write-Host "Actualizando MONGODB_PASSWORD en $ServiceName ($serviceId)..."
-Invoke-RestMethod -Method Put -Uri "https://api.render.com/v1/services/$serviceId/env-vars" -Headers $headers -Body $body | Out-Null
+Invoke-RestMethod -Method Put -Uri "https://api.render.com/v1/services/$serviceId/env-vars/$key" -Headers $headers -Body $body | Out-Null
 
 Write-Host 'OK. Render → cop-nest-api → Manual Deploy para aplicar el cambio.'
