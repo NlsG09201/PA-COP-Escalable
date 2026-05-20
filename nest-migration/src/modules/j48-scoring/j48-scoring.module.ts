@@ -20,6 +20,7 @@ import { IamModule } from '../iam/iam.module';
   ],
   controllers: [J48ScoringController],
   providers: [J48ScoringService],
+  exports: [J48ScoringService],
 })
 export class J48ScoringModule {}
 

@@ -22,6 +22,7 @@ import { ApiCompatModule } from './modules/api-compat/api-compat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PsychologyModule } from './modules/psychology/psychology.module';
 import { AiProxyModule } from './modules/ai-proxy/ai-proxy.module';
+import { MedicalAiModule } from './modules/medical-ai/medical-ai.module';
 import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module';
 import {
   applyNormalizedRedisUrlFromEnv,
@@ -72,6 +73,7 @@ import {
     OdontologyModule,
     PsychologyModule,
     AiProxyModule,
+    MedicalAiModule,
     PaymentsIntlModule,
     ApiCompatModule,
   ],

@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.ml.model_loader import ModelLoader
-from app.routers import health, recommendations, relapse
+from app.routers import ensemble, health, recommendations, relapse
 from app.services.redis_consumer import RedisStreamConsumer
 
 logger = logging.getLogger("recommendation-engine")
@@ -87,6 +87,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(recommendations.router)
 app.include_router(relapse.router)
+app.include_router(ensemble.router)
 
 
 @app.exception_handler(ValueError)
