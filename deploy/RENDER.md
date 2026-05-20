@@ -35,6 +35,8 @@ La API arranca aunque falte `REDIS_URL` (modo degradado).
 
 **Upstash:** `.\deploy\upstash-redis-a-render.ps1` → guia `deploy/UPSTASH-RENDER.md` (evita WRONGPASS).
 
+**Atlas (Mongo):** si ves `MongooseServerSelectionError` / whitelist → `deploy/ATLAS-RENDER.md` → Network Access `0.0.0.0/0`.
+
 ### Configuracion automatica
 
 En la raiz del repo, con `.env` completo y `RENDER_API_KEY=rnd_...`:

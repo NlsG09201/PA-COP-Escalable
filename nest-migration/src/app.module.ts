@@ -45,9 +45,26 @@ import {
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URL'),
-      }),
+      useFactory: (config: ConfigService) => {
+        const uri = config.get<string>('MONGODB_URL');
+        return {
+          uri,
+          serverSelectionTimeoutMS: 15_000,
+          connectTimeoutMS: 15_000,
+          retryWrites: true,
+          connectionFactory: (connection: import('mongoose').Connection) => {
+            connection.on('error', (err: Error) => {
+              const msg = err.message ?? '';
+              if (/whitelist|ServerSelection|ECONNREFUSED/i.test(msg)) {
+                console.error(
+                  '[cop-nest-api] MongoDB Atlas: revisa Network Access -> Add IP -> 0.0.0.0/0. Ver deploy/ATLAS-RENDER.md',
+                );
+              }
+            });
+            return connection;
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([
