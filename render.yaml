@@ -27,6 +27,9 @@ services:
         value: production
       - key: MONGODB_URL
         sync: false
+      # Si MONGODB_URL sigue con <db_password>, define solo esta variable (contraseña Atlas):
+      - key: MONGODB_PASSWORD
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: JWT_SECRET

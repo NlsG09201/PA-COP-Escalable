@@ -30,6 +30,21 @@ jobs:
         run: node -e "process.env.NODE_ENV='production';process.env.JWT_SECRET='x';process.env.CORS_ORIGINS='https://a.com';process.env.MONGODB_URL='mongodb://localhost';process.env.REDIS_URL='redis://localhost';require('./dist/config/env.validation').assertProductionEnv();console.log('ok')"
         env:
           NODE_ENV: production
+      - name: Mongo placeholder + MONGODB_PASSWORD resolves
+        run: |
+          node -e "
+          process.env.MONGODB_URL='mongodb+srv://u:<db_password>@cluster.example.net/cop?retryWrites=true';
+          process.env.MONGODB_PASSWORD='p@ss';
+          const v=require('./dist/config/env.validation');
+          v.applyResolvedMongoUrlFromEnv();
+          if(!process.env.MONGODB_URL.includes('p%40ss')) throw new Error('resolve failed');
+          process.env.NODE_ENV='production';
+          process.env.JWT_SECRET='x';
+          process.env.CORS_ORIGINS='https://a.com';
+          process.env.REDIS_URL='redis://localhost';
+          v.assertProductionEnv();
+          console.log('ok');
+          "
 
   frontend:
     name: Dashboard build

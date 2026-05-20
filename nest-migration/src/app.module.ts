@@ -23,7 +23,10 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PsychologyModule } from './modules/psychology/psychology.module';
 import { AiProxyModule } from './modules/ai-proxy/ai-proxy.module';
 import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module';
-import { applyNormalizedRedisUrlFromEnv } from './config/env.validation';
+import {
+  applyNormalizedRedisUrlFromEnv,
+  applyResolvedMongoUrlFromEnv,
+} from './config/env.validation';
 
 @Module({
   imports: [
@@ -31,6 +34,7 @@ import { applyNormalizedRedisUrlFromEnv } from './config/env.validation';
       isGlobal: true,
       load: [
         () => {
+          applyResolvedMongoUrlFromEnv();
           applyNormalizedRedisUrlFromEnv();
           return {};
         },

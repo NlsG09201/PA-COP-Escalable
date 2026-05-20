@@ -7,12 +7,14 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import {
   applyNormalizedRedisUrlFromEnv,
+  applyResolvedMongoUrlFromEnv,
   assertProductionEnv,
   isProduction,
   resolveCorsOrigins,
 } from './config/env.validation';
 
 async function bootstrap() {
+  applyResolvedMongoUrlFromEnv();
   applyNormalizedRedisUrlFromEnv();
   assertProductionEnv();
 

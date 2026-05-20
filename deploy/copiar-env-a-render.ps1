@@ -14,7 +14,7 @@ $lines = Get-Content $envFile | Where-Object {
 }
 
 $renderKeys = @(
-  'NODE_ENV', 'MONGODB_URL', 'REDIS_URL', 'JWT_SECRET', 'JWT_ACCESS_EXPIRES',
+  'NODE_ENV', 'MONGODB_URL', 'MONGODB_PASSWORD', 'REDIS_URL', 'JWT_SECRET', 'JWT_ACCESS_EXPIRES',
   'APP_BOOTSTRAP_ADMIN_USERNAME', 'APP_BOOTSTRAP_ADMIN_PASSWORD', 'APP_BOOTSTRAP_ADMIN_EMAIL',
   'APP_BOOTSTRAP_ADMIN_ORG_ID', 'APP_BOOTSTRAP_ADMIN_RESET', 'APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN',
   'PUBLIC_API_ORIGIN', 'DASHBOARD_URL', 'PUBLIC_SITE_URL', 'CORS_ORIGINS',
@@ -25,6 +25,19 @@ $out = @()
 foreach ($key in $renderKeys) {
   $match = $lines | Where-Object { $_ -match "^\s*$key\s*=" } | Select-Object -First 1
   if ($match) { $out += $match.Trim() }
+}
+
+# Si .env tiene URI completa pero no MONGODB_PASSWORD, sugiere la variable para Render
+if (-not ($out | Where-Object { $_ -match '^\s*MONGODB_PASSWORD\s*=' })) {
+  $mongoLine = $lines | Where-Object { $_ -match '^\s*MONGODB_URL\s*=' } | Select-Object -First 1
+  if ($mongoLine -match 'mongodb(\+srv)?://([^:]+):([^@]+)@') {
+    $pass = $Matches[3]
+    if ($pass -and $pass -notmatch '[<>]') {
+      $out = @("MONGODB_PASSWORD=$pass") + $out
+      $out += 'MONGODB_URL=mongodb+srv://nelsonherazoi:<db_password>@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0'
+      $out = $out | Where-Object { $_ -notmatch '^\s*MONGODB_URL=mongodb.*NelsonH' }
+    }
+  }
 }
 
 $text = $out -join "`n"

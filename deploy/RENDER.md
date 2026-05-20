@@ -27,7 +27,8 @@ Rellénalas en el asistente del Blueprint o después en cada servicio → **Envi
 
 | Variable | Valor |
 |----------|--------|
-| `MONGODB_URL` | URI completa de Atlas |
+| `MONGODB_URL` | URI de Atlas (completa **o** con `<db_password>` si usas la opción B) |
+| `MONGODB_PASSWORD` | **Opción B:** contraseña del usuario Atlas (el API arma la URI al arrancar) |
 | `REDIS_URL` | Solo la URI: `rediss://...` desde Upstash (sin `redis-cli`). El API normaliza si pegas por error el comando CLI |
 | `PUBLIC_API_ORIGIN` | `https://cop-nest-api.onrender.com` (ajusta si cambiaste el nombre del servicio) |
 | `J48_URL` | **Solo la base**, sin `/predict`. Ej: `https://cop-j48-python.onrender.com` |
@@ -64,7 +65,8 @@ Si el navegador muestra error **CORS**, revisa que `CORS_ORIGINS` incluya exacta
 
 - **`ENOTFOUND your-instance.upstash.io`**: pegaste el **ejemplo** del repo, no tu URL de Upstash. En [Upstash Console](https://console.upstash.com) → tu base → copia **Redis URL** (TLS) y pégala entera en `REDIS_URL`. El host debe ser algo como `prepared-ram-78507.upstash.io`, no `your-instance`.
 - **`[ioredis] connect ENOENT %20--tls%20-u`**: `REDIS_URL` incluye el comando `redis-cli --tls -u` delante de la URI. En Render deja solo `rediss://default:...@....upstash.io:6379`.
-- **`MongooseServerSelectionError` / IP whitelist**: en MongoDB Atlas → **Network Access** → **Add IP Address** → **Allow access from anywhere** (`0.0.0.0/0`). Sin esto Render no entra al cluster. También revisa que `MONGODB_URL` no tenga `<db_password>` sin reemplazar.
+- **`MONGODB_URL still contains a placeholder password`**: en **cop-nest-api** → **Environment** añade `MONGODB_PASSWORD` = contraseña Atlas (sin `<>`), guarda y **Manual Deploy**. O pega la URI completa en `MONGODB_URL` sin `<db_password>`.
+- **`MongooseServerSelectionError` / IP whitelist**: en MongoDB Atlas → **Network Access** → **Add IP Address** → **Allow access from anywhere** (`0.0.0.0/0`). Sin esto Render no entra al cluster.
 - **Puerto**: Nest usa `process.env.PORT` (Render lo inyecta). No hace falta fijar `PORT` manualmente salvo pruebas locales.
 - **`/nest-migration`: not found / checksum del contexto**: Suele pasar si en Render usas el **Dockerfile de la raíz** del repo con **contexto = raíz** y el `.dockerignore` ignoraba toda la carpeta `nest-migration`. En el repo ya está corregido (solo se ignoran `nest-migration/node_modules` y `nest-migration/dist`). Alternativa: en el Blueprint deja `dockerContext: ./nest-migration` + `dockerfilePath: ./nest-migration/Dockerfile` como en `render.yaml`.
 

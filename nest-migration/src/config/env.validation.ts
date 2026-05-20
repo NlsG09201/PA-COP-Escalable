@@ -1,5 +1,69 @@
 const INSECURE_JWT_VALUES = new Set(['change_me', 'changeme', 'secret', '']);
 
+const MONGO_PLACEHOLDER_MARKERS = ['<db_password>', '<password>', 'YOUR_PASSWORD'];
+
+function mongoUrlHasPlaceholder(url: string): boolean {
+  return MONGO_PLACEHOLDER_MARKERS.some((m) => url.includes(m));
+}
+
+/** Extrae user/host/db de una URI Atlas aunque la contraseña sea un placeholder. */
+function parseMongoUriParts(url: string): {
+  user: string;
+  host: string;
+  db: string;
+  query: string;
+} | null {
+  const m = url.match(
+    /^mongodb(\+srv)?:\/\/([^:@/]+)(?::[^@]*)?@([^/]+)\/([^?]*)(\?.*)?$/i,
+  );
+  if (!m) return null;
+  return {
+    user: decodeURIComponent(m[2]),
+    host: m[3],
+    db: m[4] || 'cop',
+    query: (m[5] ?? '').replace(/^\?/, '') || 'retryWrites=true&w=majority&appName=Cluster0',
+  };
+}
+
+/**
+ * URI final para Mongoose. Si MONGODB_URL trae `<db_password>`, usa MONGODB_PASSWORD (Render).
+ */
+export function resolveMongoUrl(): string {
+  const direct = (process.env.MONGODB_URL ?? '').trim();
+  const password = (process.env.MONGODB_PASSWORD ?? '').trim();
+
+  if (direct && !mongoUrlHasPlaceholder(direct)) {
+    return direct;
+  }
+
+  if (!password) {
+    return direct;
+  }
+
+  const parts = direct ? parseMongoUriParts(direct) : null;
+  const user = encodeURIComponent(
+    process.env.MONGODB_USER?.trim() || parts?.user || 'nelsonherazoi',
+  );
+  const pass = encodeURIComponent(password);
+  const host =
+    process.env.MONGODB_HOST?.trim() || parts?.host || 'cluster0.6oyhyja.mongodb.net';
+  const db = process.env.MONGODB_DB?.trim() || parts?.db || 'cop';
+  const query =
+    process.env.MONGODB_OPTIONS?.trim() ||
+    parts?.query ||
+    'retryWrites=true&w=majority&appName=Cluster0';
+
+  return `mongodb+srv://${user}:${pass}@${host}/${db}?${query}`;
+}
+
+/** Escribe la URI resuelta en process.env para ConfigService / Mongoose. */
+export function applyResolvedMongoUrlFromEnv(): void {
+  const resolved = resolveMongoUrl();
+  if (resolved && !mongoUrlHasPlaceholder(resolved)) {
+    process.env.MONGODB_URL = resolved;
+  }
+}
+
 /**
  * Quita prefijos pegados por error (p. ej. `redis-cli --tls -u `) y comillas.
  * Usa la URL tal como la muestra Upstash (`rediss://...` con TLS), no un comando CLI.
@@ -64,17 +128,15 @@ export function assertProductionEnv(): void {
     );
   }
 
-  const mongo = (process.env.MONGODB_URL ?? '').trim();
+  const mongo = resolveMongoUrl();
   if (!mongo) {
-    throw new Error('MONGODB_URL is required when NODE_ENV=production');
-  }
-  if (
-    mongo.includes('<db_password>') ||
-    mongo.includes('YOUR_PASSWORD') ||
-    mongo.includes('PASSWORD@')
-  ) {
     throw new Error(
-      'MONGODB_URL still contains a placeholder password. Replace <db_password> with your Atlas user password in Render Environment.',
+      'MONGODB_URL or MONGODB_PASSWORD is required when NODE_ENV=production',
+    );
+  }
+  if (mongoUrlHasPlaceholder(mongo)) {
+    throw new Error(
+      'MongoDB password missing: set MONGODB_PASSWORD in Render (Atlas user password), or replace <db_password> inside MONGODB_URL.',
     );
   }
 
