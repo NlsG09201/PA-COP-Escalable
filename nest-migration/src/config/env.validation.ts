@@ -265,11 +265,13 @@ export function logMongoEnvDiagnostic(): void {
   const url = (process.env.MONGODB_URL ?? '').trim();
   const dbUrl = (process.env.DATABASE_URL ?? '').trim();
   const pass = resolveMongoPassword();
+  const b64 = (process.env.COP_PRODUCTION_ENV_B64 ?? '').trim();
   const parts = [
     `MONGODB_URL=${url ? (mongoUrlHasPlaceholder(url) ? 'placeholder' : 'ok') : 'missing'}`,
     `DATABASE_URL=${dbUrl.startsWith('mongodb') ? (mongoUrlHasPlaceholder(dbUrl) ? 'placeholder' : 'ok') : 'unset'}`,
     `MONGODB_PASSWORD=${pass ? `set(len=${pass.length})` : 'missing'}`,
     `REDIS_URL=${redisUrlStatus(resolveRedisUrl() || process.env.REDIS_URL)}`,
+    `COP_PRODUCTION_ENV_B64=${b64 ? `set(len=${b64.length})` : 'unset'}`,
   ];
   console.error(`[cop-nest-api] Env check: ${parts.join(' ')}`);
 }

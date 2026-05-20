@@ -16,6 +16,11 @@ import {
 } from './config/env.validation';
 
 async function bootstrap() {
+  if (isProduction()) {
+    console.error(
+      '[cop-nest-api] env-loader v3 (..data secrets + COP_PRODUCTION_ENV_B64). Si no ves "entries" ni COP_PRODUCTION_ENV_B64 en Env check, haz Manual Deploy del ultimo commit.',
+    );
+  }
   loadRenderSecretEnv();
   applyResolvedMongoUrlFromEnv();
   applyNormalizedRedisUrlFromEnv();
