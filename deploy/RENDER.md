@@ -21,6 +21,9 @@ Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dash
 
 ## Paso 2 — Variables obligatorias (Environment)
 
+> **Error `MongoDB password missing`:** la variable **no está en Render** (el `.env` local no cuenta). Servicio correcto: **`cop-nest-api`**, no las webs Next. Añade `MONGODB_PASSWORD` = contraseña Atlas → **Save** → **Manual Deploy**. Automático: `.\deploy\render-sync-mongo-env.ps1` con `RENDER_API_KEY` (ver script).
+
+
 Rellénalas en el asistente del Blueprint o después en cada servicio → **Environment**.
 
 ### `cop-nest-api`

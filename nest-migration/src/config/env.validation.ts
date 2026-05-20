@@ -25,12 +25,47 @@ function parseMongoUriParts(url: string): {
   };
 }
 
+const MONGO_PASSWORD_ENV_KEYS = [
+  'MONGODB_PASSWORD',
+  'MONGO_PASSWORD',
+  'ATLAS_PASSWORD',
+  'DB_PASSWORD',
+] as const;
+
+/** Contraseña Atlas desde variables dedicadas (Render suele olvidar MONGODB_PASSWORD). */
+export function resolveMongoPassword(): string {
+  for (const key of MONGO_PASSWORD_ENV_KEYS) {
+    const v = (process.env[key] ?? '').trim();
+    if (v && !mongoUrlHasPlaceholder(v)) return v;
+  }
+  return '';
+}
+
+/** Log seguro en Render (sin secretos) para ver qué variables llegaron al contenedor. */
+export function logMongoEnvDiagnostic(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  const url = (process.env.MONGODB_URL ?? '').trim();
+  const dbUrl = (process.env.DATABASE_URL ?? '').trim();
+  const pass = resolveMongoPassword();
+  const parts = [
+    `MONGODB_URL=${url ? (mongoUrlHasPlaceholder(url) ? 'placeholder' : 'ok') : 'missing'}`,
+    `DATABASE_URL=${dbUrl.startsWith('mongodb') ? (mongoUrlHasPlaceholder(dbUrl) ? 'placeholder' : 'ok') : 'unset'}`,
+    `MONGODB_PASSWORD=${pass ? `set(len=${pass.length})` : 'missing'}`,
+  ];
+  console.error(`[cop-nest-api] Mongo env: ${parts.join(' ')}`);
+}
+
 /**
  * URI final para Mongoose. Si MONGODB_URL trae `<db_password>`, usa MONGODB_PASSWORD (Render).
  */
 export function resolveMongoUrl(): string {
+  const databaseUrl = (process.env.DATABASE_URL ?? '').trim();
+  if (databaseUrl.startsWith('mongodb') && !mongoUrlHasPlaceholder(databaseUrl)) {
+    return databaseUrl;
+  }
+
   const direct = (process.env.MONGODB_URL ?? '').trim();
-  const password = (process.env.MONGODB_PASSWORD ?? '').trim();
+  const password = resolveMongoPassword();
 
   if (direct && !mongoUrlHasPlaceholder(direct)) {
     return direct;
@@ -135,8 +170,9 @@ export function assertProductionEnv(): void {
     );
   }
   if (mongoUrlHasPlaceholder(mongo)) {
+    logMongoEnvDiagnostic();
     throw new Error(
-      'MongoDB password missing: set MONGODB_PASSWORD in Render (Atlas user password), or replace <db_password> inside MONGODB_URL.',
+      'MongoDB password missing on service cop-nest-api. Render → cop-nest-api → Environment → Add MONGODB_PASSWORD = Atlas user password (no quotes) → Save → Manual Deploy. Or paste the full URI in MONGODB_URL without <db_password>. See deploy/RENDER.md',
     );
   }
 

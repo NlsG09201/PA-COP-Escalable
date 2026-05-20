@@ -10,12 +10,14 @@ import {
   applyResolvedMongoUrlFromEnv,
   assertProductionEnv,
   isProduction,
+  logMongoEnvDiagnostic,
   resolveCorsOrigins,
 } from './config/env.validation';
 
 async function bootstrap() {
   applyResolvedMongoUrlFromEnv();
   applyNormalizedRedisUrlFromEnv();
+  logMongoEnvDiagnostic();
   assertProductionEnv();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
