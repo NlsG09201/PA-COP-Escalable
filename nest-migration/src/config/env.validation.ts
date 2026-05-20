@@ -274,6 +274,11 @@ export function logMongoEnvDiagnostic(): void {
     `COP_PRODUCTION_ENV_B64=${b64 ? `set(len=${b64.length})` : 'unset'}`,
   ];
   console.error(`[cop-nest-api] Env check: ${parts.join(' ')}`);
+  if (!b64 && !pass) {
+    console.error(
+      '[cop-nest-api] Ninguna variable de produccion cargada. En Render: cop-nest-api → Environment → anade MONGODB_PASSWORD y REDIS_URL (o COP_PRODUCTION_ENV_B64) → Save Changes → Manual Deploy. Borra Secret Files vacios (..data 0 file(s)).',
+    );
+  }
 }
 
 /**

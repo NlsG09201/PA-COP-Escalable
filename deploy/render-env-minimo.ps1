@@ -29,14 +29,19 @@ if (-not $mongoPass -or $mongoPass -match '[<>]') {
   Write-Error 'Falta MONGODB_PASSWORD (o MONGODB_URL con contraseña) en .env'
 }
 
+$redis = Get-Val 'REDIS_URL'
+if ($redis -match 'your-instance\.upstash\.io') { $redis = '' }
+
 $lines = @(
-  '# Pegar en Render: servicio cop-nest-api, pestaña Environment, Save, Manual Deploy'
-  '# Si MONGODB_URL tiene texto db_password entre angulos, borra esa variable o anade la linea de abajo.'
-  "MONGODB_PASSWORD=$mongoPass"
+  '# === Pegar en Render: cop-nest-api -> Environment (NO Secret Files) ==='
+  '# 1. Borra Secret File cop-production.env si ..data sale (0 file(s))'
+  '# 2. Add cada linea KEY=VALUE abajo (solo la parte despues del = en Value)'
+  '# 3. Borra REDIS_URL vieja con your-instance.upstash.io'
+  '# 4. Save Changes (obligatorio) -> Manual Deploy'
   ''
-  '# Opcional: URI completa en una sola variable MONGODB_URL (desde .env local)'
-  ('# MONGODB_URL=' + (Get-Val 'MONGODB_URL'))
+  "MONGODB_PASSWORD=$mongoPass"
 )
+if ($redis) { $lines += "REDIS_URL=$redis" }
 
 $lines | Set-Content -Path $outFile -Encoding UTF8
 Write-Host "Escrito: $outFile"
