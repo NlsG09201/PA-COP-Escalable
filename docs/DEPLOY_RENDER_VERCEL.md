@@ -69,15 +69,18 @@ Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen e
 
 | Name | Example |
 |------|---------|
-| `RENDER_API_HOST` | `cop-nest-api.onrender.com` |
+| `RENDER_API_HOST` | `cop-nest-api.onrender.com` (host real de Render, **sin** `https://`) |
+| `API_BASE_URL` | Opcional: `https://cop-nest-api.onrender.com` (si prefieres fijar la URL completa) |
 | `DASHBOARD_URL` | `https://tu-panel.vercel.app` (tras paso 5) |
 | `PUBLIC_SITE_URL` | `https://tu-web.vercel.app` |
 
-4. **Build Command:** `npm run vercel-build` (ya en `vercel.json`; no hace falta cambiarlo).
+4. **Install / build:** `vercel.json` ejecuta `prepare-vercel` en **install** y genera `public/env.js` con la URL del API. No uses el placeholder `YOUR_RENDER_API_HOST` del repo antiguo.
 
-5. Deploy → copia la URL (ej. `https://cop-public.vercel.app`).
+5. Si en el navegador ves `502` en `https://TU-APP.vercel.app/public/sites` con cabecera `X-Vercel-Error: DNS_HOSTNAME_NOT_FOUND`, falta `RENDER_API_HOST` o el deploy no corrió `prepare-vercel`. Corrige la variable y **Redeploy**.
 
-6. Vuelve a **Render** → `cop-nest-api` → Environment → actualiza:
+6. Deploy → copia la URL (ej. `https://cop-public.vercel.app`). En Network las peticiones deben ir a `https://cop-nest-api.onrender.com/public/...`, no a `TU-APP.vercel.app/public/...`.
+
+7. Vuelve a **Render** → `cop-nest-api` → Environment → actualiza:
 
    `CORS_ORIGINS=https://cop-public.vercel.app,https://tu-panel.vercel.app`
 

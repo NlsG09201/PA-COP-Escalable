@@ -1,31 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm ci",
-  "buildCommand": "npm run vercel-build",
+  "installCommand": "node ../scripts/prepare-vercel.mjs Frontend && npm ci",
+  "buildCommand": "ng build",
   "outputDirectory": "dist/Frontend/browser",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://YOUR_RENDER_API_HOST/api/$1"
-    },
-    {
-      "source": "/public/(.*)",
-      "destination": "https://YOUR_RENDER_API_HOST/public/$1"
-    },
-    {
-      "source": "/ortho-ai/(.*)",
-      "destination": "https://YOUR_RENDER_API_HOST/ortho-ai/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/env.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [{ "key": "Cache-Control", value: "no-cache" }]
     }
   ]
 }

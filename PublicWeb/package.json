@@ -6,6 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "vercel-build": "node ../scripts/prepare-vercel.mjs PublicWeb && ng build",
+    "vercel:prepare": "node ../scripts/prepare-vercel.mjs PublicWeb",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "e2e": "playwright test",
