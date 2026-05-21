@@ -138,13 +138,16 @@ export class BootstrapAdminService implements OnModuleInit {
 
   /** Mongoose + colección nativa (sedes seed con _id UUID binario). */
   private async findBootstrapUser(username: string): Promise<{ password_hash?: unknown } | null> {
-    const fromMongoose = await this.users.findOne({ username }).lean().exec();
-    if (fromMongoose) return fromMongoose;
-
+    const usernameRegex = new RegExp(
+      `^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+      'i',
+    );
     const raw = await this.mongo.db
       .collection<{ password_hash?: unknown }>('users')
-      .findOne({ username: { $regex: new RegExp(`^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
-    return raw ?? null;
+      .findOne({ username: usernameRegex });
+    if (raw) return raw;
+
+    return (await this.users.findOne({ username }).lean().exec()) ?? null;
   }
 
   /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */
@@ -253,8 +256,10 @@ export class BootstrapAdminService implements OnModuleInit {
       return 'skipped';
     }
 
-    // Elimina duplicados (mongoose UUID + seed nativo) y crea un único documento limpio.
+    // Borrar duplicados ANTES de insertar (mongoose y nativo comparten la colección `users`).
     await col.deleteMany({ username: usernameRegex });
+    await this.users.deleteMany({ username: usernameRegex }).exec();
+
     await col.insertOne({
       _id: uuidv4(),
       username: opts.username,
@@ -266,7 +271,6 @@ export class BootstrapAdminService implements OnModuleInit {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as Record<string, unknown>);
-    await this.users.deleteMany({ username: usernameRegex }).exec();
     return existing ? 'reset' : 'created';
   }
 
