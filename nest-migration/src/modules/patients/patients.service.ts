@@ -16,14 +16,20 @@ export class PatientService {
 
   async findPage(
     tenant: TenantContext,
-    opts: { page?: number; size?: number; search?: string },
+    opts: { page?: number; size?: number; search?: string; orgWide?: boolean },
   ): Promise<{ items: any[]; page: number; size: number; total: number; hasNext: boolean }> {
     const page = Math.max(0, Number(opts.page ?? 0));
     const size = Math.min(200, Math.max(1, Number(opts.size ?? 50)));
     const search = String(opts.search ?? '').trim();
+    const orgId = String(tenant.organizationId);
 
-    const match: any = { organization_id: new UUID(String(tenant.organizationId)) };
-    if (tenant.siteId) match.site_id = new UUID(String(tenant.siteId));
+    const match: Record<string, unknown> = {
+      $or: [{ organization_id: orgId }, { organization_id: new UUID(orgId) }],
+    };
+    if (tenant.siteId && !opts.orgWide) {
+      const siteId = String(tenant.siteId);
+      match.site_id = { $in: [siteId, new UUID(siteId)] };
+    }
     if (search) {
       const regex = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
       match.$or = [{ full_name: regex }, { email: regex }, { phone: regex }, { external_code: regex }];

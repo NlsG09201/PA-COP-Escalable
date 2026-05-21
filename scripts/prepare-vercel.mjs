@@ -78,6 +78,9 @@ let dashboardUrl = (process.env.DASHBOARD_URL ?? '').trim();
 if (isPlaceholderUrl(dashboardUrl)) {
   dashboardUrl = '';
 }
+if (!dashboardUrl && app === 'Frontend') {
+  dashboardUrl = 'https://cop-web-dashboard.onrender.com';
+}
 
 const envLines = [
   'window.__env = window.__env || {};',

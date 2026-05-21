@@ -7,6 +7,9 @@
     if (location.hostname.endsWith('.vercel.app') && !window.__env.API_BASE_URL) {
       window.__env.API_BASE_URL = '/render-api';
     }
+    if (!window.__env.DASHBOARD_URL) {
+      window.__env.DASHBOARD_URL = 'https://cop-web-dashboard.onrender.com';
+    }
   </script>
   <script src="/env.js"></script>
   <script>
