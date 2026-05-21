@@ -52,6 +52,12 @@ export class WekaLabController {
     return this.wekaLab.listDatasets(req.tenant);
   }
 
+  @Get('dataset-schema')
+  @Roles(...LAB_ROLES)
+  datasetSchema() {
+    return this.wekaLab.datasetSchema();
+  }
+
   @Post('datasets/upload')
   @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'PSICOLOGO')
   @ApiConsumes('multipart/form-data')

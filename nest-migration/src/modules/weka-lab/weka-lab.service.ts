@@ -13,18 +13,28 @@ import { WekaLabAudit } from './schemas/weka-lab-audit.schema';
 import { TenantContext } from '../tenancy/tenancy.interceptor';
 import { TrainWekaModelDto } from './dto/train-weka-model.dto';
 import { ClinicalPredictDto } from './dto/clinical-predict.dto';
+import {
+  ARFF_DATASET_SCHEMA,
+  ClinicalPredictionResult,
+  normalizeArffFeatures,
+  offlineArffPredict,
+  toClinicalPrediction,
+} from './j48-arff-predict.util';
 
 /** Dataset ARFF del repo (~15k instancias) — visible sin servicio J48 Python. */
 const BUILTIN_ARFF_DATASET = {
-  id: 'builtin-arff',
-  filename: 'relapse_risk_j48.arff',
-  displayName: 'Riesgo de recaída (ARFF COP)',
+  id: ARFF_DATASET_SCHEMA.id,
+  filename: ARFF_DATASET_SCHEMA.filename,
+  displayName: ARFF_DATASET_SCHEMA.displayName,
   format: 'arff',
-  rows: 15_000,
-  columns: ['gender', 'age_group', 'sentiment', 'wellbeing', 'attendance', 'class'],
-  defaultTarget: 'class',
-  defaultFeatures: ['gender', 'age_group', 'sentiment', 'wellbeing', 'attendance'],
-  columnTypes: { class: 'nominal' },
+  rows: ARFF_DATASET_SCHEMA.rows,
+  columns: [...ARFF_DATASET_SCHEMA.features.map((f) => f.key), ARFF_DATASET_SCHEMA.target],
+  defaultTarget: ARFF_DATASET_SCHEMA.target,
+  defaultFeatures: ARFF_DATASET_SCHEMA.features.map((f) => f.key),
+  classLabels: [...ARFF_DATASET_SCHEMA.classLabels],
+  features: ARFF_DATASET_SCHEMA.features,
+  target: ARFF_DATASET_SCHEMA.target,
+  columnTypes: { risk_level: 'nominal' },
   builtin: true,
 };
 
@@ -363,32 +373,56 @@ export class WekaLabService {
     dto: ClinicalPredictDto,
     ip?: string,
   ) {
-    if (dto.modelId) {
-      await this.assertModelAccess(tenant, dto.modelId);
-    }
-    const result = this.requireLab(
-      await this.labJson<Record<string, unknown>>('/lab/predict/clinical', {
+    const featuresUsed = normalizeArffFeatures(dto);
+    const modelId = dto.modelId?.trim() || BUILTIN_ARFF_MODEL.id;
+    let result: ClinicalPredictionResult | null = null;
+
+    if (modelId !== BUILTIN_ARFF_MODEL.id) {
+      await this.assertModelAccess(tenant, modelId);
+      const lab = await this.labJson<Record<string, unknown>>('/lab/predict/clinical', {
         method: 'POST',
-        body: JSON.stringify(dto),
-      }),
-      '/lab/predict/clinical',
-    );
+        body: JSON.stringify({ ...dto, modelId }),
+      });
+      if (lab) {
+        result = toClinicalPrediction(lab, modelId, (lab.featuresUsed as Record<string, unknown>) ?? featuresUsed);
+      }
+    }
+
+    if (!result) {
+      const core = await this.labJson<Record<string, unknown>>('/predict', {
+        method: 'POST',
+        body: JSON.stringify(featuresUsed),
+      });
+      if (core?.classLabel) {
+        result = toClinicalPrediction(core, modelId, featuresUsed);
+      }
+    }
+
+    if (!result) {
+      const offline = offlineArffPredict(featuresUsed);
+      result = toClinicalPrediction(offline, BUILTIN_ARFF_MODEL.id, featuresUsed, { offline: true });
+      this.logger.warn('predictClinical: motor J48 offline — predicción heurística ARFF');
+    }
 
     await this.predictionModel.create({
       organizationId: tenant.organizationId,
       createdBy: userId,
-      modelId: result.modelId as string | undefined,
-      inputFeatures: result.featuresUsed as Record<string, unknown>,
-      classLabel: result.classLabel as string | undefined,
-      probabilities: result.probabilities as Record<string, number>,
-      riskLevel: result.riskLevel as string | undefined,
-      riskScore: result.riskScore as number | undefined,
-      psychologicalScore: result.psychologicalScore as number | undefined,
-      recommendations: (result.recommendations as string[]) ?? [],
+      modelId: result.modelId,
+      inputFeatures: featuresUsed,
+      classLabel: result.classLabel,
+      probabilities: result.probabilities,
+      riskLevel: result.riskLevel,
+      riskScore: result.riskScore,
+      psychologicalScore: result.psychologicalScore,
+      recommendations: result.recommendations,
     });
 
     await this.audit(tenant, userId, 'CLINICAL_PREDICT', { modelId: result.modelId, riskLevel: result.riskLevel }, ip);
     return result;
+  }
+
+  datasetSchema() {
+    return ARFF_DATASET_SCHEMA;
   }
 
   async dashboard(tenant: TenantContext) {
@@ -421,9 +455,11 @@ export class WekaLabService {
         orgPredictionsCount: orgPredictions,
         orgActiveModel,
         j48LabOnline: j48Online,
+        builtinDataset: BUILTIN_ARFF_DATASET,
+        datasetSchema: ARFF_DATASET_SCHEMA,
         message: j48Online
           ? undefined
-          : 'Motor J48 Python offline. Dataset ARFF del repo disponible; despliega cop-j48-python y J48_URL en Render para entrenar.',
+          : 'Motor J48 Python offline. Puedes predecir con el modelo ARFF integrado (modo heurístico). Despliega cop-j48-python y J48_URL para el árbol J48 entrenado.',
       };
     } catch (err) {
       this.logger.warn(`dashboard fallback: ${(err as Error).message}`);
@@ -438,8 +474,10 @@ export class WekaLabService {
           metrics: BUILTIN_ARFF_MODEL.metrics,
         },
         j48LabOnline: false,
+        builtinDataset: BUILTIN_ARFF_DATASET,
+        datasetSchema: ARFF_DATASET_SCHEMA,
         message:
-          'Weka Lab en modo offline. Despliega cop-j48-python en Render y configura J48_URL en pa-cop-escalable.',
+          'Weka Lab en modo offline. El formulario usa relapse_risk_j48.arff; despliega cop-j48-python y J48_URL para el modelo sklearn entrenado.',
       };
     }
   }
