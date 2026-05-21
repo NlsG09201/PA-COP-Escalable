@@ -19,14 +19,11 @@ $setup = curl.exe -s -w "`nHTTP:%{http_code}" -X POST "$api/api/auth/setup-boots
   --data-binary "@$setupJson"
 Write-Host $setup
 
-if ($setup -notmatch 'HTTP:200' -and $setup -notmatch 'verified') {
+if (-not ($setup -match 'HTTP:200' -and $setup -match 'verified')) {
   Write-Host ''
   Write-Host 'Si falla: importa deploy\render-upload.env en Render -> Manual Deploy -> vuelve a ejecutar.' -ForegroundColor Yellow
-  Write-Host 'Tras push del codigo nuevo, setup-bootstrap exige verificacion de contraseña.' -ForegroundColor Yellow
   exit 1
 }
-
-Start-Sleep -Seconds 2
 
 Write-Host ''
 Write-Host 'Comprobando login...' -ForegroundColor Cyan
@@ -35,11 +32,21 @@ $loginBody = (@{
   password = $password
   siteId   = '9b912e9a-b30a-4a0f-87bc-6f99d5de1f7e'
 } | ConvertTo-Json -Compress)
-try {
-  $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST -ContentType 'application/json' -Body $loginBody
-  Write-Host "Login OK (Render): $($login.user.username)" -ForegroundColor Green
-} catch {
-  Write-Host "Login fallo (Render): $($_.ErrorDetails.Message)" -ForegroundColor Red
+
+$loginOk = $false
+foreach ($attempt in 1..5) {
+  Start-Sleep -Seconds 2
+  try {
+    $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST -ContentType 'application/json' -Body $loginBody
+    Write-Host "Login OK (Render): $($login.user.username)" -ForegroundColor Green
+    $loginOk = $true
+    break
+  } catch {
+    Write-Host "Intento $attempt/5 login Render: $($_.ErrorDetails.Message)" -ForegroundColor Yellow
+  }
+}
+if (-not $loginOk) {
+  Write-Host 'Login fallo en Render tras setup-bootstrap.' -ForegroundColor Red
   exit 1
 }
 
