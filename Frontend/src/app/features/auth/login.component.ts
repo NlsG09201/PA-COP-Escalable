@@ -93,9 +93,6 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
                 @if (errorMessage) {
                   <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
-                @if (loginHelpText) {
-                  <div class="alert alert-info py-2 small mb-3" role="status">{{ loginHelpText }}</div>
-                }
                 @if (showDevLoginHint) {
                   <div class="alert alert-secondary py-2 small">
                     Modo desarrollo: usa las credenciales de tu entorno local (.env / Docker).
@@ -122,7 +119,6 @@ export class LoginComponent {
 
   protected loading = false;
   protected errorMessage = '';
-  protected loginHelpText = '';
   protected sitesLoadError = '';
   protected allSites: SiteVm[] = [];
   protected filteredSites: SiteVm[] = [];
@@ -139,22 +135,6 @@ export class LoginComponent {
 
   constructor() {
     this.loadSites();
-    this.loadLoginHelp();
-  }
-
-  private loadLoginHelp(): void {
-    if (isDevMode()) return;
-    this.authApi.getLoginHelp$().subscribe({
-      next: (help) => {
-        const ids = (help.loginIds ?? []).filter(Boolean);
-        if (ids.length) {
-          this.form.patchValue({ username: ids[0] });
-          this.loginHelpText = `Producción: usuario ${ids.join(' o ')}. Contraseña = APP_BOOTSTRAP_ADMIN_PASSWORD en Render (no tu .env local). Si falla: .\\deploy\\crear-admin-render.ps1`;
-        } else if (help.hint) {
-          this.loginHelpText = help.hint;
-        }
-      },
-    });
   }
 
   protected loadSites(): void {
@@ -260,7 +240,7 @@ export class LoginComponent {
 
     if (apiMessage) return apiMessage;
     if (error.status === 401) {
-      return 'Credenciales invalidas. Usa el usuario sugerido arriba y la contraseña APP_BOOTSTRAP_ADMIN_PASSWORD de Render (Dashboard → Environment). Ejecuta .\\deploy\\crear-admin-render.ps1 para resetear la clave, elige una sede y recarga la página (Ctrl+F5).';
+      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e intenta de nuevo.';
     }
     if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
     if (error.status === 502 || error.status === 503) {

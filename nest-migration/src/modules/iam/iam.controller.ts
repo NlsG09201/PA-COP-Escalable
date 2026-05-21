@@ -128,25 +128,29 @@ export class IamController {
     return this.bootstrapAdmin.getBootstrapStatus();
   }
 
-  /** Pistas públicas para el formulario de login (sin contraseñas). */
+  /** Estado mínimo del login (sin usuarios ni rutas internas en producción). */
   @Get('login-help')
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: 'Login form hints (no secrets)' })
   async loginHelp() {
     const status = await this.bootstrapAdmin.getBootstrapStatus();
+    const isProd = process.env.NODE_ENV === 'production';
+    const adminReady =
+      status.bootstrapUserExists &&
+      status.bootstrapPasswordMatchesEnv &&
+      status.bootstrapDuplicateCount <= 1;
+
+    if (isProd) {
+      return { requireSite: true, adminReady };
+    }
+
     const username = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
     const email = String(process.env.APP_BOOTSTRAP_ADMIN_EMAIL ?? '').trim().toLowerCase();
-    const loginIds = [username, email].filter(Boolean);
     return {
-      loginIds,
+      loginIds: [username, email].filter(Boolean),
       requireSite: true,
-      adminReady:
-        status.bootstrapUserExists &&
-        status.bootstrapPasswordMatchesEnv &&
-        status.bootstrapDuplicateCount <= 1,
+      adminReady,
       bootstrapDuplicateCount: status.bootstrapDuplicateCount,
-      hint:
-        'Usa el usuario admin de Render (APP_BOOTSTRAP_ADMIN_USERNAME o EMAIL). La contraseña es APP_BOOTSTRAP_ADMIN_PASSWORD en Render, no la de tu .env local si difiere. Ejecuta deploy/crear-admin-render.ps1 para sincronizar.',
     };
   }
 
