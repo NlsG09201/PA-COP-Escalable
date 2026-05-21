@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
+import { TokenStorageService } from '../../core/services/token-storage.service';
 
 @Component({
   selector: 'app-login',
@@ -93,6 +94,9 @@ import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
                 @if (errorMessage) {
                   <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
+                @if (bootstrapHint) {
+                  <div class="alert alert-warning py-2 small" role="status">{{ bootstrapHint }}</div>
+                }
                 @if (showDevLoginHint) {
                   <div class="alert alert-secondary py-2 small">
                     Modo desarrollo: usa las credenciales de tu entorno local (.env / Docker).
@@ -114,8 +118,10 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
+  private readonly tokenStorage = inject(TokenStorageService);
 
   protected readonly showDevLoginHint = isDevMode();
+  protected bootstrapHint = '';
 
   protected loading = false;
   protected errorMessage = '';
@@ -134,7 +140,36 @@ export class LoginComponent {
   });
 
   constructor() {
+    this.tokenStorage.clear();
+    this.repairBootstrapIfNeeded();
     this.loadSites();
+  }
+
+  private repairBootstrapIfNeeded(): void {
+    this.authApi.getBootstrapStatus$().subscribe({
+      next: (status) => {
+        if (status.canAutoRepair) {
+          this.bootstrapHint = 'Reparando cuenta de administrador en el servidor…';
+          this.authApi.ensureBootstrap$().subscribe({
+            next: () => {
+              this.bootstrapHint = 'Cuenta admin reparada. Usa usuario y contraseña de Render (APP_BOOTSTRAP_*).';
+            },
+            error: () => {
+              this.bootstrapHint =
+                'No se pudo reparar el admin automáticamente. Ejecuta deploy/crear-admin-render.ps1 o revisa Render → Environment.';
+            },
+          });
+          return;
+        }
+        const ready =
+          status.adminReady ??
+          (status.bootstrapPasswordMatchesEnv !== false && status.bootstrapUserExists !== false);
+        if (!ready && status.bootstrapPasswordMatchesEnv === false) {
+          this.bootstrapHint =
+            'El admin del servidor no coincide con la contraseña configurada. Ejecuta deploy/crear-admin-render.ps1 o alinea APP_BOOTSTRAP_ADMIN_PASSWORD en Render.';
+        }
+      },
+    });
   }
 
   protected loadSites(): void {

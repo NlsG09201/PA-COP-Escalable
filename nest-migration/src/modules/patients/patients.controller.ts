@@ -14,7 +14,7 @@ export class PatientController {
   constructor(private readonly patientService: PatientService) {}
 
   @Get()
-  @Roles('ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'SUPER_ADMIN', 'ODONTOLOGO', 'PSICOLOGO')
   async list(@Request() req, @Query() query: ListPatientsQueryDto) {
     return this.patientService.findPage(req.tenant, query);
   }

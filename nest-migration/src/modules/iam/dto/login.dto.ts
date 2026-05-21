@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsString, IsNotEmpty, IsUUID, IsOptional } from 'class-validator';
 
 export class LoginDto {
@@ -9,6 +10,10 @@ export class LoginDto {
   @IsNotEmpty()
   password: string;
 
+  @Transform(({ value }) => {
+    const s = typeof value === 'string' ? value.trim() : value;
+    return s === '' || s == null ? undefined : s;
+  })
   @IsUUID()
   @IsOptional()
   siteId?: string;

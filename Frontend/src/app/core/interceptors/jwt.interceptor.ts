@@ -5,46 +5,21 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { AuthSessionService } from '../services/auth-session.service';
 import { TokenStorageService } from '../services/token-storage.service';
-
-function summarizeJwt(token: string | null): Record<string, unknown> | null {
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const base64Url = token.split('.')[1] ?? '';
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-    const payload = JSON.parse(atob(padded)) as {
-      roles?: unknown;
-      role?: unknown;
-      site_id?: unknown;
-      exp?: unknown;
-    };
-
-    return {
-      roles: Array.isArray(payload.roles) ? payload.roles : payload.role ? [payload.role] : [],
-      siteId: payload.site_id ?? null,
-      exp: typeof payload.exp === 'number' ? payload.exp : null
-    };
-  } catch {
-    return { decodeError: true };
-  }
-}
+import { isAuthOrPublicRequest } from '../http/auth-http.util';
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const sessionService = inject(AuthSessionService);
   const tokenStorage = inject(TokenStorageService);
   const router = inject(Router);
+
+  if (isAuthOrPublicRequest(req.url)) {
+    return next(req);
+  }
+
+  const isPublicEndpoint = req.url.startsWith('/public') || req.url.includes('/public/');
   const token = authService.getToken();
 
-  // Public endpoints must remain accessible even if the client still has an old/invalid token.
-  // Otherwise Spring Security returns 401 when Authorization: Bearer <invalid> is present.
-  const isPublicEndpoint = req.url.startsWith('/public') || req.url.includes('/public/');
-
-  // If there's no token and we get 401 on a protected route, force re-login.
-  // This avoids silent loops where the UI keeps fetching without credentials.
   if (!token) {
     if (isPublicEndpoint) return next(req);
     return next(req).pipe(
@@ -70,9 +45,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(withJwt).pipe(
     catchError((error: { status?: number }) => {
-      const isAuthEndpoint = req.url.includes('/api/auth/login') || req.url.includes('/api/auth/refresh');
-
-      if (error.status !== 401 || isAuthEndpoint) {
+      if (error.status !== 401) {
         return throwError(() => error);
       }
 

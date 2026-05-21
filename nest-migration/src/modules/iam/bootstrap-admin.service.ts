@@ -33,6 +33,9 @@ export class BootstrapAdminService implements OnModuleInit {
           this.logger.log(`Bootstrap admin OK (${username}); sin reescritura en arranque.`);
           return;
         }
+        if (!verified) {
+          this.logger.warn(`Bootstrap: login de verificacion fallo para ${username}; reparando hash.`);
+        }
         if (dup > 1) {
           this.logger.warn(`Bootstrap: ${dup} usuarios duplicados para ${username}; reparando.`);
         }

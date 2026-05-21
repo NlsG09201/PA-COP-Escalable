@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
@@ -16,12 +16,25 @@ type LoginResponse = {
   refreshToken: string;
 };
 
+type BootstrapStatus = {
+  canAutoRepair?: boolean;
+  adminReady?: boolean;
+  bootstrapUserExists?: boolean;
+  bootstrapPasswordMatchesEnv?: boolean;
+};
+
 @Injectable({ providedIn: 'root' })
 export class AuthApiService {
+  /** Sin interceptores JWT: login/refresh no deben enviar tokens caducados. */
+  private readonly bareHttp: HttpClient;
+
   constructor(
     private readonly http: HttpClient,
+    backend: HttpBackend,
     private readonly tokenStorage: TokenStorageService
-  ) {}
+  ) {
+    this.bareHttp = new HttpClient(backend);
+  }
 
   getSites$(): Observable<SiteVm[]> {
     return this.http.get<unknown>(`${API_BASE_URL}/public/sites`).pipe(
@@ -58,17 +71,29 @@ export class AuthApiService {
     );
   }
 
+  getBootstrapStatus$(): Observable<BootstrapStatus> {
+    return this.bareHttp.get<BootstrapStatus>(`${API_BASE_URL}/api/auth/bootstrap-status`);
+  }
+
+  /** Repara admin en Atlas cuando la contraseña de Render no coincide (sin secreto, solo si canAutoRepair). */
+  ensureBootstrap$(): Observable<{ ok?: boolean; message?: string }> {
+    return this.bareHttp.post<{ ok?: boolean; message?: string }>(
+      `${API_BASE_URL}/api/auth/ensure-bootstrap`,
+      {}
+    );
+  }
+
   getLoginHelp$(): Observable<{
     loginIds?: string[];
     requireSite?: boolean;
     adminReady?: boolean;
     hint?: string;
   }> {
-    return this.http.get(`${API_BASE_URL}/api/auth/login-help`);
+    return this.bareHttp.get(`${API_BASE_URL}/api/auth/login-help`);
   }
 
   login$(username: string, password: string, siteId: string): Observable<void> {
-    return this.http
+    return this.bareHttp
       .post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, { username, password, siteId })
       .pipe(
         retry({

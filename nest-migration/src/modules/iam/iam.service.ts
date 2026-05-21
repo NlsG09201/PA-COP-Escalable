@@ -17,6 +17,7 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { extractPasswordHash } from './password-hash.util';
+import { idVariants } from '../tenancy/tenant-query.util';
 
 type AuthUserDoc = {
   _id?: unknown;
@@ -395,18 +396,36 @@ export class IamService {
     }
 
     const hash = this.hashToken(trimmed);
-    const storedToken = await this.refreshModel.findOne({ token_hash: hash }).exec();
+    const refreshCol = this.connection.collection<{
+      user_id?: unknown;
+      site_id?: string;
+      token_hash?: string;
+      expires_at?: Date;
+    }>('refresh_tokens');
 
-    if (!storedToken || storedToken.expires_at < new Date()) {
+    const storedToken =
+      (await refreshCol.findOne({ token_hash: hash })) ??
+      (await this.refreshModel.findOne({ token_hash: hash }).lean().exec());
+
+    if (!storedToken || !storedToken.expires_at || storedToken.expires_at < new Date()) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const user = await this.userModel.findById(storedToken.user_id).exec();
-    if (!user) throw new UnauthorizedException('User not found');
+    const userId = storedToken.user_id;
+    const idList = idVariants(String(userId));
+    const userRaw =
+      (await this.connection.collection<AuthUserDoc>('users').findOne({
+        _id: { $in: idList },
+      } as Record<string, unknown>)) ?? (await this.userModel.findById(userId).lean().exec());
 
-    // Rotate token: delete old, issue new
-    await storedToken.deleteOne();
-    return this.generateTokenPair(user, storedToken.site_id, ip, userAgent);
+    if (!userRaw) throw new UnauthorizedException('User not found');
+
+    const loginUser = this.toLoginUser(userRaw as AuthUserDoc, String((userRaw as AuthUserDoc).username ?? ''));
+
+    await refreshCol.deleteMany({ token_hash: hash });
+    await this.refreshModel.deleteMany({ token_hash: hash }).exec();
+
+    return this.generateTokenPair(loginUser, storedToken.site_id, ip, userAgent);
   }
 
   private async generateTokenPair(user: LoginUser | UserAccount, siteId?: string, ip?: string, userAgent?: string) {
