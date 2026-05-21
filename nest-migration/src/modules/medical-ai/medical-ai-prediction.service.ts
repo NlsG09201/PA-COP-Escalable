@@ -116,21 +116,53 @@ export class MedicalAiPredictionService {
     j48RiskScore: number,
   ) {
     const base = (process.env.AI_RELAPSE_URL ?? 'http://recommendation-engine:8000').replace(/\/$/, '');
-    const res = await fetch(`${base}/api/medical/ensemble/predict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        patient_id: patientId,
-        organization_id: tenant.organizationId,
-        features,
-        j48_risk_score: j48RiskScore,
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`ensemble predict failed (${res.status}): ${text}`);
+    try {
+      const res = await fetch(`${base}/api/medical/ensemble/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: patientId,
+          organization_id: tenant.organizationId,
+          features,
+          j48_risk_score: j48RiskScore,
+        }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`ensemble predict failed (${res.status}): ${text}`);
+      }
+      return res.json();
+    } catch (err) {
+      return this.localEnsembleFallback(features, j48RiskScore);
     }
-    return res.json();
+  }
+
+  /** Cuando recommendation-engine no está en Render, estima riesgo desde features + J48. */
+  private localEnsembleFallback(features: Record<string, number>, j48RiskScore: number) {
+    const stress =
+      (features.anxiety ?? 0.4) * 0.35 +
+      (features.depression ?? 0.4) * 0.4 +
+      (features.stress ?? 0.35) * 0.25;
+    const dropout =
+      (features.attendance_irregular ?? 0) * 0.5 +
+      (features.days_since_last_session ?? 0) * 0.35 +
+      (1 - (features.adherence ?? 0.5)) * 0.15;
+    const blended = Math.min(1, Math.max(0, j48RiskScore / 100 * 0.55 + stress * 0.3 + dropout * 0.15));
+    const risk_level =
+      blended >= 0.75 ? 'CRITICAL' : blended >= 0.55 ? 'HIGH' : blended >= 0.35 ? 'MEDIUM' : 'LOW';
+    return {
+      ensemble_probability: blended,
+      risk_level,
+      dynamic_psychological_score: Math.round((1 - stress) * 100),
+      model_votes: [{ model: 'local-fallback', relapseProbability: blended, riskLevel: risk_level }],
+      clinical_recommendations: [
+        'Motor ensemble remoto no disponible; score calculado en el API Nest.',
+        'Despliega recommendation-engine o AI_RELAPSE_URL en Render para votación completa.',
+      ],
+      early_warning: blended >= 0.55,
+      confidence: 0.55,
+    };
   }
 
   computeRiskScores(ensembleProb: number, features: Record<string, number>) {

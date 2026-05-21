@@ -22,6 +22,7 @@ import { MedicalAiTimelineService } from './medical-ai-timeline.service';
 import { MedicalAiAssistantService } from './medical-ai-assistant.service';
 import { MedicalAiInsightsService } from './medical-ai-insights.service';
 import { MedicalAiDashboardService } from './medical-ai-dashboard.service';
+import { RelapseReadService } from './relapse-read.service';
 import { AssistantChatDto } from './dto/assistant-chat.dto';
 
 @ApiTags('medical-ai')
@@ -157,15 +158,38 @@ export class RelapseCompatController {
   constructor(
     private readonly medicalAi: MedicalAiService,
     private readonly alerts: MedicalAiAlertsService,
+    private readonly relapseRead: RelapseReadService,
   ) {}
+
+  @Get('patients/:patientId/risk')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
+  risk(@Param('patientId') patientId: string, @Req() req: { tenant: TenantContext }) {
+    return this.relapseRead.getLatestRisk(patientId, req.tenant);
+  }
+
+  @Get('patients/:patientId/trend')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
+  trend(@Param('patientId') patientId: string, @Req() req: { tenant: TenantContext }) {
+    return this.relapseRead.getTrend(patientId, req.tenant);
+  }
+
+  @Put('alerts/:alertId/acknowledge')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
+  acknowledgeByAlertId(
+    @Param('alertId') alertId: string,
+    @Req() req: { tenant: TenantContext; user: { userId: string } },
+  ) {
+    return this.alerts.acknowledge(alertId, req.tenant, req.user.userId);
+  }
 
   @Post('patients/:patientId/assess')
   @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
-  assess(
+  async assess(
     @Param('patientId') patientId: string,
     @Req() req: { tenant: TenantContext; user: { userId: string; roles?: string[] } },
   ) {
-    return this.medicalAi.assessPatient(patientId, req.tenant, req.user);
+    await this.medicalAi.assessPatient(patientId, req.tenant, req.user);
+    return this.relapseRead.getLatestRisk(patientId, req.tenant);
   }
 
   @Put('patients/:patientId/alerts/:alertId/acknowledge')

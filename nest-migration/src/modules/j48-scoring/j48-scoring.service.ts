@@ -305,16 +305,46 @@ export class J48ScoringService {
 
   private async callJ48Predict(features: Record<string, unknown>): Promise<any> {
     const base = (process.env.J48_URL ?? 'http://j48-python:8080').replace(/\/predict\/?$/, '');
-    const res = await fetch(`${base}/predict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(features),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`j48-service predict failed (${res.status}): ${text}`);
+    try {
+      const res = await fetch(`${base}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(features),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`j48-service predict failed (${res.status}): ${text}`);
+      }
+      return res.json();
+    } catch {
+      return this.offlineJ48Predict(features);
     }
-    return res.json();
+  }
+
+  private offlineJ48Predict(features: Record<string, unknown>) {
+    let score = 0.35;
+    if (features.sentiment === 'NEGATIVE') score += 0.22;
+    if (features.wellbeing === 'LOW') score += 0.18;
+    if (features.attendance === 'IRREGULAR') score += 0.15;
+    const days = Number(features.days_since_last);
+    if (Number.isFinite(days) && days > 45) score += 0.12;
+    const anx = Number(features.anxiety);
+    const dep = Number(features.depression);
+    if (Number.isFinite(anx)) score += anx * 0.12;
+    if (Number.isFinite(dep)) score += dep * 0.12;
+    score = Math.min(0.95, Math.max(0.05, score));
+    const classLabel =
+      score >= 0.72 ? 'HIGH_RISK' : score >= 0.48 ? 'MEDIUM_RISK' : 'LOW_RISK';
+    return {
+      classLabel,
+      probabilities: {
+        HIGH_RISK: score >= 0.72 ? score : score * 0.35,
+        MEDIUM_RISK: score >= 0.48 && score < 0.72 ? score : score * 0.4,
+        LOW_RISK: score < 0.48 ? 1 - score : (1 - score) * 0.5,
+      },
+      offline: true,
+    };
   }
 
   private mapSentiment(raw: unknown): J48Features['sentiment'] | null {

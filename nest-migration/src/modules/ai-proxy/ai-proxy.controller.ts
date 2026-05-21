@@ -24,18 +24,6 @@ export class AiProxyController {
     return this.ai.emotionResults(patientId);
   }
 
-  @Get('relapse/patients/:patientId/risk')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
-  relapseRisk(@Param('patientId') patientId: string) {
-    return this.ai.relapseRisk(patientId);
-  }
-
-  @Get('relapse/patients/:patientId/trend')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
-  relapseTrend(@Param('patientId') patientId: string) {
-    return this.ai.relapseTrend(patientId);
-  }
-
   @Get('therapy/modules')
   @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
   therapyModules() {

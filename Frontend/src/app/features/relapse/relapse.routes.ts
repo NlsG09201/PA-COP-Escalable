@@ -465,7 +465,8 @@ class RelapsePageComponent implements OnInit, OnDestroy {
       next: t => {
         this.trend.set(t);
         setTimeout(() => this.renderTrendChart(), 100);
-      }
+      },
+      error: () => this.trend.set([]),
     });
   }
 

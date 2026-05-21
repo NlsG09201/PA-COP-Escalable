@@ -30,22 +30,34 @@ export class WekaLabService {
     return raw.replace(/\/predict\/?$/i, '').replace(/\/$/, '');
   }
 
-  private async labJson<T>(path: string, init?: RequestInit): Promise<T> {
+  private async labJson<T>(path: string, init?: RequestInit): Promise<T | null> {
     const url = `${this.j48Base()}${path}`;
-    const res = await fetch(url, {
-      ...init,
-      headers: {
-        ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(init?.headers as Record<string, string>),
-      },
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new ServiceUnavailableException(
-        `J48 lab upstream (${res.status}): ${text.slice(0, 800)}`,
-      );
+    try {
+      const res = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(15_000),
+        headers: {
+          ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+          ...(init?.headers as Record<string, string>),
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        this.logger.warn(`J48 lab ${path} → ${res.status}: ${text.slice(0, 200)}`);
+        return null;
+      }
+      return res.json() as Promise<T>;
+    } catch (err) {
+      this.logger.warn(`J48 lab ${path} unreachable: ${(err as Error).message}`);
+      return null;
     }
-    return res.json() as Promise<T>;
+  }
+
+  private requireLab<T>(remote: T | null, path: string): T {
+    if (remote != null) return remote;
+    throw new ServiceUnavailableException(
+      'Servicio J48 Python no disponible. En Render configura J48_URL (cop-j48-python) y redeploy del API.',
+    );
   }
 
   private async audit(
@@ -84,7 +96,7 @@ export class WekaLabService {
       }));
     }
     const remote = await this.labJson<Array<Record<string, unknown>>>('/lab/datasets');
-    return remote;
+    return remote ?? [];
   }
 
   async uploadDataset(
@@ -114,10 +126,13 @@ export class WekaLabService {
       form.append('displayName', displayName);
     }
 
-    const meta = await this.labJson<Record<string, unknown>>('/lab/datasets/upload', {
+    const meta = this.requireLab(
+      await this.labJson<Record<string, unknown>>('/lab/datasets/upload', {
       method: 'POST',
       body: form,
-    });
+      }),
+      '/lab/datasets/upload',
+    );
 
     await this.datasetModel.findOneAndUpdate(
       { externalId: String(meta.id) },
@@ -150,13 +165,19 @@ export class WekaLabService {
     if (!owned && datasetId !== 'builtin-arff') {
       throw new BadRequestException('Dataset no encontrado en su organización');
     }
-    return this.labJson<Record<string, unknown>>(`/lab/datasets/${encodeURIComponent(datasetId)}`);
+    return this.requireLab(
+      await this.labJson<Record<string, unknown>>(`/lab/datasets/${encodeURIComponent(datasetId)}`),
+      'dataset',
+    );
   }
 
   async deleteDataset(tenant: TenantContext, userId: string | undefined, datasetId: string, ip?: string) {
-    await this.labJson<{ ok: boolean }>(`/lab/datasets/${encodeURIComponent(datasetId)}`, {
+    const del = await this.labJson<{ ok: boolean }>(`/lab/datasets/${encodeURIComponent(datasetId)}`, {
       method: 'DELETE',
     });
+    if (del) {
+      /* synced with remote */
+    }
     await this.datasetModel.deleteOne({
       organizationId: tenant.organizationId,
       externalId: datasetId,
@@ -171,10 +192,13 @@ export class WekaLabService {
     dto: TrainWekaModelDto,
     ip?: string,
   ) {
-    const meta = await this.labJson<Record<string, unknown>>('/lab/train', {
-      method: 'POST',
-      body: JSON.stringify(dto),
-    });
+    const meta = this.requireLab(
+      await this.labJson<Record<string, unknown>>('/lab/train', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      '/lab/train',
+    );
 
     await this.modelModel.create({
       organizationId: tenant.organizationId,
@@ -223,7 +247,7 @@ export class WekaLabService {
         trainedAt: r.trainedAt,
       }));
     }
-    return this.labJson<Array<Record<string, unknown>>>('/lab/models');
+    return (await this.labJson<Array<Record<string, unknown>>>('/lab/models')) ?? [];
   }
 
   async getModel(tenant: TenantContext, modelId: string) {
@@ -234,19 +258,28 @@ export class WekaLabService {
     if (!owned) {
       throw new BadRequestException('Modelo no encontrado');
     }
-    return this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}`);
+    return this.requireLab(
+      await this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}`),
+      'model',
+    );
   }
 
   async getModelTree(tenant: TenantContext, modelId: string) {
     await this.assertModelAccess(tenant, modelId);
-    return this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}/tree`);
+    return this.requireLab(
+      await this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}/tree`),
+      'model tree',
+    );
   }
 
   async activateModel(tenant: TenantContext, userId: string | undefined, modelId: string, ip?: string) {
     await this.assertModelAccess(tenant, modelId);
-    const meta = await this.labJson<Record<string, unknown>>(
-      `/lab/models/${encodeURIComponent(modelId)}/activate`,
-      { method: 'POST' },
+    const meta = this.requireLab(
+      await this.labJson<Record<string, unknown>>(
+        `/lab/models/${encodeURIComponent(modelId)}/activate`,
+        { method: 'POST' },
+      ),
+      'activate',
     );
     await this.modelModel.updateMany(
       { organizationId: tenant.organizationId },
@@ -292,10 +325,13 @@ export class WekaLabService {
     if (dto.modelId) {
       await this.assertModelAccess(tenant, dto.modelId);
     }
-    const result = await this.labJson<Record<string, unknown>>('/lab/predict/clinical', {
-      method: 'POST',
-      body: JSON.stringify(dto),
-    });
+    const result = this.requireLab(
+      await this.labJson<Record<string, unknown>>('/lab/predict/clinical', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      '/lab/predict/clinical',
+    );
 
     await this.predictionModel.create({
       organizationId: tenant.organizationId,
@@ -326,19 +362,22 @@ export class WekaLabService {
       isActive: true,
     }).lean();
 
+    const orgActiveModel = active
+      ? { id: active.externalId, name: active.name, metrics: active.metrics }
+      : remote?.activeModel;
+
     return {
-      ...remote,
+      ...(remote ?? {}),
       organizationId: tenant.organizationId,
       orgModelsCount: orgModels,
       orgDatasetsCount: orgDatasets,
       orgPredictionsCount: orgPredictions,
-      orgActiveModel: active
-        ? {
-            id: active.externalId,
-            name: active.name,
-            metrics: active.metrics,
-          }
-        : remote.activeModel,
+      orgActiveModel,
+      j48LabOnline: remote != null,
+      message:
+        remote == null
+          ? 'J48 Python no responde; se muestran contadores guardados en MongoDB. Configura J48_URL en Render.'
+          : undefined,
     };
   }
 

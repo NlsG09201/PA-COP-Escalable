@@ -30,6 +30,7 @@ import { MedicalAiInsightsService } from './medical-ai-insights.service';
 import { MedicalAiDashboardService } from './medical-ai-dashboard.service';
 import { MedicalAiGateway } from './medical-ai.gateway';
 import { MedicalAiProcessor, MEDICAL_AI_QUEUE } from './medical-ai.processor';
+import { RelapseReadService } from './relapse-read.service';
 
 const redisUrl = isRedisUrlLooksValid() ? resolveRedisUrl() : '';
 
@@ -72,6 +73,7 @@ const redisUrl = isRedisUrlLooksValid() ? resolveRedisUrl() : '';
     MedicalAiAssistantService,
     MedicalAiInsightsService,
     MedicalAiDashboardService,
+    RelapseReadService,
     MedicalAiGateway,
     ...(redisUrl
       ? [MedicalAiProcessor]

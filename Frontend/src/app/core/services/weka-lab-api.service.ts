@@ -10,6 +10,7 @@ export type WekaDashboard = {
   orgActiveModel?: { id: string; name: string; metrics?: { f1?: number; accuracy?: number } };
   activeModel?: unknown;
   message?: string;
+  j48LabOnline?: boolean;
 };
 
 export type WekaModelRow = {

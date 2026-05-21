@@ -15,6 +15,9 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
           Entrenamiento J48, comparación de modelos y predicción clínica integrada con el motor Python en Render.
         </p>
 
+        @if (dash()?.message) {
+          <div class="alert alert-warning py-2 small">{{ dash()!.message }}</div>
+        }
         @if (error()) {
           <div class="alert alert-danger py-2">{{ error() }}</div>
         }
@@ -110,12 +113,12 @@ class WekaLabPageComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(
-          extractHttpErrorMessage(
-            err,
-            'No se pudo conectar con Weka Lab. Verifica J48_URL en Render y que cop-j48-python esté Live.',
-          ),
-        );
+        const status = (err as { status?: number })?.status;
+        const hint =
+          status === 503
+            ? 'El servicio J48 Python no está disponible en Render. Configura J48_URL y despliega cop-j48-python.'
+            : 'No se pudo cargar el resumen de Weka Lab.';
+        this.error.set(extractHttpErrorMessage(err, hint));
       },
     });
     this.api.models$().subscribe({

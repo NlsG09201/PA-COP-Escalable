@@ -142,6 +142,21 @@ curl.exe -s -X POST "https://pa-cop-escalable.onrender.com/api/auth/setup-bootst
 | Bootstrap sin reescritura en cada restart | Render (Nest) |
 | `findUsersForAuth` / duplicados | Render (Nest) |
 
+## 503 en Weka / Recaída / J48
+
+Si ves `503` en `/api/weka-lab/*` o `/api/relapse/patients/.../trend`:
+
+1. En Render, el servicio **`cop-j48-python`** debe estar **Live** y `J48_URL` en **pa-cop-escalable** debe ser su URL pública (sin `/predict`).
+2. `AI_RELAPSE_URL` (recommendation-engine) es opcional; el API Nest ahora responde recaída desde MongoDB si ese motor no existe.
+3. Tras cambiar `J48_URL`: **Save** → **Manual Deploy** del API Nest.
+
+Comprobación:
+
+```powershell
+curl.exe -s https://TU-J48.onrender.com/health
+curl.exe -s -H "Authorization: Bearer TOKEN" https://pa-cop-escalable.onrender.com/api/weka-lab/dashboard
+```
+
 ## Referencias
 
 - `deploy/crear-admin-render.ps1` — reset + verificación
