@@ -157,7 +157,7 @@ export class IamService {
     let user = await this.resolveAuthenticatedUser(loginId, password);
 
     if (!user) {
-      const repaired = await this.bootstrapAdmin.repairBootstrapPasswordIfEnvMatch(loginId, password);
+      const repaired = await this.bootstrapAdmin.repairBootstrapAfterFailedLogin(loginId, password);
       if (repaired) {
         user = await this.resolveAuthenticatedUser(loginId, password);
       }
@@ -187,6 +187,7 @@ export class IamService {
    * Evita 401 cuando hay duplicados por seed y findOne devolvía uno sin hash válido.
    */
   private async findUsersForAuth(loginId: string): Promise<LoginUser[]> {
+    const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
     const filter = usernameFilter(loginId);
 
     const seen = new Set<string>();
@@ -202,6 +203,12 @@ export class IamService {
       seen.add(key);
       out.push(u);
     };
+
+    if (bootstrapUser && loginId === bootstrapUser) {
+      for (const raw of await this.bootstrapAdmin.findBootstrapUserDocs(loginId)) {
+        push(raw);
+      }
+    }
 
     const natives = await this.connection.db
       .collection<AuthUserDoc>('users')

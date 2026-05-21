@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserAccount } from './user-account.schema';
 import { SUPER_ADMIN_ROLE } from './roles.constants';
 import { extractPasswordHash } from './password-hash.util';
-import { passwordHashFromDoc } from './auth-user.util';
+import { AuthUserDoc, passwordHashFromDoc } from './auth-user.util';
 
 const ELEVATED_ROLES = new Set([SUPER_ADMIN_ROLE, 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN']);
 const MONGO_WAIT_MS = 45_000;
@@ -138,21 +138,34 @@ export class BootstrapAdminService implements OnModuleInit {
     };
   }
 
+  /** Misma consulta que verifyBootstrapLogin (evita 401 cuando findUsersForAuth usa otro filtro). */
+  async findBootstrapUserDocs(username: string): Promise<AuthUserDoc[]> {
+    await this.waitForMongo();
+    const id = username.toLowerCase().trim();
+    return (await this.findAllBootstrapUsers(id)) as AuthUserDoc[];
+  }
+
   /**
-   * Si el usuario envía APP_BOOTSTRAP_ADMIN_PASSWORD pero el hash en Atlas no permite login,
-   * fuerza reset del admin (sin exponer secretos al cliente).
+   * Tras login fallido del admin bootstrap: re-sincroniza hash si la contraseña enviada
+   * coincide con env o si verifyBootstrapLogin la acepta (desync verify vs login).
    */
-  async repairBootstrapPasswordIfEnvMatch(loginId: string, password: string): Promise<boolean> {
+  async repairBootstrapAfterFailedLogin(loginId: string, password: string): Promise<boolean> {
     const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
     const envPass = (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
-    if (!bootstrapUser || !envPass || loginId !== bootstrapUser || password !== envPass) {
+    if (!bootstrapUser || !envPass || loginId !== bootstrapUser) {
       return false;
     }
 
-    const verified = await this.verifyBootstrapLogin(password);
-    if (verified) {
+    const submittedVerifies = await this.verifyBootstrapLogin(password);
+    const passwordMatchesEnv = password === envPass;
+
+    if (!submittedVerifies && !passwordMatchesEnv) {
+      return false;
+    }
+
+    if (submittedVerifies) {
       this.logger.warn(
-        `Bootstrap verify OK para ${bootstrapUser} pero login falló; re-sincronizando hash en Atlas.`,
+        `Bootstrap verify OK para ${bootstrapUser} pero login falló; re-sincronizando documento en Atlas.`,
       );
     }
 

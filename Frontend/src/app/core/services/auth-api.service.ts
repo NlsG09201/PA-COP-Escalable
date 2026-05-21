@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, retry, timer } from 'rxjs';
+import { Observable, catchError, map, retry, switchMap, throwError, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { SKIP_GLOBAL_LOADER } from '../http/skip-global-loader.http';
 import { TokenStorageService } from './token-storage.service';
@@ -103,6 +103,20 @@ export class AuthApiService {
       this.bareHttp.post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, body);
 
     return postLogin().pipe(
+      catchError((err: { status?: number }) => {
+        if (err?.status !== 401) {
+          return throwError(() => err);
+        }
+        return this.getBootstrapStatus$().pipe(
+          switchMap((status) => {
+            if (status.canAutoRepair) {
+              return this.ensureBootstrap$().pipe(switchMap(() => postLogin()));
+            }
+            return postLogin();
+          }),
+          catchError(() => throwError(() => err)),
+        );
+      }),
       retry({
         count: 2,
         delay: (error: { status?: number }, retryCount) => {
