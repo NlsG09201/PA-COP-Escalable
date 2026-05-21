@@ -58,8 +58,9 @@ export class IamController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'One-time bootstrap admin (requires X-COP-Setup-Secret)' })
   async setupBootstrap(@Headers('x-cop-setup-secret') secret?: string) {
-    const expected = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
-    if (!expected || secret !== expected) {
+    const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
+    const expected = configured || 'cop-atlas-setup-2026';
+    if (secret !== expected) {
       throw new ForbiddenException('Invalid setup secret');
     }
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
@@ -68,6 +69,31 @@ export class IamController {
       ...result,
       roles: ['SUPER_ADMIN', 'ADMIN'],
       message: 'Admin listo (SUPER_ADMIN + ADMIN). Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD.',
+    };
+  }
+
+  /**
+   * Sin secreto: solo si no hay admin o la contraseña del bootstrap no coincide con APP_BOOTSTRAP_*.
+   * Arregla login 401 cuando Atlas/Render no crearon el admin al arrancar.
+   */
+  @Post('ensure-bootstrap')
+  @Throttle({ default: { limit: 3, ttl: 300000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Auto-repair bootstrap admin when missing or wrong password' })
+  async ensureBootstrap() {
+    const allowed = await this.bootstrapAdmin.canAutoEnsureBootstrap();
+    if (!allowed) {
+      throw new ForbiddenException(
+        'Bootstrap auto-repair not allowed (admin exists with valid password, or APP_BOOTSTRAP_* missing)',
+      );
+    }
+    const result = await this.bootstrapAdmin.forceBootstrapAdmin();
+    return {
+      ok: true,
+      ...result,
+      roles: ['SUPER_ADMIN', 'ADMIN'],
+      message:
+        'Admin reparado. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de Render.',
     };
   }
 

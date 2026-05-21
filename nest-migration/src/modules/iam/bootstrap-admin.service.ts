@@ -53,6 +53,33 @@ export class BootstrapAdminService implements OnModuleInit {
     ]);
   }
 
+  /**
+   * Permite POST /api/auth/ensure-bootstrap sin secreto cuando:
+   * - no hay usuarios con SUPER_ADMIN/ADMIN, o
+   * - el usuario bootstrap existe pero su contraseña no coincide con APP_BOOTSTRAP_ADMIN_PASSWORD.
+   */
+  async canAutoEnsureBootstrap(): Promise<boolean> {
+    const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
+    const password = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
+    const orgId = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID;
+    if (!usernameRaw || !password || !orgId) return false;
+
+    await this.waitForMongo();
+    const username = usernameRaw.toLowerCase().trim();
+    const elevated = await this.users
+      .countDocuments({ roles: { $in: [SUPER_ADMIN_ROLE, 'ADMIN'] } })
+      .exec();
+    if (elevated === 0) return true;
+
+    const user = await this.users.findOne({ username }).exec();
+    if (!user?.password_hash) return elevated === 0;
+
+    const hash = String(user.password_hash);
+    const normalized = hash.startsWith('{bcrypt}') ? hash.slice('{bcrypt}'.length) : hash;
+    const passwordOk = await bcrypt.compare(password, normalized);
+    return !passwordOk && elevated <= 1;
+  }
+
   /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */
   async forceBootstrapAdmin(): Promise<{ username: string; action: 'created' | 'reset' | 'skipped' }> {
     await this.waitForMongo();

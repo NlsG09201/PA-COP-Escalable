@@ -82,6 +82,10 @@ if (-not ($lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=' })) {
   $lines += 'SETUP_ADMIN_SECRET=cop-atlas-setup-2026'
 }
 
+if (-not ($lines | Where-Object { $_ -match '^\s*APP_BOOTSTRAP_ADMIN_RESET\s*=' })) {
+  $lines += 'APP_BOOTSTRAP_ADMIN_RESET=true'
+}
+
 # Evita REDIS_URL en el bundle salvo flag explicito (Blueprint cop-redis en Render)
 if (-not $IncludeUpstashRedis) {
   $lines = $lines | Where-Object { $_ -notmatch '^\s*REDIS_URL\s*=' }
