@@ -4,6 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
+import { API_BASE_URL } from '../../core/config/api.config';
 import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
 
 @Component({
@@ -140,18 +141,51 @@ export class LoginComponent {
     this.sitesLoading = true;
     this.sitesLoadError = '';
     forkJoin({
-      sites: this.authApi.getSites$().pipe(catchError(() => of([] as SiteVm[]))),
+      sites: this.authApi.getSites$(),
       departments: this.authApi.getDepartments$().pipe(catchError(() => of([] as string[]))),
-    }).subscribe(({ sites, departments }) => {
-      this.sitesLoading = false;
-      this.allSites = sites;
-      this.departments = departments;
-      this.applySiteFilter();
-      if (sites.length === 0) {
-        this.sitesLoadError =
-          'No se cargaron sedes. Verifica que el API esté arriba (gateway :8080) y vuelve a intentar.';
-      }
+    }).subscribe({
+      next: ({ sites, departments }) => {
+        this.sitesLoading = false;
+        this.allSites = sites;
+        this.departments = departments;
+        this.applySiteFilter();
+        if (sites.length === 0) {
+          this.sitesLoadError = this.emptySitesHint();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.sitesLoading = false;
+        this.allSites = [];
+        this.departments = [];
+        this.applySiteFilter();
+        this.sitesLoadError = this.formatSitesHttpError(err);
+      },
     });
+  }
+
+  private emptySitesHint(): string {
+    if (API_BASE_URL.startsWith('/')) {
+      return 'No hay sedes en la respuesta. Redeploy en Vercel con proxy /render-api y comprueba https://pa-cop-escalable.onrender.com/public/sites';
+    }
+    if (/localhost|127\.0\.0\.1/.test(API_BASE_URL)) {
+      return 'No se cargaron sedes. Ejecuta ng serve (proxy /render-api) o levanta el gateway local en :8080.';
+    }
+    return `No se cargaron sedes. Verifica el API (${API_BASE_URL}) y reintenta.`;
+  }
+
+  private formatSitesHttpError(err: HttpErrorResponse): string {
+    if (err.status === 0) {
+      return API_BASE_URL.startsWith('/')
+        ? 'Sin conexión al API. Haz Redeploy en Vercel (RENDER_API_HOST=pa-cop-escalable.onrender.com) o usa ng serve con proxy.conf.json.'
+        : 'Sin conexión al API. Comprueba que Render esté Live: https://pa-cop-escalable.onrender.com/health/live';
+    }
+    if (err.status === 404) {
+      return 'Ruta del API no encontrada (404). URL del servicio: https://pa-cop-escalable.onrender.com';
+    }
+    const detail = typeof err.error === 'string' && err.error.includes('<!doctype')
+      ? ' (el servidor devolvió HTML en lugar de JSON; falta proxy /render-api en Vercel)'
+      : '';
+    return `Error al cargar sedes (${err.status || 'red'}).${detail} Reintenta.`;
   }
 
   protected applySiteFilter(): void {

@@ -64,7 +64,8 @@
               "buildTarget": "PublicWeb:build:production"
             },
             "development": {
-              "buildTarget": "PublicWeb:build:development"
+              "buildTarget": "PublicWeb:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"

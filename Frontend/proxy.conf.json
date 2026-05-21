@@ -1,0 +1,10 @@
+{
+  "/render-api": {
+    "target": "https://pa-cop-escalable.onrender.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/render-api": ""
+    }
+  }
+}
