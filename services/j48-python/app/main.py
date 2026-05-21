@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.ml.model_service import model_service
-from app.routers import health, predict
+from app.routers import health, lab, predict
+from app.ml.lab_service import lab_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -26,10 +27,12 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(predict.router)
+app.include_router(lab.router)
 
 
 @app.on_event("startup")
 def startup() -> None:
+    lab_service.init()
     model_service.init()
     logger.info("J48 Python service listo (modelo=%s)", settings.model_path)
 

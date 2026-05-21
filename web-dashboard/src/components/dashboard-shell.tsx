@@ -12,6 +12,7 @@ const nav = [
   { href: "/medical-ai", label: "IA Médica", roles: ["PSICOLOGO", "MEDICO", "PROFESSIONAL", "ADMIN", "ODONTOLOGO", "ORG_ADMIN", "SITE_ADMIN"] },
   { href: "/psychology", label: "Psicología", roles: ["PSICOLOGO", "MEDICO", "PROFESSIONAL", "ADMIN"] },
   { href: "/j48", label: "IA J48", roles: ["PSICOLOGO", "ADMIN", "MEDICO"] },
+  { href: "/weka-ai-lab", label: "Weka AI Lab", roles: ["PSICOLOGO", "ADMIN", "ORG_ADMIN", "SITE_ADMIN", "MEDICO", "PROFESSIONAL"] },
   { href: "/admin", label: "Administración", roles: ["ADMIN", "ORG_ADMIN", "SITE_ADMIN", "SUPER_ADMIN"] },
 ];
 

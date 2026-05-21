@@ -16,7 +16,9 @@ COPY datasets/relapse_risk_j48.arff /data/relapse_risk_j48.arff
 
 ENV J48_ARFF_PATH=/data/relapse_risk_j48.arff
 ENV J48_MODEL_PATH=/models/j48_sklearn.joblib
+ENV J48_LAB_DATA_DIR=/data/lab
 ENV J48_AUTO_TRAIN=true
+RUN mkdir -p /data/lab/datasets /data/lab/models /models
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080

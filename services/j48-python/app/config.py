@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     random_state: int = 42
     host: str = "0.0.0.0"
     port: int = 8080
+    lab_data_dir: str = "/data/lab"
 
 
 settings = Settings()

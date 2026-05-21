@@ -23,6 +23,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PsychologyModule } from './modules/psychology/psychology.module';
 import { AiProxyModule } from './modules/ai-proxy/ai-proxy.module';
 import { MedicalAiModule } from './modules/medical-ai/medical-ai.module';
+import { WekaLabModule } from './modules/weka-lab/weka-lab.module';
 import { PaymentsIntlModule } from './modules/payments-intl/payments-intl.module';
 import {
   applyNormalizedRedisUrlFromEnv,
@@ -107,6 +108,7 @@ import {
     PsychologyModule,
     AiProxyModule,
     MedicalAiModule,
+    WekaLabModule,
     PaymentsIntlModule,
     ApiCompatModule,
   ],
