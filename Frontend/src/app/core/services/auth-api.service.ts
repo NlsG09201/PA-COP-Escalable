@@ -88,12 +88,6 @@ export class AuthApiService {
   }
 
   logout(): void {
-    const token = this.tokenStorage.getAccessToken();
-    if (token) {
-      this.http
-        .post(`${API_BASE_URL}/api/auth/logout`, {}, { headers: { Authorization: `Bearer ${token}` } })
-        .subscribe({ error: () => undefined });
-    }
     this.tokenStorage.clear();
   }
 

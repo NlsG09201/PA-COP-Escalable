@@ -23,10 +23,6 @@ export class BootstrapAdminService implements OnModuleInit {
     try {
       await this.waitForMongo();
       await this.runBootstrap();
-      if (await this.canAutoEnsureBootstrap()) {
-        this.logger.warn('Bootstrap admin reparado al arranque (duplicado o contraseña desincronizada).');
-        await this.forceBootstrapAdmin();
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/buffering timed out|ServerSelection|whitelist|ECONNREFUSED/i.test(msg)) {
@@ -263,21 +259,6 @@ export class BootstrapAdminService implements OnModuleInit {
         ...(Array.isArray(existing.roles) ? existing.roles.map(String) : []),
         ...opts.roles,
       ]);
-      if (passwordMatchesEnv) {
-        await col.updateOne(
-          { _id: existing._id },
-          {
-            $set: {
-              roles: Array.from(merged),
-              organization_id: opts.orgId,
-              mfa_enabled: false,
-              updatedAt: new Date(),
-              ...(opts.email ? { email: opts.email } : {}),
-            },
-          },
-        );
-        return 'skipped';
-      }
       const keepId = existing._id;
       await col.deleteMany({ username: usernameRegex });
       await this.users.deleteMany({ username: usernameRegex }).exec();

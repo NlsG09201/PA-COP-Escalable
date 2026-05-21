@@ -227,7 +227,6 @@ export class AppShellComponent {
     { label: 'Gestion de Citas', path: '/app/appointments', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Pacientes', path: '/app/patients', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Odontograma', path: '/app/odontogram', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
-    { label: 'Weka AI Lab', path: '/app/weka-ai-lab', roles: ['SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Diagnostico IA', path: '/app/diagnosis', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Simulacion 3D', path: '/app/simulation', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Simulador IA (Nuevo)', path: '/app/simulation-ai', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },

@@ -16,9 +16,7 @@ export class PatientController {
   @Get()
   @Roles('ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'SUPER_ADMIN')
   async list(@Request() req, @Query() query: ListPatientsQueryDto) {
-    const roles: string[] = Array.isArray(req.user?.roles) ? req.user.roles.map(String) : [];
-    const orgWide = roles.some((r) => ['SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN'].includes(r));
-    return this.patientService.findPage(req.tenant, { ...query, orgWide });
+    return this.patientService.findPage(req.tenant, query);
   }
 
   @Post()
