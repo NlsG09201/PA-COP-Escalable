@@ -60,6 +60,46 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000 --forzar-pacientes
 
 ---
 
+## 35.000 pacientes (odontología + psicología) + catálogo con precios
+
+| Área | Cantidad | Código paciente | `ingest_source` |
+|------|----------|-----------------|-----------------|
+| Odontología | 17.500 | `P-ODO-200001` … | `mcp-bulk-35k` |
+| Psicología | 17.500 | `P-PSI-200001` … | `mcp-bulk-35k` |
+
+**Catálogo (18 servicios COP):** 10 odontología + 8 psicología → `service_categories`, `catalog_services`, `service_offerings` (precio por sede activa).
+
+### Opción 1 — MongoDB MCP en Cursor (recomendado si MCP conecta)
+
+```powershell
+.\deploy\configurar-mcp-atlas.ps1
+# Settings → MCP → reiniciar servidor "mongodb"
+node scripts/generate-mcp-bulk-35k.mjs   # 70 lotes en deploy/mcp-payloads/bulk-35k/
+```
+
+Pide al agente: *insertar con `insert-many` cada `patients-batch-001.json` … `070.json` (database `cop`, collection `patients`)*, luego catálogo vía API Render o `node scripts/seed-atlas-35k-catalog.mjs --solo-catalogo`.
+
+### Opción 2 — API Render (sin MCP; requiere deploy del endpoint)
+
+```powershell
+.\deploy\ejecutar-seed-35k-render.ps1
+.\deploy\ejecutar-seed-35k-render.ps1 -SoloCatalogo
+.\deploy\ejecutar-seed-35k-render.ps1 -Forzar
+```
+
+Endpoint: `POST /api/auth/seed-bulk-35k-catalog` con header `X-COP-Setup-Secret`. Si responde **404**, haz push a `main` y **Manual Deploy** de `cop-nest-api` / `pa-cop-escalable` en Render.
+
+### Opción 3 — Node local (misma red que Atlas)
+
+```powershell
+node scripts/insert-mcp-bulk-35k.mjs
+node scripts/seed-atlas-35k-catalog.mjs --solo-catalogo
+```
+
+Si falla SSL/TLS desde tu PC, usa la opción 2 (Render ya tiene acceso a Atlas).
+
+---
+
 Tu API en producción usa la base **`cop`** en Atlas (`MONGODB_URL` en Render).  
 Otros orígenes de datos:
 

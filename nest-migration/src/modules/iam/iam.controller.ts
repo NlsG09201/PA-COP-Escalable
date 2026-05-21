@@ -147,6 +147,29 @@ export class IamController {
     return this.atlasBulkSeed.seedBulk15k({ forzar: !!body?.forzar });
   }
 
+  /** 35.000 pacientes (17.5k odonto + 17.5k psico) + catálogo de servicios con precios COP. */
+  @Post('seed-bulk-35k-catalog')
+  @Throttle({ default: { limit: 2, ttl: 900000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Seed 35k patients + service catalog (requires X-COP-Setup-Secret)' })
+  async seedBulk35kCatalog(
+    @Headers('x-cop-setup-secret') secret?: string,
+    @Body() body?: { forzar?: boolean; soloCatalogo?: boolean; soloPacientes?: boolean },
+  ) {
+    const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
+    const allowed = new Set(
+      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+    );
+    if (!secret || !allowed.has(secret)) {
+      throw new ForbiddenException('Invalid setup secret');
+    }
+    return this.atlasBulkSeed.seedBulk35kAndCatalog({
+      forzar: !!body?.forzar,
+      soloCatalogo: !!body?.soloCatalogo,
+      soloPacientes: !!body?.soloPacientes,
+    });
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

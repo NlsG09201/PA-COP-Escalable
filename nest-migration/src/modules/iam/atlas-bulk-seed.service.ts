@@ -5,10 +5,14 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { COLOMBIA_SITES_CATALOG } from '../tenancy/colombia-sites.catalog';
+import { COP_SERVICE_CATALOG } from './cop-service-catalog';
+import { UUID } from 'bson';
 
 const TARGET = 15_000;
+const TARGET_35K_PER_AREA = 17_500;
 const BATCH = 500;
 const MARKER = 'mcp-bulk-15k';
+const MARKER_35K = 'mcp-bulk-35k';
 
 type ArffRow = {
   features: Record<string, string | number>;
@@ -323,5 +327,214 @@ export class AtlasBulkSeedService {
     let h = 0;
     for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
     return h;
+  }
+
+  async seedBulk35kAndCatalog(opts?: {
+    forzar?: boolean;
+    soloCatalogo?: boolean;
+    soloPacientes?: boolean;
+  }): Promise<Record<string, unknown>> {
+    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+    if (!orgId) throw new Error('APP_BOOTSTRAP_ADMIN_ORG_ID no configurado');
+
+    const patientsCol = this.mongo.db.collection('patients');
+    let patientResult: Record<string, unknown> = { skipped: true };
+
+    if (!opts?.soloCatalogo) {
+      if (opts?.forzar) {
+        await patientsCol.deleteMany({ ingest_source: MARKER_35K });
+      }
+      const existing = await patientsCol.countDocuments({ ingest_source: MARKER_35K });
+      if (existing >= TARGET_35K_PER_AREA * 2 && !opts?.forzar) {
+        patientResult = { skipped: true, total: existing };
+      } else {
+        const siteByDept = await this.loadSiteByDept(orgId);
+        const docs: Record<string, unknown>[] = [];
+        for (let i = 1; i <= TARGET_35K_PER_AREA; i++) {
+          docs.push(this.buildAreaPatient('ODONTOLOGIA', i, orgId, siteByDept));
+        }
+        for (let i = 1; i <= TARGET_35K_PER_AREA; i++) {
+          docs.push(this.buildAreaPatient('PSICOLOGIA', i, orgId, siteByDept));
+        }
+        let inserted = 0;
+        for (let i = 0; i < docs.length; i += BATCH) {
+          const chunk = docs.slice(i, i + BATCH);
+          const res = await patientsCol.insertMany(chunk, { ordered: false });
+          inserted += res.insertedCount;
+        }
+        const odonto = await patientsCol.countDocuments({
+          ingest_source: MARKER_35K,
+          clinical_area: 'ODONTOLOGIA',
+        });
+        const psico = await patientsCol.countDocuments({
+          ingest_source: MARKER_35K,
+          clinical_area: 'PSICOLOGIA',
+        });
+        patientResult = { inserted, odonto, psico, total: odonto + psico };
+      }
+    }
+
+    let catalogResult: Record<string, unknown> = { skipped: true };
+    if (!opts?.soloPacientes) {
+      catalogResult = await this.seedCatalogServices(orgId, !!opts?.forzar);
+    }
+
+    return {
+      ok: true,
+      marker: MARKER_35K,
+      patients: patientResult,
+      catalog: catalogResult,
+    };
+  }
+
+  private buildAreaPatient(
+    area: 'ODONTOLOGIA' | 'PSICOLOGIA',
+    index: number,
+    orgId: string,
+    siteByDept: Map<string, Array<{ _id: string; department: string }>>,
+  ) {
+    const prefix = area === 'ODONTOLOGIA' ? 'ODO' : 'PSI';
+    const code = `P-${prefix}-${String(200000 + index)}`;
+    const departments = [...new Set(COLOMBIA_SITES_CATALOG.map((s) => s.department))];
+    const dept = departments[index % departments.length];
+    const site = this.resolveSite(dept, siteByDept);
+    const now = new Date();
+    const edad = 1 + (index % 85);
+    const motivos =
+      area === 'ODONTOLOGIA'
+        ? ['Consulta', 'Cirugía', 'Chequeo', 'Emergencia', 'Ortodoncia']
+        : ['Consulta', 'Terapia', 'Evaluación', 'Crisis', 'Seguimiento'];
+
+    return {
+      _id: randomUUID(),
+      organization_id: orgId,
+      site_id: site?._id ?? null,
+      external_code: code,
+      full_name: `Paciente ${code}`,
+      birth_date: this.birthDateFromAge(edad),
+      gender: this.genderFromRaw(index % 2 === 0 ? 'F' : 'M'),
+      phone: `+573${String(Math.abs(this.hashCode(code)) % 1_000_000_000).padStart(9, '0')}`,
+      email: `paciente.${code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}@cop-pacientes.local`,
+      status: 'ACTIVE',
+      clinical_area: area,
+      ingest_source: MARKER_35K,
+      ingest_clinical_area: area,
+      ingest_motivo: motivos[index % motivos.length],
+      ingest_regimen: index % 3 === 0 ? 'Subsidiado' : 'Contributivo',
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  private async seedCatalogServices(orgId: string, forzar: boolean) {
+    const orgUuid = new UUID(orgId);
+    const catCol = this.mongo.db.collection('service_categories');
+    const catalogCol = this.mongo.db.collection('catalog_services');
+    const offeringCol = this.mongo.db.collection('service_offerings');
+
+    if (forzar) {
+      await offeringCol.deleteMany({ ingest_source: MARKER_35K });
+      await catalogCol.deleteMany({ ingest_source: MARKER_35K });
+      await catCol.deleteMany({ ingest_source: MARKER_35K });
+    } else {
+      const n = await catalogCol.countDocuments({ organization_id: orgUuid, ingest_source: MARKER_35K });
+      if (n >= COP_SERVICE_CATALOG.length) {
+        return { skipped: true, catalogCount: n };
+      }
+    }
+
+    const now = new Date();
+    const categories = {
+      ODONTOLOGIA: {
+        _id: new UUID(randomUUID()),
+        organization_id: orgUuid,
+        slug: 'odontologia',
+        name: 'Odontología',
+        active: true,
+        ingest_source: MARKER_35K,
+        created_at: now,
+        updated_at: now,
+      },
+      PSICOLOGIA: {
+        _id: new UUID(randomUUID()),
+        organization_id: orgUuid,
+        slug: 'psicologia',
+        name: 'Psicología',
+        active: true,
+        ingest_source: MARKER_35K,
+        created_at: now,
+        updated_at: now,
+      },
+    };
+
+    await catCol.insertMany([categories.ODONTOLOGIA, categories.PSICOLOGIA] as any);
+
+    const siteCol = this.mongo.db.collection('sites');
+    const siteDocs = await siteCol
+      .find({
+        status: 'ACTIVE',
+        $or: [{ organization_id: orgId }, { organization_id: orgUuid }],
+      })
+      .toArray();
+
+    if (!siteDocs.length) throw new Error('No hay sedes activas para service_offerings');
+
+    const catalogDocs: Record<string, unknown>[] = [];
+    const offeringDocs: Record<string, unknown>[] = [];
+
+    for (const svc of COP_SERVICE_CATALOG) {
+      const catalogId = new UUID(randomUUID());
+      catalogDocs.push({
+        _id: catalogId,
+        organization_id: orgUuid,
+        category_id: categories[svc.category]._id,
+        code: svc.code,
+        name: svc.name,
+        description: svc.description,
+        default_duration_minutes: svc.durationMinutes,
+        specialty_match_tokens: svc.category === 'PSICOLOGIA' ? 'psicologia' : 'odontologia',
+        active: true,
+        ingest_source: MARKER_35K,
+        created_at: now,
+        updated_at: now,
+      });
+
+      for (const site of siteDocs) {
+        const siteId = site._id instanceof UUID ? site._id : new UUID(String(site._id));
+        offeringDocs.push({
+          _id: new UUID(randomUUID()),
+          catalog_service_id: catalogId,
+          public_title: svc.name,
+          public_description: svc.description,
+          base_price: svc.basePrice,
+          promo_price: svc.promoPrice,
+          currency: 'COP',
+          visible_public: true,
+          active: true,
+          organization_id: orgUuid,
+          site_id: siteId,
+          features: svc.features,
+          duration_minutes: svc.durationMinutes,
+          ingest_source: MARKER_35K,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    }
+
+    await catalogCol.insertMany(catalogDocs as any);
+    let offeringsInserted = 0;
+    for (let i = 0; i < offeringDocs.length; i += BATCH) {
+      const chunk = offeringDocs.slice(i, i + BATCH);
+      const res = await offeringCol.insertMany(chunk as any, { ordered: false });
+      offeringsInserted += res.insertedCount;
+    }
+
+    return {
+      categories: 2,
+      catalogServices: catalogDocs.length,
+      offerings: offeringsInserted,
+      sites: siteDocs.length,
+    };
   }
 }

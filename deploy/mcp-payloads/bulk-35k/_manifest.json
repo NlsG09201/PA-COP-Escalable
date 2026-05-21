@@ -1,0 +1,292 @@
+{
+  "database": "cop",
+  "organization_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+  "marker": "mcp-bulk-35k",
+  "total": 35000,
+  "odonto": 17500,
+  "psico": 17500,
+  "batches": 70,
+  "files": [
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-001.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-002.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-003.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-004.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-005.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-006.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-007.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-008.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-009.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-010.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-011.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-012.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-013.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-014.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-015.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-016.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-017.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-018.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-019.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-020.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-021.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-022.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-023.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-024.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-025.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-026.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-027.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-028.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-029.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-030.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-031.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-032.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-033.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-034.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-035.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-036.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-037.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-038.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-039.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-040.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-041.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-042.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-043.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-044.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-045.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-046.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-047.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-048.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-049.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-050.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-051.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-052.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-053.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-054.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-055.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-056.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-057.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-058.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-059.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-060.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-061.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-062.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-063.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-064.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-065.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-066.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-067.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-068.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-069.json",
+      "count": 500
+    },
+    {
+      "path": "C:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk-35k\\patients-batch-070.json",
+      "count": 500
+    }
+  ],
+  "mcpHint": "Call insert-many per file: database=cop, collection=patients"
+}
