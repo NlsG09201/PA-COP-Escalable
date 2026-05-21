@@ -50,7 +50,7 @@ export class PatientsApiService {
     return {
       id: String(entry['id'] ?? entry['_id'] ?? entry['patientId'] ?? crypto.randomUUID()),
       name: String(entry['name'] ?? entry['fullName'] ?? entry['full_name'] ?? 'Paciente sin nombre'),
-      document: String(entry['document'] ?? entry['documentNumber'] ?? '-'),
+      document: String(entry['document'] ?? entry['documentNumber'] ?? entry['external_code'] ?? '-'),
       lastVisit: String(entry['lastVisit'] ?? entry['updatedAt'] ?? '-'),
       status: String(entry['status'] ?? 'Activo')
     };

@@ -239,6 +239,7 @@ export class AppShellComponent {
     { label: 'Riesgo de Recaida', path: '/app/relapse', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Tests Psicologicos', path: '/app/psych-tests', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Copiloto Clinico', path: '/app/copilot', roles: ['ADMIN', 'MEDICO', 'PROFESSIONAL'] },
+    { label: 'Weka AI Lab', path: '/app/weka-ai-lab', roles: ['SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL'] },
     { label: 'Experiencia Paciente', path: '/app/experience', roles: ['ADMIN', 'ORG_ADMIN', 'SITE_ADMIN'] },
     { label: 'Administración', path: '/app/admin', roles: ['SUPER_ADMIN', 'ADMIN'] }
   ];

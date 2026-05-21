@@ -5,6 +5,7 @@ import { Appointment, AppointmentStatus } from '../appointments/schemas/appointm
 import { Patient } from '../patients/patient.schema';
 import { Professional } from '../tenancy/schemas/professional.schema';
 import { TenantContext } from '../tenancy/tenancy.interceptor';
+import { buildTenantDocumentMatch } from '../tenancy/tenant-query.util';
 
 export type GroupBy = 'DAY' | 'WEEK' | 'MONTH';
 
@@ -30,7 +31,10 @@ export class AnalyticsDashboardService {
         start_at: { $gte: from, $lte: to },
         status: AppointmentStatus.CANCELLED,
       }),
-      this.patientModel.countDocuments({ ...baseMatch, status: 'ACTIVE' }),
+      this.connection.collection('patients').countDocuments({
+        ...buildTenantDocumentMatch(tenant, { patientsCollection: true }),
+        status: 'ACTIVE',
+      }),
       this.sumPublicPaymentsAmount({ from, to }, tenant),
     ]);
 
@@ -191,9 +195,7 @@ export class AnalyticsDashboardService {
   }
 
   private tenantMatch(tenant: TenantContext) {
-    const match: any = { organization_id: tenant.organizationId };
-    if (tenant.siteId) match.site_id = tenant.siteId;
-    return match;
+    return buildTenantDocumentMatch(tenant, { patientsCollection: true });
   }
 
   private parseRange(range: DateRange): { from: Date; to: Date } {

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 export interface TenantContext {
   organizationId: string;
   siteId?: string;
+  roles?: string[];
 }
 
 @Injectable()
@@ -19,6 +20,7 @@ export class TenancyInterceptor implements NestInterceptor {
     request.tenant = {
       organizationId: String(user.organization_id),
       siteId: user.site_id ? String(user.site_id) : undefined,
+      roles: Array.isArray(user.roles) ? user.roles.map(String) : [],
     };
 
     return next.handle();

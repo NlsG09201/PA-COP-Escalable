@@ -22,6 +22,21 @@ export class BootstrapAdminService implements OnModuleInit {
   async onModuleInit() {
     try {
       await this.waitForMongo();
+      const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
+      const password = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
+      const orgId = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID;
+      if (usernameRaw && password && orgId) {
+        const username = usernameRaw.toLowerCase().trim();
+        const dup = await this.countBootstrapUsernameMatches(username);
+        const verified = await this.verifyBootstrapLogin();
+        if (verified && dup <= 1) {
+          this.logger.log(`Bootstrap admin OK (${username}); sin reescritura en arranque.`);
+          return;
+        }
+        if (dup > 1) {
+          this.logger.warn(`Bootstrap: ${dup} usuarios duplicados para ${username}; reparando.`);
+        }
+      }
       await this.runBootstrap();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

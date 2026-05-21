@@ -105,6 +105,12 @@ export const routes: Routes = [
         data: { roles: ['SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL'] }
       },
       {
+        path: 'weka-ai-lab',
+        canActivate: [roleGuard],
+        loadChildren: () => import('./features/weka-lab/weka-lab.routes').then((m) => m.WEKA_LAB_ROUTES),
+        data: { roles: ['SUPER_ADMIN', 'ADMIN', 'MEDICO', 'PROFESSIONAL'] }
+      },
+      {
         path: 'experience',
         canActivate: [roleGuard],
         loadChildren: () => import('./features/experience/experience.routes').then((m) => m.EXPERIENCE_ROUTES),
