@@ -4,6 +4,7 @@ import { UUID } from 'bson';
 import * as crypto from 'crypto';
 import { Connection } from 'mongoose';
 import { TenantContext } from '../tenancy/tenancy.interceptor';
+import { idVariants, isOrgWideTenant } from '../tenancy/tenant-query.util';
 
 type ServiceCategory = 'ODONTOLOGIA' | 'PSICOLOGIA';
 
@@ -46,8 +47,7 @@ export class ServicesService {
     const payload = this.validateUpsert(input);
     const category = normalizeCategory(payload.category);
 
-    const siteUuid = asUuid(tenant.siteId);
-    if (!siteUuid) throw new BadRequestException('Tenant site is required');
+    const siteUuid = await this.resolveSiteUuid(tenant);
 
     const categoryDoc = await this.findServiceCategoryDoc(category, tenant);
     const catalogId = new UUID(crypto.randomUUID());
@@ -155,11 +155,12 @@ export class ServicesService {
   }
 
   private async queryServices(filter: { category?: ServiceCategory }, tenant: TenantContext) {
-    const siteUuid = tenant.siteId ? asUuid(tenant.siteId) : undefined;
-    const match: any = {
-      organization_id: new UUID(tenant.organizationId),
+    const match: Record<string, unknown> = {
+      organization_id: { $in: idVariants(tenant.organizationId) },
     };
-    if (siteUuid) match.site_id = siteUuid;
+    if (tenant.siteId && !isOrgWideTenant(tenant)) {
+      match.site_id = { $in: idVariants(tenant.siteId) };
+    }
 
     const pipeline: any[] = [
       { $match: match },
@@ -222,11 +223,32 @@ export class ServicesService {
     });
   }
 
+  private async resolveSiteUuid(tenant: TenantContext): Promise<UUID> {
+    let siteId = tenant.siteId?.trim();
+    if (!siteId && isOrgWideTenant(tenant)) {
+      const sites = await this.connection
+        .collection<any>('sites')
+        .find({
+          organization_id: { $in: idVariants(tenant.organizationId) },
+          $or: [{ status: 'ACTIVE' }, { status: { $exists: false } }, { status: null }],
+        } as any)
+        .limit(1)
+        .toArray();
+      siteId = sites[0] ? asStringId(sites[0]._id) : undefined;
+    }
+    const siteUuid = asUuid(siteId);
+    if (!siteUuid) {
+      throw new BadRequestException(
+        'Se requiere una sede. Inicia sesión seleccionando sede o asigna site_id al usuario.',
+      );
+    }
+    return siteUuid;
+  }
+
   private validateUpsert(input: any) {
     const name = String(input?.name ?? '').trim();
     const description = String(input?.description ?? '').trim();
     if (!name) throw new BadRequestException('name is required');
-    if (!description) throw new BadRequestException('description is required');
     const category = normalizeCategory(input?.category);
     const price = input?.price == null ? 0 : Number(input.price);
     const duration = input?.duration == null ? null : Number(input.duration);
@@ -286,10 +308,9 @@ export class ServicesService {
 
   private async findServiceCategoryDoc(category: ServiceCategory, tenant: TenantContext) {
     const wantPsych = category === 'PSICOLOGIA';
-    const orgUuid = new UUID(tenant.organizationId);
     const docs = await this.connection
       .collection<any>('service_categories')
-      .find({ organization_id: orgUuid } as any)
+      .find({ organization_id: { $in: idVariants(tenant.organizationId) } } as any)
       .toArray();
 
     const pick = docs.find((d: any) => {

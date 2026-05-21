@@ -22,9 +22,13 @@ import { API_BASE_URL } from '../../core/config/api.config';
           <option value="MONTH">Mes</option>
           <option value="YEAR">Anio</option>
         </select>
-        <button class="btn btn-primary btn-sm" (click)="reload()">Aplicar</button>
+        <button class="btn btn-primary btn-sm" (click)="reload()" [disabled]="loading">Aplicar</button>
       </div>
     </div>
+
+    @if (loadError) {
+      <div class="alert alert-danger py-2 mb-3">{{ loadError }}</div>
+    }
 
     <div class="row g-3 mb-2">
       <div class="col-md-3" *ngFor="let card of cards()">
@@ -75,6 +79,8 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
   protected toDate = this.asDateInput(new Date());
   protected groupBy: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' = 'DAY';
   protected kpis: any = null;
+  protected loading = false;
+  protected loadError = '';
   protected appointmentsTrend: Array<{ bucket: string; total: number }> = [];
   protected revenueTrend: Array<{ bucket: string; total: number }> = [];
   protected specialties: any[] = [];
@@ -93,11 +99,9 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
     ];
   });
 
-  constructor() { void this.reload(); }
-
   ngAfterViewInit(): void {
     this.initCharts();
-    this.renderCharts();
+    void this.reload();
     window.addEventListener('resize', this.onResize);
   }
 
@@ -115,37 +119,86 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
   }
 
   protected async reload(): Promise<void> {
-    const params = this.rangeParams();
-    const iso = params.get('from') && params.get('to') ? { fromIso: params.get('from')!, toIso: params.get('to')! } : null;
-    const j48MonthlyParams = iso
-      ? new HttpParams().set('from', iso.fromIso).set('to', iso.toIso)
-      : params;
+    this.loading = true;
+    this.loadError = '';
+    const range = this.rangeParams();
+    const groupByApi = this.groupBy === 'YEAR' ? 'MONTH' : this.groupBy;
+    const withExtra = (extra: Record<string, string>) => {
+      let p = range;
+      for (const [k, v] of Object.entries(extra)) {
+        p = p.set(k, v);
+      }
+      return p;
+    };
+
+    const unwrap = async <T>(label: string, obs: import('rxjs').Observable<T>, fallback: T): Promise<T> => {
+      try {
+        return await firstValueFrom(obs);
+      } catch (err: any) {
+        const msg = err?.error?.message ?? err?.message ?? 'Error de red';
+        this.loadError = this.loadError ? `${this.loadError}; ${label}: ${msg}` : `${label}: ${msg}`;
+        return fallback;
+      }
+    };
 
     const [kpis, appt, rev, spec, doc, hm, j48Cls, j48Mo] = await Promise.all([
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/kpis`, { params })),
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/trend`, { params: params.set('groupBy', this.groupBy) })),
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/revenue/trend`, { params: params.set('groupBy', this.groupBy) })),
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/specialties/distribution`, { params })),
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/doctors/performance`, { params: params.set('limit', '10') })),
-      firstValueFrom(this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/heatmap`, { params })),
-      firstValueFrom(
+      unwrap('KPIs', this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/kpis`, { params: range }), null),
+      unwrap(
+        'Citas',
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/trend`, {
+          params: withExtra({ groupBy: groupByApi }),
+        }),
+        { series: [] },
+      ),
+      unwrap(
+        'Ingresos',
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/revenue/trend`, {
+          params: withExtra({ groupBy: groupByApi }),
+        }),
+        { series: [] },
+      ),
+      unwrap(
+        'Especialidades',
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/specialties/distribution`, { params: range }),
+        { specialties: [] },
+      ),
+      unwrap(
+        'Medicos',
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/doctors/performance`, {
+          params: withExtra({ limit: '10' }),
+        }),
+        { doctors: [] },
+      ),
+      unwrap(
+        'Heatmap',
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/heatmap`, { params: range }),
+        { cells: [] },
+      ),
+      unwrap(
+        'J48 clases',
         this.http.get<Array<{ label: string; count: number }>>(`${API_BASE_URL}/api/j48/analytics/class-distribution`),
-      ).catch(() => [] as Array<{ label: string; count: number }>),
-      firstValueFrom(
+        [] as Array<{ label: string; count: number }>,
+      ),
+      unwrap(
+        'J48 mensual',
         this.http.get<{ series: Array<{ bucket: string; total: number }> }>(
           `${API_BASE_URL}/api/j48/analytics/monthly`,
-          { params: j48MonthlyParams },
+          { params: range },
         ),
-      ).catch(() => ({ series: [] as Array<{ bucket: string; total: number }> })),
+        { series: [] as Array<{ bucket: string; total: number }> },
+      ),
     ]);
+
     this.kpis = kpis;
-    this.appointmentsTrend = (appt.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
-    this.revenueTrend = (rev.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
-    this.specialties = spec.specialties ?? [];
-    this.doctors = doc.doctors ?? [];
-    this.heatmapCells = hm.cells ?? [];
-    this.j48Classes = j48Cls ?? [];
-    this.j48Monthly = j48Mo.series ?? [];
+    this.appointmentsTrend = (appt?.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
+    this.revenueTrend = (rev?.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
+    this.specialties = spec?.specialties ?? [];
+    this.doctors = doc?.doctors ?? [];
+    this.heatmapCells = hm?.cells ?? [];
+    this.j48Classes = Array.isArray(j48Cls) ? j48Cls : [];
+    this.j48Monthly = j48Mo?.series ?? [];
+    this.loading = false;
+    this.initCharts();
     this.renderCharts();
   }
 

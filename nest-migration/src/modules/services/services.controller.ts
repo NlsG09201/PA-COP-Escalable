@@ -15,13 +15,13 @@ export class ServicesController {
   constructor(private readonly service: ServicesService) {}
 
   @Get()
-  @Roles('ADMIN', 'ORG_ADMIN', 'MEDICO')
+  @Roles('ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   async list(@Req() req) {
     return this.service.list(req.tenant);
   }
 
   @Get('category/:category')
-  @Roles('ADMIN', 'ORG_ADMIN', 'MEDICO')
+  @Roles('ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL')
   async listByCategory(@Req() req, @Param('category') category: string) {
     return this.service.listByCategory(category, req.tenant);
   }

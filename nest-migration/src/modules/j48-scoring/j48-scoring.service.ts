@@ -7,6 +7,7 @@ import { PsychologicalSnapshot } from './schemas/psychological-snapshot.schema';
 import { J48Prediction } from './schemas/j48-prediction.schema';
 import { SUPER_ADMIN_ROLE } from '../iam/roles.constants';
 import { JwtUserLike } from './j48-user.types';
+import { idVariants } from '../tenancy/tenant-query.util';
 
 type J48Features = {
   gender?: 'M' | 'F' | 'O';
@@ -109,7 +110,7 @@ export class J48ScoringService {
       throw new ForbiddenException('Falta contexto de organización');
     }
     const match: Record<string, unknown> = {};
-    if (orgScope) match.organizationId = orgScope;
+    if (orgScope) match.organizationId = { $in: idVariants(orgScope) };
 
     return this.predictions
       .aggregate<{ label: string; count: number }>([
@@ -133,7 +134,7 @@ export class J48ScoringService {
     }
 
     const match: Record<string, unknown> = { scoredAt: { $gte: from, $lte: to } };
-    if (orgScope) match.organizationId = orgScope;
+    if (orgScope) match.organizationId = { $in: idVariants(orgScope) };
 
     const raw = await this.predictions
       .aggregate<{ bucket: string; total: number }>([

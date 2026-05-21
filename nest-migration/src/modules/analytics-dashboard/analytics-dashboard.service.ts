@@ -5,7 +5,7 @@ import { Appointment, AppointmentStatus } from '../appointments/schemas/appointm
 import { Patient } from '../patients/patient.schema';
 import { Professional } from '../tenancy/schemas/professional.schema';
 import { TenantContext } from '../tenancy/tenancy.interceptor';
-import { buildTenantDocumentMatch } from '../tenancy/tenant-query.util';
+import { buildTenantDocumentMatch, idVariants } from '../tenancy/tenant-query.util';
 
 export type GroupBy = 'DAY' | 'WEEK' | 'MONTH';
 
@@ -32,7 +32,7 @@ export class AnalyticsDashboardService {
         status: AppointmentStatus.CANCELLED,
       }),
       this.connection.collection('patients').countDocuments({
-        ...buildTenantDocumentMatch(tenant, { patientsCollection: true }),
+        ...this.patientsTenantMatch(tenant),
         status: 'ACTIVE',
       }),
       this.sumPublicPaymentsAmount({ from, to }, tenant),
@@ -145,8 +145,9 @@ export class AnalyticsDashboardService {
       .exec();
 
     const professionalIds = docsAgg.map((d) => String(d._id));
+    const idList = professionalIds.flatMap((id) => idVariants(id));
     const professionals = await this.professionalModel
-      .find({ _id: { $in: professionalIds } }, { full_name: 1 })
+      .find({ _id: { $in: idList } }, { full_name: 1 })
       .lean()
       .exec();
 
@@ -194,7 +195,13 @@ export class AnalyticsDashboardService {
     return { cells };
   }
 
+  /** Citas, pagos y agregados clínicos: filtro de sede estricto. */
   private tenantMatch(tenant: TenantContext) {
+    return buildTenantDocumentMatch(tenant);
+  }
+
+  /** Conteo de pacientes activos (bulk puede tener site_id null). */
+  private patientsTenantMatch(tenant: TenantContext) {
     return buildTenantDocumentMatch(tenant, { patientsCollection: true });
   }
 

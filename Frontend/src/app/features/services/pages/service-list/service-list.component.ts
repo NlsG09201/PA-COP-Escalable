@@ -236,7 +236,7 @@ export class ServiceListComponent {
     const raw = this.form.getRawValue();
     const payload = {
       name: raw.name,
-      description: raw.description,
+      description: (raw.description || raw.name).trim(),
       category: (raw.category === 'PSICOLOGIA' ? 'PSICOLOGIA' : 'ODONTOLOGIA') as ServiceCategory,
       price: Number(raw.price),
       duration: raw.duration ? Number(raw.duration) : null
