@@ -66,7 +66,8 @@ export class IamController {
     return {
       ok: true,
       ...result,
-      message: 'Admin listo. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD.',
+      roles: ['SUPER_ADMIN', 'ADMIN'],
+      message: 'Admin listo (SUPER_ADMIN + ADMIN). Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD.',
     };
   }
 

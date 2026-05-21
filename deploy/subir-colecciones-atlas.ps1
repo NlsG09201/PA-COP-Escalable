@@ -64,6 +64,13 @@ if ($env:SEED_FORZAR_PACIENTES -eq '1') {
 
 node @nodeArgs
 $code = $LASTEXITCODE
+if ($code -ne 0) { Pop-Location; exit $code }
+
+Write-Host ''
+Write-Host '=== Roles administrador ===' -ForegroundColor Cyan
+$roleArgs = @('scripts/asignar-rol-admin.mjs', '--user', $AdminUser)
+node @roleArgs
+$code = $LASTEXITCODE
 Pop-Location
 
 if ($code -ne 0) { exit $code }

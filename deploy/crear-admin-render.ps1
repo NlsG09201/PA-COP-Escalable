@@ -15,6 +15,7 @@ $resp = curl.exe -s -w "`nHTTP:%{http_code}" -X POST "$api/api/auth/setup-bootst
 
 Write-Host $resp
 Write-Host ''
+Write-Host 'Roles asignados: SUPER_ADMIN, ADMIN' -ForegroundColor Green
 Write-Host 'Login:' -ForegroundColor Green
 Write-Host '  Usuario: nelsonherazoi'
 Write-Host '  Contrasena: Nelson09092001 (APP_BOOTSTRAP_ADMIN_PASSWORD en Render)'
