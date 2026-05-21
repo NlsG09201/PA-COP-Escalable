@@ -178,8 +178,44 @@ export class BootstrapAdminService implements OnModuleInit {
       );
     }
 
-    const result = await this.forceBootstrapAdmin(password);
-    return result.verified;
+    return this.resyncBootstrapCredentials(loginId, password);
+  }
+
+  /**
+   * Reescribe el admin bootstrap con hash nuevo (arregla desync verify OK + login 401).
+   */
+  async resyncBootstrapCredentials(username: string, password: string): Promise<boolean> {
+    const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+    const email = String(process.env.APP_BOOTSTRAP_ADMIN_EMAIL ?? '').trim().toLowerCase();
+    if (!bootstrapUser || !orgId || username.toLowerCase().trim() !== bootstrapUser) {
+      return false;
+    }
+
+    await this.waitForMongo();
+    const password_hash = await bcrypt.hash(password, 10);
+    const usernameRegex = this.usernameRegex(bootstrapUser);
+    const col = this.mongo.db.collection('users');
+    const existing = await col.findOne({ username: usernameRegex });
+    const keepId = existing?._id ?? uuidv4();
+    const roles = [SUPER_ADMIN_ROLE, 'ADMIN'];
+
+    await col.deleteMany({ username: usernameRegex });
+    await this.users.deleteMany({ username: usernameRegex }).exec();
+
+    await col.insertOne({
+      _id: keepId,
+      username: bootstrapUser,
+      organization_id: orgId,
+      password_hash,
+      roles,
+      mfa_enabled: false,
+      ...(email ? { email } : {}),
+      createdAt: (existing as { createdAt?: Date })?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    } as Record<string, unknown>);
+
+    return this.verifyBootstrapLogin(password);
   }
 
   /** Comprueba que el admin bootstrap puede autenticarse con APP_BOOTSTRAP_ADMIN_PASSWORD. */
@@ -301,9 +337,11 @@ export class BootstrapAdminService implements OnModuleInit {
     const existingHash = passwordHashFromDoc(existing ?? {});
     const passwordMatchesEnv =
       !!existingHash && (await bcrypt.compare(opts.password, existingHash));
-    const password_hash = passwordMatchesEnv
-      ? existingHash
-      : await bcrypt.hash(opts.password, 10);
+    const password_hash = forceReset
+      ? await bcrypt.hash(opts.password, 10)
+      : passwordMatchesEnv
+        ? existingHash
+        : await bcrypt.hash(opts.password, 10);
 
     if (existing && !forceReset) {
       const merged = new Set<string>([
