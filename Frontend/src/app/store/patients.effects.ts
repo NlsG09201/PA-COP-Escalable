@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { PatientsApiService } from '../features/patients/data-access/patients-api.service';
-import { loadPatients, loadPatientsFailure, loadPatientsSuccess } from './patients.actions';
+import { persistPatientSelection } from './patients-persist.util';
+import { loadPatients, loadPatientsFailure, loadPatientsSuccess, selectPatient } from './patients.actions';
 
 @Injectable()
 export class PatientsEffects {
@@ -15,9 +16,20 @@ export class PatientsEffects {
       switchMap(() =>
         this.patientsApi.list$(0, 200).pipe(
           map((page) => loadPatientsSuccess({ items: page.items })),
-          catchError(() => of(loadPatientsFailure()))
-        )
-      )
-    )
+          catchError(() => of(loadPatientsFailure())),
+        ),
+      ),
+    ),
+  );
+
+  persistSelection$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(selectPatient),
+        tap(({ patientId, patient }) => {
+          persistPatientSelection(patientId, patient ?? null);
+        }),
+      ),
+    { dispatch: false },
   );
 }

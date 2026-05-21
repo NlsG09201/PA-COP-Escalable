@@ -6,6 +6,7 @@ import { Store } from '@ngrx/store';
 import { UserRole } from '../models/user-role.model';
 import { AuthService } from '../services/auth.service';
 import { AuthApiService } from '../services/auth-api.service';
+import { loadPatients } from '../../store/patients.actions';
 import { selectSelectedPatient } from '../../store/patients.selectors';
 import { PUBLIC_SITE_URL } from '../config/public-site.config';
 
@@ -63,10 +64,10 @@ type NavItem = {
                 <strong>{{ activeSiteName() }}</strong>
               </div>
             }
-            <div class="patient-chip">
+            <a class="patient-chip text-decoration-none" routerLink="/app/patients" title="Cambiar paciente activo">
               <span class="footer-label">Paciente activo</span>
-              <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion' }}</strong>
-            </div>
+              <strong>{{ (selectedPatient$ | async)?.name ?? 'Sin seleccion — ir a Pacientes' }}</strong>
+            </a>
             <a
               class="btn btn-outline-primary btn-sm"
               [href]="publicSiteUrl"
@@ -258,6 +259,7 @@ export class AppShellComponent {
     private readonly router: Router
   ) {
     this.activeRoles.set(authService.getRoles());
+    this.store.dispatch(loadPatients());
     const siteId = authService.getSiteId();
     if (siteId) {
       this.authApi

@@ -37,7 +37,9 @@ export class PatientsApiService {
       )
       .pipe(
         map((raw) => ({
-          items: this.toArray(raw?.items ?? raw).map((entry) => this.mapPatient(entry)),
+          items: this.toArray(raw?.items ?? raw)
+            .map((entry) => this.mapPatient(entry))
+            .filter((p) => p.id.length > 0),
           page: Number(raw?.page ?? page),
           size: Number(raw?.size ?? size),
           total: Number(raw?.total ?? 0),
@@ -48,12 +50,22 @@ export class PatientsApiService {
 
   private mapPatient(entry: Record<string, unknown>): PatientVm {
     return {
-      id: String(entry['id'] ?? entry['_id'] ?? entry['patientId'] ?? crypto.randomUUID()),
+      id: this.resolvePatientId(entry),
       name: String(entry['name'] ?? entry['fullName'] ?? entry['full_name'] ?? 'Paciente sin nombre'),
       document: String(entry['document'] ?? entry['documentNumber'] ?? entry['external_code'] ?? '-'),
-      lastVisit: String(entry['lastVisit'] ?? entry['updatedAt'] ?? '-'),
-      status: String(entry['status'] ?? 'Activo')
+      lastVisit: String(entry['lastVisit'] ?? entry['updatedAt'] ?? entry['updated_at'] ?? '-'),
+      status: String(entry['status'] ?? 'Activo'),
     };
+  }
+
+  private resolvePatientId(entry: Record<string, unknown>): string {
+    const raw = entry['id'] ?? entry['_id'] ?? entry['patientId'];
+    if (raw == null) return '';
+    if (typeof raw === 'object') {
+      const s = String(raw);
+      return s && s !== '[object Object]' ? s.trim() : '';
+    }
+    return String(raw).trim();
   }
 
   private toArray(raw: unknown): Record<string, unknown>[] {

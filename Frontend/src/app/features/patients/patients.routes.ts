@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, Routes } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { selectPatient } from '../../store/patients.actions';
+import { selectPatient, syncPatientCatalog } from '../../store/patients.actions';
 import { selectSelectedPatientId } from '../../store/patients.selectors';
 import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
 import { PatientsApiService, PatientVm } from './data-access/patients-api.service';
@@ -99,9 +99,9 @@ import { PatientsApiService, PatientVm } from './data-access/patients-api.servic
                     tabindex="0"
                     role="button"
                     [attr.aria-selected]="selectedId() === patient.id"
-                    (click)="onSelect(patient.id)"
-                    (keydown.enter)="onSelect(patient.id)"
-                    (keydown.space)="$event.preventDefault(); onSelect(patient.id)"
+                    (click)="onSelect(patient)"
+                    (keydown.enter)="onSelect(patient)"
+                    (keydown.space)="$event.preventDefault(); onSelect(patient)"
                     [class.table-active]="selectedId() === patient.id"
                     class="patient-row">
                     <td>{{ patient.name }}</td>
@@ -113,7 +113,7 @@ import { PatientsApiService, PatientVm } from './data-access/patients-api.servic
                         type="button"
                         class="btn btn-outline-primary btn-sm"
                         [routerLink]="['/app/relapse']"
-                        (click)="onSelect(patient.id)"
+                        (click)="onSelect(patient)"
                         title="Ver riesgo de recaída y J48">
                         J48 / Riesgo
                       </button>
@@ -204,8 +204,8 @@ class PatientsPageComponent {
     this.load();
   }
 
-  protected onSelect(patientId: string): void {
-    this.store.dispatch(selectPatient({ patientId }));
+  protected onSelect(patient: PatientVm): void {
+    this.store.dispatch(selectPatient({ patientId: patient.id, patient }));
   }
 
   protected load(): void {
@@ -217,6 +217,7 @@ class PatientsPageComponent {
         this.total.set(res.total);
         this.hasNext.set(res.hasNext);
         this.loading.set(false);
+        this.store.dispatch(syncPatientCatalog({ items: res.items }));
       },
       error: (err) => {
         this.loading.set(false);
