@@ -26,6 +26,8 @@ if ($setup -notmatch 'HTTP:200') {
   exit 1
 }
 
+Start-Sleep -Seconds 2
+
 Write-Host ''
 Write-Host 'Comprobando login...' -ForegroundColor Cyan
 $loginBody = (@{
@@ -49,4 +51,5 @@ try {
 }
 
 Write-Host ''
-Write-Host "Panel: $username / $password + sede" -ForegroundColor Green
+Write-Host "Panel: usuario $username | contraseña $password | sede obligatoria" -ForegroundColor Green
+Write-Host 'En Render -> Environment: APP_BOOTSTRAP_ADMIN_PASSWORD debe ser exactamente esa misma clave.' -ForegroundColor Yellow
