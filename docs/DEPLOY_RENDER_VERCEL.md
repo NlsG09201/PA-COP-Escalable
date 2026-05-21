@@ -140,6 +140,7 @@ En Render (`cop-nest-api`):
 | Mismo error desplegando el front | PublicWeb/Frontend en Render con Docker | Usar **Vercel** (sin Docker), Root `PublicWeb` o `Frontend` |
 | `ENOTFOUND cluster0.xxxxx` | `MONGODB_URL` es el ejemplo de `env.production.example` | Atlas → Connect → copiar URI real con tu cluster (ej. `cluster0.abc12.mongodb.net`) |
 | `ENOTFOUND host` en ioredis | `REDIS_URL` tiene literal `HOST` o placeholder | Upstash/Render → copiar URL completa con hostname real |
+| Login **401** en `/render-api/api/auth/login` | Contraseña/sede o admin desincronizado en Mongo | Ver guía interna [`deploy/LOGIN-401.md`](../deploy/LOGIN-401.md) → `.\deploy\crear-admin-render.ps1` |
 
 ---
 

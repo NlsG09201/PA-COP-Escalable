@@ -122,6 +122,7 @@ Si el navegador muestra error **CORS**, revisa que `CORS_ORIGINS` incluya exacta
   - Si `cop-nest-api.onrender.com` devuelve **404** con cabecera `x-render-routing: no-server`, el servicio **no existe o está suspendido** en Render: crea el Blueprint o reactiva el servicio.
 - **Puerto**: Nest usa `process.env.PORT` (Render lo inyecta). No hace falta fijar `PORT` manualmente salvo pruebas locales.
 - **`/nest-migration`: not found / checksum del contexto**: Suele pasar si en Render usas el **Dockerfile de la raíz** del repo con **contexto = raíz** y el `.dockerignore` ignoraba toda la carpeta `nest-migration`. En el repo ya está corregido (solo se ignoran `nest-migration/node_modules` y `nest-migration/dist`). Alternativa: en el Blueprint deja `dockerContext: ./nest-migration` + `dockerfilePath: ./nest-migration/Dockerfile` como en `render.yaml`.
+- **Login 401** en el panel (Vercel o Render): contraseña distinta a `APP_BOOTSTRAP_ADMIN_PASSWORD`, sede no elegida o admin duplicado en Mongo. Guía interna: [`deploy/LOGIN-401.md`](LOGIN-401.md) — arreglo rápido `.\deploy\crear-admin-render.ps1`.
 
 ## Dockerfile J48 (contexto raíz)
 
