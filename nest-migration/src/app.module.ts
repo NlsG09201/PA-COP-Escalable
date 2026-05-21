@@ -50,20 +50,27 @@ import {
         return {
           uri,
           lazyConnection: true,
-          bufferTimeoutMS: 60_000,
           serverSelectionTimeoutMS: 30_000,
           connectTimeoutMS: 30_000,
+          socketTimeoutMS: 45_000,
           retryWrites: true,
           family: 4,
+          ssl: true,
+          tlsInsecure: false,
+          tlsCAFile: undefined,
           connectionFactory: (connection: import('mongoose').Connection) => {
             connection.on('connected', () => {
-              console.error('[cop-nest-api] MongoDB Atlas: conectado');
+              console.error('[cop-nest-api] MongoDB Atlas: conectado (TLS OK)');
             });
             connection.on('error', (err: Error) => {
               const msg = err.message ?? '';
               if (/whitelist|ServerSelection|ECONNREFUSED/i.test(msg)) {
                 console.error(
                   '[cop-nest-api] MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0 (Active). Ver deploy/ATLAS-RENDER.md',
+                );
+              } else if (/SSL|TLS|alert/i.test(msg)) {
+                console.error(
+                  `[cop-nest-api] MongoDB TLS/SSL Error: ${msg}. Verifica que 0.0.0.0/0 esté Active en Atlas Network Access.`,
                 );
               } else {
                 console.error(`[cop-nest-api] MongoDB: ${msg}`);
