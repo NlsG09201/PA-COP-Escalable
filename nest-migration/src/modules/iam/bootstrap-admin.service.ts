@@ -34,6 +34,15 @@ export class BootstrapAdminService implements OnModuleInit {
           this.logger.log(`Bootstrap admin OK (${username}); sin reescritura en arranque.`);
           return;
         }
+        const reset = (process.env.APP_BOOTSTRAP_ADMIN_RESET ?? '').toLowerCase() === 'true';
+        const exists = dup > 0;
+        if (exists && dup <= 1 && !reset) {
+          this.logger.warn(
+            `Bootstrap admin ${username} en Atlas pero APP_BOOTSTRAP_ADMIN_PASSWORD no coincide con el hash. ` +
+              `Ejecuta deploy/crear-admin-render.ps1 o APP_BOOTSTRAP_ADMIN_RESET=true (una vez).`,
+          );
+          return;
+        }
         if (!verified) {
           this.logger.warn(`Bootstrap: login de verificacion fallo para ${username}; reparando hash.`);
         }

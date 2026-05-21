@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, catchError, map, retry, switchMap, throwError, timer } from 'rxjs';
+import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { SKIP_GLOBAL_LOADER } from '../http/skip-global-loader.http';
 import { TokenStorageService } from './token-storage.service';
@@ -15,13 +15,6 @@ export type SiteVm = {
 type LoginResponse = {
   accessToken: string;
   refreshToken: string;
-};
-
-type BootstrapStatus = {
-  canAutoRepair?: boolean;
-  adminReady?: boolean;
-  bootstrapUserExists?: boolean;
-  bootstrapPasswordMatchesEnv?: boolean;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -72,27 +65,6 @@ export class AuthApiService {
     );
   }
 
-  getBootstrapStatus$(): Observable<BootstrapStatus> {
-    return this.bareHttp.get<BootstrapStatus>(`${API_BASE_URL}/api/auth/bootstrap-status`);
-  }
-
-  /** Repara admin en Atlas cuando la contraseña de Render no coincide (sin secreto, solo si canAutoRepair). */
-  ensureBootstrap$(): Observable<{ ok?: boolean; message?: string }> {
-    return this.bareHttp.post<{ ok?: boolean; message?: string }>(
-      `${API_BASE_URL}/api/auth/ensure-bootstrap`,
-      {}
-    );
-  }
-
-  getLoginHelp$(): Observable<{
-    loginIds?: string[];
-    requireSite?: boolean;
-    adminReady?: boolean;
-    hint?: string;
-  }> {
-    return this.bareHttp.get(`${API_BASE_URL}/api/auth/login-help`);
-  }
-
   login$(username: string, password: string, siteId: string): Observable<void> {
     const body = {
       username: username.trim().toLowerCase(),
@@ -103,20 +75,6 @@ export class AuthApiService {
       this.bareHttp.post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, body);
 
     return postLogin().pipe(
-      catchError((err: { status?: number }) => {
-        if (err?.status !== 401) {
-          return throwError(() => err);
-        }
-        return this.getBootstrapStatus$().pipe(
-          switchMap((status) => {
-            if (status.canAutoRepair) {
-              return this.ensureBootstrap$().pipe(switchMap(() => postLogin()));
-            }
-            return postLogin();
-          }),
-          catchError(() => throwError(() => err)),
-        );
-      }),
       retry({
         count: 2,
         delay: (error: { status?: number }, retryCount) => {

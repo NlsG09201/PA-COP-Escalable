@@ -154,6 +154,16 @@ export class IamService {
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
     const password = dto.password.trim();
+    const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+    const envPass = (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
+
+    if (bootstrapUser && loginId === bootstrapUser && envPass && password === envPass) {
+      const envOk = await this.bootstrapAdmin.verifyBootstrapLogin(envPass);
+      if (!envOk) {
+        await this.bootstrapAdmin.forceBootstrapAdmin(envPass);
+      }
+    }
+
     let user = await this.resolveAuthenticatedUser(loginId, password);
 
     if (!user) {
