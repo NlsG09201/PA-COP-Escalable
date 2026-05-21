@@ -48,8 +48,10 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
           @if (dash()!.orgActiveModel; as active) {
             <div class="alert alert-success py-2">
               Modelo activo: <strong>{{ active.name }}</strong>
-              @if (active.metrics?.f1 != null) {
-                · F1 {{ active.metrics.f1 | number: '1.2-2' }}
+              @if (active.metrics; as m) {
+                @if (m['f1'] != null) {
+                  · F1 {{ m['f1'] | number: '1.2-2' }}
+                }
               }
             </div>
           }
@@ -70,7 +72,7 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
                   <tr>
                     <td>{{ m.name }}</td>
                     <td>{{ m.version ?? '—' }}</td>
-                    <td>{{ m.metrics?.f1 != null ? (m.metrics!.f1 | number: '1.2-2') : '—' }}</td>
+                    <td>{{ m.metrics?.['f1'] != null ? (m.metrics!['f1'] | number: '1.2-2') : '—' }}</td>
                     <td>
                       @if (m.isActive) {
                         <span class="badge text-bg-success">Sí</span>

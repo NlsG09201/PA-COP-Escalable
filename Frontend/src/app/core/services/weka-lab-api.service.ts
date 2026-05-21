@@ -7,7 +7,7 @@ export type WekaDashboard = {
   orgModelsCount?: number;
   orgDatasetsCount?: number;
   orgPredictionsCount?: number;
-  orgActiveModel?: { id: string; name: string; metrics?: Record<string, unknown> };
+  orgActiveModel?: { id: string; name: string; metrics?: { f1?: number; accuracy?: number } };
   activeModel?: unknown;
   message?: string;
 };
@@ -16,7 +16,7 @@ export type WekaModelRow = {
   id: string;
   name: string;
   version?: string;
-  metrics?: { accuracy?: number; f1?: number };
+  metrics?: { accuracy?: number; f1?: number; [key: string]: number | undefined };
   isActive?: boolean;
   trainedAt?: string;
 };
