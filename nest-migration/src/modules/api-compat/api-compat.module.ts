@@ -8,6 +8,11 @@ import {
   FollowupCompatController,
   TherapyCompatController,
 } from './api-compat.controllers';
+import {
+  DecisionsCompatController,
+  PersonalizationCompatController,
+  PortalCompatController,
+} from './api-compat-extra.controllers';
 import { ApiCompatService } from './api-compat.service';
 
 @Module({
@@ -19,6 +24,9 @@ import { ApiCompatService } from './api-compat.service';
     TherapyCompatController,
     CopilotCompatController,
     ExperienceCompatController,
+    PortalCompatController,
+    DecisionsCompatController,
+    PersonalizationCompatController,
   ],
   providers: [ApiCompatService],
   exports: [ApiCompatService],

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface TherapyModule {
@@ -40,7 +40,9 @@ export class TherapyApiService {
 
   getModules$(category?: string): Observable<TherapyModule[]> {
     const params = category ? `?category=${encodeURIComponent(category)}` : '';
-    return this.http.get<TherapyModule[]>(`${API_BASE_URL}/api/therapy/modules${params}`);
+    return this.http.get<TherapyModule[]>(`${API_BASE_URL}/api/therapy/modules${params}`).pipe(
+      catchError(() => of([])),
+    );
   }
 
   startSession$(patientId: string, moduleId: string): Observable<TherapySession> {

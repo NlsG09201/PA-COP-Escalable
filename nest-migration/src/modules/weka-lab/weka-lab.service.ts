@@ -236,13 +236,20 @@ export class WekaLabService {
     dto: TrainWekaModelDto,
     ip?: string,
   ) {
-    const meta = this.requireLab(
-      await this.labJson<Record<string, unknown>>('/lab/train', {
-        method: 'POST',
-        body: JSON.stringify(dto),
-      }),
-      '/lab/train',
-    );
+    const remote = await this.labJson<Record<string, unknown>>('/lab/train', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+    if (!remote) {
+      return {
+        ok: false,
+        offline: true,
+        message:
+          'Entrenamiento requiere cop-j48-python en Render. Configure J48_URL en cop-nest-api. La predicción clínica ARFF integrada sigue disponible.',
+        datasetId: dto.datasetId,
+      };
+    }
+    const meta = remote;
 
     await this.modelModel.create({
       organizationId: tenant.organizationId,
@@ -302,6 +309,9 @@ export class WekaLabService {
   }
 
   async getModel(tenant: TenantContext, modelId: string) {
+    if (modelId === BUILTIN_ARFF_MODEL.id) {
+      return BUILTIN_ARFF_MODEL;
+    }
     const owned = await this.modelModel.findOne({
       organizationId: tenant.organizationId,
       externalId: modelId,
@@ -309,18 +319,46 @@ export class WekaLabService {
     if (!owned) {
       throw new BadRequestException('Modelo no encontrado');
     }
-    return this.requireLab(
-      await this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}`),
-      'model',
+    const remote = await this.labJson<Record<string, unknown>>(
+      `/lab/models/${encodeURIComponent(modelId)}`,
     );
+    if (remote) return remote;
+    return {
+      id: owned.externalId,
+      name: owned.name,
+      version: owned.version,
+      datasetId: owned.datasetId,
+      metrics: owned.metrics,
+      engine: owned.engine,
+      isActive: owned.isActive,
+      offline: true,
+    };
   }
 
   async getModelTree(tenant: TenantContext, modelId: string) {
+    if (modelId === BUILTIN_ARFF_MODEL.id) {
+      return {
+        name: BUILTIN_ARFF_MODEL.name,
+        offline: true,
+        classes: [...ARFF_DATASET_SCHEMA.classLabels],
+        features: ARFF_DATASET_SCHEMA.features.map((f) => f.key),
+        root: {
+          attribute: ARFF_DATASET_SCHEMA.target,
+          children: ARFF_DATASET_SCHEMA.classLabels.map((label) => ({ label, count: 0 })),
+        },
+      };
+    }
     await this.assertModelAccess(tenant, modelId);
-    return this.requireLab(
-      await this.labJson<Record<string, unknown>>(`/lab/models/${encodeURIComponent(modelId)}/tree`),
-      'model tree',
+    const remote = await this.labJson<Record<string, unknown>>(
+      `/lab/models/${encodeURIComponent(modelId)}/tree`,
     );
+    if (remote) return remote;
+    return {
+      name: modelId,
+      offline: true,
+      message: 'Árbol no disponible sin cop-j48-python (J48_URL).',
+      classes: [...ARFF_DATASET_SCHEMA.classLabels],
+    };
   }
 
   async activateModel(tenant: TenantContext, userId: string | undefined, modelId: string, ip?: string) {
@@ -492,6 +530,7 @@ export class WekaLabService {
   }
 
   private async assertModelAccess(tenant: TenantContext, modelId: string) {
+    if (modelId === BUILTIN_ARFF_MODEL.id) return;
     const owned = await this.modelModel.exists({
       organizationId: tenant.organizationId,
       externalId: modelId,

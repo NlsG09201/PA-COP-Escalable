@@ -43,7 +43,7 @@ export class AiAssistApiService {
   analyzeContext$(patientId: string, sourceType: AiAssistSourceType, clinicalContext: string): Observable<AiClinicalSuggestionVm> {
     return this.http.post<AiClinicalSuggestionVm>(`${API_BASE_URL}/api/ai-assist/patients/${patientId}/analyze-context`, {
       sourceType,
-      clinicalContext
+      clinicalContext,
     });
   }
 

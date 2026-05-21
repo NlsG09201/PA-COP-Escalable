@@ -21,6 +21,7 @@ import { MedicalAiPrediction, MedicalAiPredictionSchema } from './schemas/medica
 import { MedicalInsight, MedicalInsightSchema } from './schemas/medical-insight.schema';
 import { AssistantThread, AssistantThreadSchema } from './schemas/assistant-thread.schema';
 import { MedicalAiController, RelapseCompatController } from './medical-ai.controller';
+import { AiAssistAliasController } from './ai-assist-alias.controller';
 import { MedicalAiService } from './medical-ai.service';
 import { MedicalAiPredictionService } from './medical-ai-prediction.service';
 import { MedicalAiAlertsService } from './medical-ai-alerts.service';
@@ -64,7 +65,7 @@ const redisUrl = isRedisUrlLooksValid() ? resolveRedisUrl() : '';
         ]
       : []),
   ],
-  controllers: [MedicalAiController, RelapseCompatController],
+  controllers: [MedicalAiController, RelapseCompatController, AiAssistAliasController],
   providers: [
     MedicalAiService,
     MedicalAiPredictionService,

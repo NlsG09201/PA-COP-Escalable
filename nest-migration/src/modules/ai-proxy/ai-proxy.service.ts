@@ -1,7 +1,10 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { ARFF_DATASET_SCHEMA } from '../weka-lab/j48-arff-predict.util';
 
 @Injectable()
 export class AiProxyService {
+  private readonly logger = new Logger(AiProxyService.name);
+
   private base(service: string): string {
     const map: Record<string, string> = {
       diagnosis: process.env.AI_DIAGNOSIS_URL ?? 'http://ai-diagnosis-service:8090',
@@ -13,10 +16,16 @@ export class AiProxyService {
   }
 
   private async forward(url: string, init?: RequestInit) {
-    const res = await fetch(url, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(12_000),
+        headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+      });
+    } catch (err) {
+      throw new ServiceUnavailableException(`AI upstream unreachable: ${(err as Error).message}`);
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new ServiceUnavailableException(`AI upstream error (${res.status}): ${text.slice(0, 500)}`);
@@ -56,6 +65,22 @@ export class AiProxyService {
 
   async j48Tree() {
     const base = this.base('j48');
-    return this.forward(`${base}/model/tree`);
+    try {
+      return await this.forward(`${base}/model/tree`);
+    } catch (err) {
+      this.logger.warn(`j48Tree offline: ${(err as Error).message}`);
+      return {
+        name: ARFF_DATASET_SCHEMA.displayName,
+        engine: 'builtin-arff',
+        offline: true,
+        classes: [...ARFF_DATASET_SCHEMA.classLabels],
+        features: ARFF_DATASET_SCHEMA.features.map((f) => f.key),
+        root: {
+          attribute: ARFF_DATASET_SCHEMA.target,
+          label: 'risk_level',
+          children: ARFF_DATASET_SCHEMA.classLabels.map((c) => ({ label: c, count: 0 })),
+        },
+      };
+    }
   }
 }

@@ -103,6 +103,104 @@ export class ApiCompatService {
     }
   }
 
+  async stubEmotionAnalyze(patientId: string): Promise<Record<string, unknown>> {
+    const existing = await this.emotionResultsForPatient(patientId);
+    if (existing.length) return existing[0];
+    const jobId = `emo-${Date.now()}`;
+    return {
+      jobId,
+      status: 'COMPLETED',
+      primaryEmotion: 'NEUTRAL',
+      allEmotions: [{ label: 'NEUTRAL', confidence: 0.6 }],
+      prosody: { pitchMean: 180, pitchStd: 20, energyMean: 0.5, energyStd: 0.1, speechRate: 2.5, pauseRatio: 0.2 },
+      audioDurationSec: 0,
+      patientId,
+      analyzedAt: new Date().toISOString(),
+      source: 'compat-stub',
+    };
+  }
+
+  async stubDiagnosisAnalyze(patientId: string): Promise<Record<string, unknown>> {
+    const existing = await this.diagnosisResultsForPatient(patientId);
+    if (existing.length) return existing[0];
+    return {
+      id: `dx-${Date.now()}`,
+      patientId,
+      imageId: 'upload-pending',
+      findings: [],
+      modelVersion: 'cop-compat-v1',
+      processingTimeMs: 0,
+      status: 'COMPLETED',
+      createdAt: new Date().toISOString(),
+      message: 'Sin odontograma clínico; cargue imagen o complete el odontograma.',
+    };
+  }
+
+  async portalDashboard(patientId: string): Promise<Record<string, unknown>> {
+    try {
+      const patient = await this.connection.collection('patients').findOne({
+        $or: [
+          { patientId },
+          { patientId: { $in: idVariants(patientId) as string[] } },
+        ],
+      });
+      const name = patient
+        ? `${patient.firstName ?? patient.first_name ?? ''} ${patient.lastName ?? patient.last_name ?? ''}`.trim()
+        : 'Paciente';
+      const appts = await this.connection
+        .collection('appointments')
+        .find({ patientId: { $in: idVariants(patientId) } })
+        .sort({ startAt: 1, scheduledAt: 1 })
+        .limit(5)
+        .toArray();
+      const next = appts.find((a) => new Date(a.startAt ?? a.scheduledAt ?? 0) >= new Date());
+      return {
+        patientName: name || 'Paciente',
+        nextAppointment: next
+          ? {
+              id: String(next._id),
+              date: new Date(next.startAt ?? next.scheduledAt ?? Date.now()).toISOString().slice(0, 10),
+              time: new Date(next.startAt ?? next.scheduledAt ?? Date.now()).toISOString().slice(11, 16),
+              type: String(next.type ?? next.serviceType ?? 'Consulta'),
+              professionalName: String(next.professionalName ?? 'Profesional COP'),
+              status: String(next.status ?? 'SCHEDULED'),
+            }
+          : undefined,
+        activeTreatments: [],
+        therapyProgress: { totalSessions: 0, completedSessions: 0, avgScore: 0, streakDays: 0 },
+        recentTimeline: appts.slice(0, 3).map((a) => ({
+          date: new Date(a.startAt ?? a.scheduledAt ?? Date.now()).toISOString(),
+          type: 'APPOINTMENT',
+          title: String(a.type ?? 'Cita'),
+          description: String(a.notes ?? a.status ?? ''),
+        })),
+      };
+    } catch (err) {
+      this.logger.warn(`portalDashboard: ${(err as Error).message}`);
+      return {
+        patientName: 'Paciente',
+        activeTreatments: [],
+        therapyProgress: { totalSessions: 0, completedSessions: 0, avgScore: 0, streakDays: 0 },
+        recentTimeline: [],
+      };
+    }
+  }
+
+  async latestJ48ForPatient(patientId: string): Promise<Record<string, unknown> | null> {
+    try {
+      return (
+        (await this.connection
+          .collection('j48_predictions')
+          .find({ patientId: { $in: idVariants(patientId) } })
+          .sort({ createdAt: -1, created_at: -1 })
+          .limit(1)
+          .next()) ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
   private inferPrimaryEmotion(wellbeing: string, anxiety: number, depression: number): string {
     const w = String(wellbeing).toUpperCase();
     if (w.includes('NEG') || anxiety >= 0.7 || depression >= 0.7) return 'NEGATIVE';
