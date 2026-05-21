@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { IamService } from './iam.service';
 import { LoginDto } from './dto/login.dto';
+import { SetupBootstrapDto } from './dto/setup-bootstrap.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterPublicDto } from './dto/register-public.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
@@ -58,7 +59,10 @@ export class IamController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'One-time bootstrap admin (requires X-COP-Setup-Secret)' })
-  async setupBootstrap(@Headers('x-cop-setup-secret') secret?: string) {
+  async setupBootstrap(
+    @Headers('x-cop-setup-secret') secret?: string,
+    @Body() body?: SetupBootstrapDto,
+  ) {
     const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
     const allowed = new Set(
       [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
@@ -66,12 +70,18 @@ export class IamController {
     if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
     }
-    const result = await this.bootstrapAdmin.forceBootstrapAdmin();
+    const result = await this.bootstrapAdmin.forceBootstrapAdmin(body?.password);
+    if (!result.verified) {
+      throw new ForbiddenException(
+        'Admin guardado pero la verificación de contraseña falló. Revisa APP_BOOTSTRAP_ADMIN_PASSWORD o envía { "password": "..." } en el body.',
+      );
+    }
     return {
       ok: true,
       ...result,
       roles: ['SUPER_ADMIN', 'ADMIN'],
-      message: 'Admin listo (SUPER_ADMIN + ADMIN). Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD.',
+      message:
+        'Admin listo y verificado. Inicia sesión con nelsonherazoi y la contraseña indicada en APP_BOOTSTRAP_ADMIN_PASSWORD (o la del body).',
     };
   }
 
@@ -94,12 +104,18 @@ export class IamController {
       });
     }
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
+    if (!result.verified) {
+      throw new ForbiddenException({
+        message: 'Bootstrap ejecutado pero login no verificado. Usa POST setup-bootstrap con body { "password": "Nelson09092001" }.',
+        ...result,
+      });
+    }
     return {
       ok: true,
       ...result,
       roles: ['SUPER_ADMIN', 'ADMIN'],
       message:
-        'Admin reparado. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de Render.',
+        'Admin reparado y verificado. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de Render.',
     };
   }
 

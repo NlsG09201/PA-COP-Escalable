@@ -16,6 +16,18 @@ import { RegisterPublicDto } from './dto/register-public.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { extractPasswordHash } from './password-hash.util';
+
+type AuthUserDoc = {
+  _id?: unknown;
+  username?: string;
+  email?: string;
+  organization_id?: unknown;
+  roles?: string[];
+  password_hash?: unknown;
+  patient_id?: unknown;
+  mfa_enabled?: boolean;
+};
 
 /** Usuario mínimo para login/JWT (Mongoose lean o colección nativa). */
 type LoginUser = {
@@ -149,7 +161,7 @@ export class IamService {
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
     const user = await this.findUserForAuth(loginId);
-    const storedHash = user?.password_hash ? this.normalizeHash(String(user.password_hash)) : '';
+    const storedHash = extractPasswordHash(user?.password_hash);
     if (!user || !storedHash || !(await bcrypt.compare(dto.password, storedHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -157,49 +169,36 @@ export class IamService {
     return this.generateTokenPair(user, dto.siteId, ip, userAgent);
   }
 
-  /** Mongoose primero; si el seed guardó _id UUID binario, busca en la colección nativa. */
+  /** Colección nativa primero (evita duplicados mongoose/seed); luego Mongoose. */
   private async findUserForAuth(loginId: string): Promise<LoginUser | null> {
+    const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const usernameRegex = new RegExp(`^${escaped}$`, 'i');
+
+    const raw = await this.connection.db.collection<AuthUserDoc>('users').findOne({
+      $or: [
+        { username: usernameRegex },
+        ...(loginId.includes('@') ? [{ email: usernameRegex }] : []),
+      ],
+    });
+    if (raw && extractPasswordHash(raw.password_hash)) {
+      return this.toLoginUser(raw, loginId);
+    }
+
     const fromLean = (doc: unknown): LoginUser | null => {
       if (!doc || typeof doc !== 'object') return null;
-      const d = doc as Record<string, unknown>;
-      if (!d.password_hash) return null;
-      return {
-        _id: this.asStringId(d._id),
-        username: String(d.username ?? loginId).toLowerCase(),
-        organization_id: this.asStringId(d.organization_id),
-        roles: Array.isArray(d.roles) ? d.roles.map(String) : [],
-        password_hash: d.password_hash,
-        patient_id: d.patient_id ? this.asStringId(d.patient_id) : undefined,
-        mfa_enabled: !!d.mfa_enabled,
-      };
+      const d = doc as AuthUserDoc;
+      if (!extractPasswordHash(d.password_hash)) return null;
+      return this.toLoginUser(d, loginId);
     };
 
     let user = fromLean(await this.userModel.findOne({ username: loginId }).lean().exec());
     if (!user && loginId.includes('@')) {
       user = fromLean(await this.userModel.findOne({ email: loginId }).lean().exec());
     }
-    if (user) return user;
+    return user;
+  }
 
-    const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const raw = await this.connection.db
-      .collection<{
-        _id?: unknown;
-        username?: string;
-        email?: string;
-        organization_id?: unknown;
-        roles?: string[];
-        password_hash?: unknown;
-        patient_id?: unknown;
-        mfa_enabled?: boolean;
-      }>('users')
-      .findOne({
-        $or: [
-          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-          ...(loginId.includes('@') ? [{ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }] : []),
-        ],
-      });
-    if (!raw?.password_hash) return null;
-
+  private toLoginUser(raw: AuthUserDoc, loginId: string): LoginUser {
     return {
       _id: this.asStringId(raw._id),
       username: String(raw.username ?? loginId).toLowerCase(),

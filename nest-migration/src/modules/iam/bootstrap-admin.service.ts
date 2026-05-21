@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { UserAccount } from './user-account.schema';
 import { SUPER_ADMIN_ROLE } from './roles.constants';
+import { extractPasswordHash } from './password-hash.util';
 
 const ELEVATED_ROLES = new Set([SUPER_ADMIN_ROLE, 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN']);
 const MONGO_WAIT_MS = 45_000;
@@ -75,7 +76,7 @@ export class BootstrapAdminService implements OnModuleInit {
     const user = await this.findBootstrapUser(username);
     if (!user) return true;
 
-    const normalized = this.normalizePasswordHash(user.password_hash);
+    const normalized = extractPasswordHash(user.password_hash);
     if (!normalized) return true;
 
     const passwordOk = await bcrypt.compare(password, normalized);
@@ -111,7 +112,7 @@ export class BootstrapAdminService implements OnModuleInit {
     const user = await this.findBootstrapUser(username);
     let bootstrapPasswordMatchesEnv = false;
     if (user?.password_hash) {
-      const normalized = this.normalizePasswordHash(user.password_hash);
+      const normalized = extractPasswordHash(user.password_hash);
       bootstrapPasswordMatchesEnv = !!(normalized && (await bcrypt.compare(password, normalized)));
     }
     return {
@@ -123,10 +124,16 @@ export class BootstrapAdminService implements OnModuleInit {
     };
   }
 
-  private normalizePasswordHash(hash: unknown): string {
-    const h = String(hash ?? '');
-    if (h.startsWith('{bcrypt}')) return h.slice('{bcrypt}'.length);
-    return h;
+  /** Comprueba que el admin bootstrap puede autenticarse con APP_BOOTSTRAP_ADMIN_PASSWORD. */
+  async verifyBootstrapLogin(overridePassword?: string): Promise<boolean> {
+    const username = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+    const password = (overridePassword ?? process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
+    if (!username || !password) return false;
+
+    const user = await this.findBootstrapUser(username);
+    const stored = extractPasswordHash(user?.password_hash);
+    if (!stored) return false;
+    return bcrypt.compare(password, stored);
   }
 
   /** Mongoose + colección nativa (sedes seed con _id UUID binario). */
@@ -141,15 +148,32 @@ export class BootstrapAdminService implements OnModuleInit {
   }
 
   /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */
-  async forceBootstrapAdmin(): Promise<{ username: string; action: 'created' | 'reset' | 'skipped' }> {
+  async forceBootstrapAdmin(overridePassword?: string): Promise<{
+    username: string;
+    action: 'created' | 'reset' | 'skipped';
+    verified: boolean;
+  }> {
     await this.waitForMongo();
-    const prev = process.env.APP_BOOTSTRAP_ADMIN_RESET;
+    const prevReset = process.env.APP_BOOTSTRAP_ADMIN_RESET;
+    const prevPass = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
     process.env.APP_BOOTSTRAP_ADMIN_RESET = 'true';
+    if (overridePassword?.trim()) {
+      process.env.APP_BOOTSTRAP_ADMIN_PASSWORD = overridePassword.trim();
+    }
     try {
-      return await this.runBootstrap();
+      const result = await this.runBootstrap();
+      const verified = await this.verifyBootstrapLogin(overridePassword);
+      if (!verified) {
+        this.logger.error(
+          `Bootstrap admin ${result.username} guardado pero verifyBootstrapLogin falló. Revisa APP_BOOTSTRAP_ADMIN_PASSWORD en Render.`,
+        );
+      }
+      return { ...result, verified };
     } finally {
-      if (prev === undefined) delete process.env.APP_BOOTSTRAP_ADMIN_RESET;
-      else process.env.APP_BOOTSTRAP_ADMIN_RESET = prev;
+      if (prevReset === undefined) delete process.env.APP_BOOTSTRAP_ADMIN_RESET;
+      else process.env.APP_BOOTSTRAP_ADMIN_RESET = prevReset;
+      if (prevPass === undefined) delete process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
+      else process.env.APP_BOOTSTRAP_ADMIN_PASSWORD = prevPass;
     }
   }
 
@@ -200,9 +224,11 @@ export class BootstrapAdminService implements OnModuleInit {
     reset: boolean;
   }): Promise<'created' | 'reset' | 'skipped'> {
     const col = this.mongo.db.collection('users');
-    const existing = await col.findOne({
-      username: { $regex: new RegExp(`^${opts.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
-    });
+    const usernameRegex = new RegExp(
+      `^${opts.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+      'i',
+    );
+    const existing = await col.findOne({ username: usernameRegex });
     const password_hash = await bcrypt.hash(opts.password, 10);
 
     if (existing && !opts.reset) {
@@ -216,6 +242,7 @@ export class BootstrapAdminService implements OnModuleInit {
           $set: {
             username: opts.username,
             organization_id: opts.orgId,
+            password_hash,
             roles: Array.from(merged),
             mfa_enabled: false,
             ...(opts.email ? { email: opts.email } : {}),
@@ -226,27 +253,21 @@ export class BootstrapAdminService implements OnModuleInit {
       return 'skipped';
     }
 
-    const isNew = !existing;
-    await col.updateOne(
-      { username: opts.username },
-      {
-        $set: {
-          username: opts.username,
-          organization_id: opts.orgId,
-          password_hash,
-          roles: opts.roles,
-          mfa_enabled: false,
-          ...(opts.email ? { email: opts.email } : {}),
-          updatedAt: new Date(),
-        },
-        $setOnInsert: {
-          _id: uuidv4(),
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true },
-    );
-    return isNew ? 'created' : 'reset';
+    // Elimina duplicados (mongoose UUID + seed nativo) y crea un único documento limpio.
+    await col.deleteMany({ username: usernameRegex });
+    await col.insertOne({
+      _id: uuidv4(),
+      username: opts.username,
+      organization_id: opts.orgId,
+      password_hash,
+      roles: opts.roles,
+      mfa_enabled: false,
+      ...(opts.email ? { email: opts.email } : {}),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Record<string, unknown>);
+    await this.users.deleteMany({ username: usernameRegex }).exec();
+    return existing ? 'reset' : 'created';
   }
 
   /** Deja SUPER_ADMIN/ADMIN solo en el usuario bootstrap configurado. */
