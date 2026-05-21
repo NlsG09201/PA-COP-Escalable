@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, catchError, map, of, retry, switchMap, throwError, timer } from 'rxjs';
+import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
@@ -112,16 +112,6 @@ export class AuthApiService {
           }
           return timer(800 * retryCount);
         },
-      }),
-      catchError((err: { status?: number }) => {
-        if (err.status !== 401) {
-          return throwError(() => err);
-        }
-        return this.ensureBootstrap$().pipe(
-          catchError(() => of({ ok: false })),
-          switchMap(() => postLogin()),
-          catchError(() => throwError(() => err)),
-        );
       }),
       map((res) => {
         this.tokenStorage.setTokens(res.accessToken, res.refreshToken);

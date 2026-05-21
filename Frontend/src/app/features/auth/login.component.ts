@@ -1,10 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, isDevMode } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
-import { API_BASE_URL } from '../../core/config/api.config';
 import { AuthApiService, SiteVm } from '../../core/services/auth-api.service';
 import { TokenStorageService } from '../../core/services/token-storage.service';
 
@@ -41,7 +40,9 @@ import { TokenStorageService } from '../../core/services/token-storage.service';
                     [class.is-invalid]="isInvalid('password')"
                     formControlName="password"
                     data-testid="login-password" />
-                  @if (isInvalid('password')) {
+                  @if (form.controls.password.errors?.['loginFailed']) {
+                    <div class="invalid-feedback d-block">Usuario, contraseña o sede incorrectos.</div>
+                  } @else if (isInvalid('password')) {
                     <div class="invalid-feedback">La contrasena es obligatoria.</div>
                   }
                 </div>
@@ -91,14 +92,6 @@ import { TokenStorageService } from '../../core/services/token-storage.service';
                     <div class="invalid-feedback d-block">Selecciona una sede para continuar.</div>
                   }
                 </div>
-                @if (errorMessage) {
-                  <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
-                }
-                @if (showDevLoginHint) {
-                  <div class="alert alert-secondary py-2 small">
-                    Modo desarrollo: usa las credenciales de tu entorno local (.env / Docker).
-                  </div>
-                }
                 <button class="btn btn-primary w-100" data-testid="login-submit" [disabled]="form.invalid || loading">
                   {{ loading ? 'Ingresando...' : 'Ingresar' }}
                 </button>
@@ -117,10 +110,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly tokenStorage = inject(TokenStorageService);
 
-  protected readonly showDevLoginHint = isDevMode();
-
   protected loading = false;
-  protected errorMessage = '';
   protected sitesLoadError = '';
   protected allSites: SiteVm[] = [];
   protected filteredSites: SiteVm[] = [];
@@ -137,20 +127,7 @@ export class LoginComponent {
 
   constructor() {
     this.tokenStorage.clear();
-    this.repairBootstrapIfNeeded();
     this.loadSites();
-  }
-
-  /** Repara admin en servidor si hace falta, sin mostrar avisos en pantalla. */
-  private repairBootstrapIfNeeded(): void {
-    this.authApi
-      .getBootstrapStatus$()
-      .pipe(catchError(() => of({ canAutoRepair: false })))
-      .subscribe((status) => {
-        if (status.canAutoRepair) {
-          this.authApi.ensureBootstrap$().subscribe({ error: () => {} });
-        }
-      });
   }
 
   protected loadSites(): void {
@@ -165,8 +142,11 @@ export class LoginComponent {
         this.allSites = sites;
         this.departments = departments;
         this.applySiteFilter();
+        if (sites.length > 0 && !this.form.controls.siteId.value) {
+          this.form.controls.siteId.setValue(sites[0].id);
+        }
         if (sites.length === 0) {
-          this.sitesLoadError = this.emptySitesHint();
+          this.sitesLoadError = 'No hay sedes disponibles. Reintenta en unos segundos.';
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -179,29 +159,9 @@ export class LoginComponent {
     });
   }
 
-  private emptySitesHint(): string {
-    if (API_BASE_URL.startsWith('/')) {
-      return 'No hay sedes en la respuesta. Redeploy en Vercel con proxy /render-api y comprueba https://pa-cop-escalable.onrender.com/public/sites';
-    }
-    if (/localhost|127\.0\.0\.1/.test(API_BASE_URL)) {
-      return 'No se cargaron sedes. Ejecuta ng serve (proxy /render-api) o levanta el gateway local en :8080.';
-    }
-    return `No se cargaron sedes. Verifica el API (${API_BASE_URL}) y reintenta.`;
-  }
-
   private formatSitesHttpError(err: HttpErrorResponse): string {
-    if (err.status === 0) {
-      return API_BASE_URL.startsWith('/')
-        ? 'Sin conexión al API. Haz Redeploy en Vercel (RENDER_API_HOST=pa-cop-escalable.onrender.com) o usa ng serve con proxy.conf.json.'
-        : 'Sin conexión al API. Comprueba que Render esté Live: https://pa-cop-escalable.onrender.com/health/live';
-    }
-    if (err.status === 404) {
-      return 'Ruta del API no encontrada (404). URL del servicio: https://pa-cop-escalable.onrender.com';
-    }
-    const detail = typeof err.error === 'string' && err.error.includes('<!doctype')
-      ? ' (el servidor devolvió HTML en lugar de JSON; falta proxy /render-api en Vercel)'
-      : '';
-    return `Error al cargar sedes (${err.status || 'red'}).${detail} Reintenta.`;
+    if (err.status === 0) return 'Sin conexión al servidor. Reintenta.';
+    return 'No se pudieron cargar las sedes. Reintenta.';
   }
 
   protected applySiteFilter(): void {
@@ -228,7 +188,7 @@ export class LoginComponent {
       return;
     }
     this.loading = true;
-    this.errorMessage = '';
+    this.clearLoginFieldErrors();
 
     const { username, password, siteId } = this.form.getRawValue();
     this.authApi.login$(username, password, siteId).subscribe({
@@ -236,11 +196,28 @@ export class LoginComponent {
         this.loading = false;
         this.router.navigateByUrl('/app/dashboard');
       },
-      error: (error: HttpErrorResponse) => {
+      error: () => {
         this.loading = false;
-        this.errorMessage = this.resolveErrorMessage(error);
+        this.form.controls.password.setErrors({ loginFailed: true });
+        this.form.controls.password.markAsTouched();
       },
     });
+  }
+
+  private clearLoginFieldErrors(): void {
+    const { username, password, siteId } = this.form.controls;
+    if (username.errors?.['loginFailed']) {
+      username.setErrors(null);
+      username.updateValueAndValidity();
+    }
+    if (password.errors?.['loginFailed']) {
+      password.setErrors(null);
+      password.updateValueAndValidity();
+    }
+    if (siteId.errors?.['loginFailed']) {
+      siteId.setErrors(null);
+      siteId.updateValueAndValidity();
+    }
   }
 
   protected isInvalid(controlName: 'username' | 'password' | 'siteId'): boolean {
@@ -248,37 +225,4 @@ export class LoginComponent {
     return control.invalid && (control.touched || control.dirty);
   }
 
-  private resolveErrorMessage(error: HttpErrorResponse): string {
-    const raw =
-      (typeof error.error === 'object' && error.error && 'message' in error.error
-        ? String(error.error.message)
-        : '') || (typeof error.error === 'string' ? error.error : '');
-    const apiMessage = this.sanitizeApiMessage(raw);
-
-    if (apiMessage) return apiMessage;
-    if (error.status === 401) {
-      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e inténtalo de nuevo.';
-    }
-    if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
-    if (error.status === 502 || error.status === 503) {
-      return 'El servidor aún no responde (502). Espera unos segundos y recarga la página.';
-    }
-    if (error.status === 0) return 'Sin conexión al API. ¿Está corriendo docker compose?';
-    return 'No fue posible iniciar sesion en este momento.';
-  }
-
-  /** Oculta mensajes internos de bootstrap/Render en la UI de login. */
-  private sanitizeApiMessage(message: string): string {
-    const m = message.trim();
-    if (!m) return '';
-    if (
-      /APP_BOOTSTRAP|setup-bootstrap|ensure-bootstrap|crear-admin-render|Render →/i.test(m)
-    ) {
-      return '';
-    }
-    if (/Invalid credentials/i.test(m)) {
-      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e inténtalo de nuevo.';
-    }
-    return m;
-  }
 }

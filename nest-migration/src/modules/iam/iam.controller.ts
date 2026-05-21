@@ -78,13 +78,7 @@ export class IamController {
         'Admin guardado pero la verificación de contraseña falló. Revisa APP_BOOTSTRAP_ADMIN_PASSWORD o envía { "password": "..." } en el body.',
       );
     }
-    return {
-      ok: true,
-      ...result,
-      roles: ['SUPER_ADMIN', 'ADMIN'],
-      message:
-        'Admin listo y verificado. Inicia sesión con nelsonherazoi y la contraseña indicada en APP_BOOTSTRAP_ADMIN_PASSWORD (o la del body).',
-    };
+    return { ok: true, username: result.username, action: result.action, verified: result.verified };
   }
 
   /**
@@ -112,13 +106,7 @@ export class IamController {
         ...result,
       });
     }
-    return {
-      ok: true,
-      ...result,
-      roles: ['SUPER_ADMIN', 'ADMIN'],
-      message:
-        'Admin reparado y verificado. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de Render.',
-    };
+    return { ok: true, username: result.username, action: result.action, verified: result.verified };
   }
 
   @Get('bootstrap-status')
