@@ -18,6 +18,7 @@ import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { extractPasswordHash } from './password-hash.util';
 import { AuthUserDoc, passwordHashFromDoc, usernameFilter } from './auth-user.util';
+import { BootstrapAdminService } from './bootstrap-admin.service';
 import { idVariants } from '../tenancy/tenant-query.util';
 
 /** Usuario mínimo para login/JWT (Mongoose lean o colección nativa). */
@@ -39,6 +40,7 @@ export class IamService {
     private jwtService: JwtService,
     @InjectConnection() private readonly connection: Connection,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    private readonly bootstrapAdmin: BootstrapAdminService,
   ) {}
 
   private asUuid(value?: string): UUID | undefined {
@@ -151,21 +153,33 @@ export class IamService {
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
-    const candidates = await this.findUsersForAuth(loginId);
-    let user: LoginUser | null = null;
-    for (const candidate of candidates) {
-      const storedHash =
-        extractPasswordHash(candidate.password_hash) || passwordHashFromDoc(candidate as AuthUserDoc);
-      if (storedHash && (await bcrypt.compare(dto.password.trim(), storedHash))) {
-        user = candidate;
-        break;
+    const password = dto.password.trim();
+    let user = await this.resolveAuthenticatedUser(loginId, password);
+
+    if (!user) {
+      const repaired = await this.bootstrapAdmin.repairBootstrapPasswordIfEnvMatch(loginId, password);
+      if (repaired) {
+        user = await this.resolveAuthenticatedUser(loginId, password);
       }
     }
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     return this.generateTokenPair(user, dto.siteId, ip, userAgent);
+  }
+
+  private async resolveAuthenticatedUser(loginId: string, password: string): Promise<LoginUser | null> {
+    const candidates = await this.findUsersForAuth(loginId);
+    for (const candidate of candidates) {
+      const storedHash =
+        extractPasswordHash(candidate.password_hash) || passwordHashFromDoc(candidate as AuthUserDoc);
+      if (storedHash && (await bcrypt.compare(password, storedHash))) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   /**

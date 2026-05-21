@@ -138,6 +138,28 @@ export class BootstrapAdminService implements OnModuleInit {
     };
   }
 
+  /**
+   * Si el usuario envía APP_BOOTSTRAP_ADMIN_PASSWORD pero el hash en Atlas no permite login,
+   * fuerza reset del admin (sin exponer secretos al cliente).
+   */
+  async repairBootstrapPasswordIfEnvMatch(loginId: string, password: string): Promise<boolean> {
+    const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+    const envPass = (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
+    if (!bootstrapUser || !envPass || loginId !== bootstrapUser || password !== envPass) {
+      return false;
+    }
+
+    const verified = await this.verifyBootstrapLogin(password);
+    if (verified) {
+      this.logger.warn(
+        `Bootstrap verify OK para ${bootstrapUser} pero login falló; re-sincronizando hash en Atlas.`,
+      );
+    }
+
+    const result = await this.forceBootstrapAdmin(password);
+    return result.verified;
+  }
+
   /** Comprueba que el admin bootstrap puede autenticarse con APP_BOOTSTRAP_ADMIN_PASSWORD. */
   async verifyBootstrapLogin(overridePassword?: string): Promise<boolean> {
     const username = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
