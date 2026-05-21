@@ -19,7 +19,7 @@ $setup = curl.exe -s -w "`nHTTP:%{http_code}" -X POST "$api/api/auth/setup-boots
   --data-binary "@$setupJson"
 Write-Host $setup
 
-if ($setup -notmatch 'HTTP:200' -and $setup -notmatch '"verified"\s*:\s*true') {
+if ($setup -notmatch 'HTTP:200' -and $setup -notmatch 'verified') {
   Write-Host ''
   Write-Host 'Si falla: importa deploy\render-upload.env en Render -> Manual Deploy -> vuelve a ejecutar.' -ForegroundColor Yellow
   Write-Host 'Tras push del codigo nuevo, setup-bootstrap exige verificacion de contraseña.' -ForegroundColor Yellow

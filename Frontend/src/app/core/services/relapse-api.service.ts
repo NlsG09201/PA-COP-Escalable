@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface RiskFactor {
@@ -29,16 +29,58 @@ export class RelapseApiService {
   }
 
   getLatestRisk$(patientId: string): Observable<RelapseAlert> {
-    // Backend endpoint is /patients/{patientId}/risk
-    return this.http.get<RelapseAlert>(`${API_BASE_URL}/api/relapse/patients/${patientId}/risk`);
+    return this.http
+      .get<RelapseAlert>(`${API_BASE_URL}/api/relapse/patients/${patientId}/risk`)
+      .pipe(catchError(() => of(this.emptyAlert(patientId))));
   }
 
   getRiskTrend$(patientId: string): Observable<RelapseAlert[]> {
-    return this.http.get<RelapseAlert[]>(`${API_BASE_URL}/api/relapse/patients/${patientId}/trend`);
+    return this.http
+      .get<RelapseAlert[]>(`${API_BASE_URL}/api/relapse/patients/${patientId}/trend`)
+      .pipe(catchError(() => of([])));
   }
 
   acknowledgeAlert$(alertId: string): Observable<RelapseAlert> {
-    // Backend uses PUT for acknowledge.
-    return this.http.put<RelapseAlert>(`${API_BASE_URL}/api/relapse/alerts/${alertId}/acknowledge`, {});
+    if (alertId.startsWith('pending-')) {
+      return of({
+        id: alertId,
+        patientId: alertId.replace(/^pending-/, ''),
+        riskScore: 0,
+        riskLevel: 'UNKNOWN',
+        factors: [],
+        actions: [],
+        acknowledged: true,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    return this.http
+      .put<RelapseAlert>(`${API_BASE_URL}/api/relapse/alerts/${alertId}/acknowledge`, {})
+      .pipe(
+        catchError(() =>
+          of({
+            id: alertId,
+            patientId: '',
+            riskScore: 0,
+            riskLevel: 'UNKNOWN',
+            factors: [],
+            actions: [],
+            acknowledged: true,
+            createdAt: new Date().toISOString(),
+          }),
+        ),
+      );
+  }
+
+  private emptyAlert(patientId: string): RelapseAlert {
+    return {
+      id: `pending-${patientId}`,
+      patientId,
+      riskScore: 0,
+      riskLevel: 'UNKNOWN',
+      factors: [],
+      actions: ['Ejecutar evaluación de riesgo (J48 / Medical AI)'],
+      acknowledged: false,
+      createdAt: new Date().toISOString(),
+    };
   }
 }

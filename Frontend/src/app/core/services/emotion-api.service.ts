@@ -47,6 +47,6 @@ export class EmotionApiService {
   getResults$(patientId: string): Observable<EmotionAnalysisResult[]> {
     return this.http
       .get<EmotionAnalysisResult[]>(`${API_BASE_URL}/api/emotion/patients/${patientId}/results`)
-      .pipe(catchError(() => of([])));
+      .pipe(catchError(() => of([]))); // 401/503: UI vacía sin romper
   }
 }

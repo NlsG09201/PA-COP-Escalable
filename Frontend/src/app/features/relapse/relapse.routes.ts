@@ -172,7 +172,7 @@ const RISK_LABELS: Record<string, string> = {
                   <p class="text-muted small mt-3 mb-0">
                     Evaluado: {{ currentAlert()!.createdAt | date:'medium' }}
                   </p>
-                  @if (!currentAlert()!.acknowledged) {
+                  @if (!currentAlert()!.acknowledged && !currentAlert()!.id.startsWith('pending-')) {
                     <button class="btn btn-outline-primary btn-sm mt-3"
                             (click)="acknowledge()" [disabled]="acknowledging()">
                       <span class="spinner-border spinner-border-sm me-1" *ngIf="acknowledging()"></span>

@@ -104,7 +104,12 @@ if (useApiProxy) {
     destination: `${renderApiUrl}/:path*`,
   });
 }
-rewrites.push({ source: '/(.*)', destination: '/index.html' });
+// Solo rutas HTML → index.html. Evita servir index.html para .js/.css (MIME error en chunks lazy).
+rewrites.push({
+  source: '/:path*',
+  has: [{ type: 'header', key: 'accept', value: 'text/html' }],
+  destination: '/index.html',
+});
 
 const vercel = {
   $schema: 'https://openapi.vercel.sh/vercel.json',
@@ -116,7 +121,23 @@ const vercel = {
   headers: [
     {
       source: '/env.js',
-      headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
+      source: '/index.html',
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
+      source: '/',
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
+      source: '/:path*.js',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+    },
+    {
+      source: '/:path*.css',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
     },
   ],
 };

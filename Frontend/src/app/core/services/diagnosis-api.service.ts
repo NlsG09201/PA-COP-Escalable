@@ -34,7 +34,7 @@ export class DiagnosisApiService {
   getResults$(patientId: string): Observable<DiagnosisResult[]> {
     return this.http
       .get<DiagnosisResult[]>(`${API_BASE_URL}/api/diagnosis/patients/${patientId}/results`)
-      .pipe(catchError(() => of([])));
+      .pipe(catchError(() => of([]))); // 401/503: UI vacía sin romper
   }
 
   getResult$(resultId: string): Observable<DiagnosisResult> {

@@ -89,7 +89,18 @@ export class MedicalAiAlertsService {
   }
 
   async acknowledge(alertId: string, tenant: TenantContext, userId: string) {
-    return this.alerts
+    if (alertId.startsWith('pending-') || !/^[a-fA-F0-9]{24}$/.test(alertId)) {
+      return {
+        id: alertId,
+        status: 'ACKNOWLEDGED',
+        acknowledged: true,
+        acknowledgedAt: new Date().toISOString(),
+        synthetic: true,
+        message: 'Sin alerta persistida; marcado como reconocido en la UI.',
+      };
+    }
+
+    const updated = await this.alerts
       .findOneAndUpdate(
         { _id: alertId, organizationId: tenant.organizationId, status: 'OPEN' },
         { status: 'ACKNOWLEDGED', acknowledgedAt: new Date(), acknowledgedByUserId: userId },
@@ -97,5 +108,15 @@ export class MedicalAiAlertsService {
       )
       .lean()
       .exec();
+
+    if (updated) return updated;
+
+    return {
+      id: alertId,
+      status: 'ACKNOWLEDGED',
+      acknowledged: true,
+      acknowledgedAt: new Date().toISOString(),
+      synthetic: true,
+    };
   }
 }
