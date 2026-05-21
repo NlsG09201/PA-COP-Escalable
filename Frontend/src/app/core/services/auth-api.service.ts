@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, retry, timer } from 'rxjs';
+import { Observable, catchError, map, retry, switchMap, throwError, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
@@ -58,24 +58,39 @@ export class AuthApiService {
     );
   }
 
+  /** Repara admin duplicado o contraseña desincronizada (sin secreto; solo si el API lo permite). */
+  ensureBootstrap$(): Observable<{ ok?: boolean }> {
+    return this.http.post<{ ok?: boolean }>(`${API_BASE_URL}/api/auth/ensure-bootstrap`, {});
+  }
+
   login$(username: string, password: string, siteId: string): Observable<void> {
-    return this.http
-      .post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, { username, password, siteId })
-      .pipe(
-        retry({
-          count: 2,
-          delay: (error: { status?: number }, retryCount) => {
-            const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
-            if (!isTransient) {
-              throw error;
-            }
-            return timer(800 * retryCount);
+    const doLogin = () =>
+      this.http.post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, { username, password, siteId });
+
+    return doLogin().pipe(
+      retry({
+        count: 2,
+        delay: (error: { status?: number }, retryCount) => {
+          const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
+          if (!isTransient) {
+            throw error;
           }
-        }),
-        map((res) => {
-          this.tokenStorage.setTokens(res.accessToken, res.refreshToken);
-        })
-      );
+          return timer(800 * retryCount);
+        },
+      }),
+      catchError((err: { status?: number }) => {
+        if (err.status !== 401) {
+          return throwError(() => err);
+        }
+        return this.ensureBootstrap$().pipe(
+          switchMap(() => doLogin()),
+          catchError(() => throwError(() => err)),
+        );
+      }),
+      map((res) => {
+        this.tokenStorage.setTokens(res.accessToken, res.refreshToken);
+      }),
+    );
   }
 
   logout(): void {

@@ -73,6 +73,9 @@ export class BootstrapAdminService implements OnModuleInit {
       .exec();
     if (elevated === 0) return true;
 
+    const dupCount = await this.countBootstrapUsernameMatches(username);
+    if (dupCount > 1) return true;
+
     const user = await this.findBootstrapUser(username);
     if (!user) return true;
 
@@ -88,6 +91,7 @@ export class BootstrapAdminService implements OnModuleInit {
     elevatedCount: number;
     bootstrapUserExists: boolean;
     bootstrapPasswordMatchesEnv: boolean;
+    bootstrapDuplicateCount: number;
     canAutoRepair: boolean;
   }> {
     const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
@@ -100,6 +104,7 @@ export class BootstrapAdminService implements OnModuleInit {
         elevatedCount: 0,
         bootstrapUserExists: false,
         bootstrapPasswordMatchesEnv: false,
+        bootstrapDuplicateCount: 0,
         canAutoRepair: false,
       };
     }
@@ -109,6 +114,7 @@ export class BootstrapAdminService implements OnModuleInit {
     const elevated = await this.users
       .countDocuments({ roles: { $in: [SUPER_ADMIN_ROLE, 'ADMIN'] } })
       .exec();
+    const bootstrapDuplicateCount = await this.countBootstrapUsernameMatches(username);
     const user = await this.findBootstrapUser(username);
     let bootstrapPasswordMatchesEnv = false;
     if (user?.password_hash) {
@@ -120,6 +126,7 @@ export class BootstrapAdminService implements OnModuleInit {
       elevatedCount: elevated,
       bootstrapUserExists: !!user,
       bootstrapPasswordMatchesEnv,
+      bootstrapDuplicateCount,
       canAutoRepair: await this.canAutoEnsureBootstrap(),
     };
   }
@@ -130,23 +137,32 @@ export class BootstrapAdminService implements OnModuleInit {
     const password = (overridePassword ?? process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
     if (!username || !password) return false;
 
-    const user = await this.findBootstrapUser(username);
-    const stored = extractPasswordHash(user?.password_hash);
-    if (!stored) return false;
-    return bcrypt.compare(password, stored);
+    const matches = await this.findAllBootstrapUsers(username);
+    for (const user of matches) {
+      const stored = extractPasswordHash(user.password_hash);
+      if (stored && (await bcrypt.compare(password, stored))) return true;
+    }
+    return false;
+  }
+
+  private usernameRegex(username: string): RegExp {
+    return new RegExp(`^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  }
+
+  private async countBootstrapUsernameMatches(username: string): Promise<number> {
+    const col = this.mongo.db.collection('users');
+    return col.countDocuments({ username: this.usernameRegex(username) });
+  }
+
+  private async findAllBootstrapUsers(username: string): Promise<{ password_hash?: unknown }[]> {
+    const col = this.mongo.db.collection<{ password_hash?: unknown }>('users');
+    return col.find({ username: this.usernameRegex(username) }).toArray();
   }
 
   /** Mongoose + colección nativa (sedes seed con _id UUID binario). */
   private async findBootstrapUser(username: string): Promise<{ password_hash?: unknown } | null> {
-    const usernameRegex = new RegExp(
-      `^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
-      'i',
-    );
-    const raw = await this.mongo.db
-      .collection<{ password_hash?: unknown }>('users')
-      .findOne({ username: usernameRegex });
-    if (raw) return raw;
-
+    const all = await this.findAllBootstrapUsers(username);
+    if (all.length) return all[0];
     return (await this.users.findOne({ username }).lean().exec()) ?? null;
   }
 
@@ -227,36 +243,34 @@ export class BootstrapAdminService implements OnModuleInit {
     reset: boolean;
   }): Promise<'created' | 'reset' | 'skipped'> {
     const col = this.mongo.db.collection('users');
-    const usernameRegex = new RegExp(
-      `^${opts.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
-      'i',
-    );
+    const usernameRegex = this.usernameRegex(opts.username);
     const existing = await col.findOne({ username: usernameRegex });
     const password_hash = await bcrypt.hash(opts.password, 10);
+    const dupCount = await col.countDocuments({ username: usernameRegex });
+    const forceReset = opts.reset || dupCount > 1;
 
-    if (existing && !opts.reset) {
+    if (existing && !forceReset) {
       const merged = new Set<string>([
         ...(Array.isArray(existing.roles) ? existing.roles.map(String) : []),
         ...opts.roles,
       ]);
-      await col.updateOne(
-        { _id: existing._id },
-        {
-          $set: {
-            username: opts.username,
-            organization_id: opts.orgId,
-            password_hash,
-            roles: Array.from(merged),
-            mfa_enabled: false,
-            ...(opts.email ? { email: opts.email } : {}),
-            updatedAt: new Date(),
-          },
-        },
-      );
+      const keepId = existing._id;
+      await col.deleteMany({ username: usernameRegex });
+      await this.users.deleteMany({ username: usernameRegex }).exec();
+      await col.insertOne({
+        _id: keepId,
+        username: opts.username,
+        organization_id: opts.orgId,
+        password_hash,
+        roles: Array.from(merged),
+        mfa_enabled: false,
+        ...(opts.email ? { email: opts.email } : {}),
+        createdAt: (existing as { createdAt?: Date }).createdAt ?? new Date(),
+        updatedAt: new Date(),
+      } as Record<string, unknown>);
       return 'skipped';
     }
 
-    // Borrar duplicados ANTES de insertar (mongoose y nativo comparten la colección `users`).
     await col.deleteMany({ username: usernameRegex });
     await this.users.deleteMany({ username: usernameRegex }).exec();
 

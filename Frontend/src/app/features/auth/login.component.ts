@@ -240,7 +240,7 @@ export class LoginComponent {
 
     if (apiMessage) return apiMessage;
     if (error.status === 401) {
-      return 'Credenciales invalidas. El usuario y la contraseña deben coincidir con APP_BOOTSTRAP_ADMIN_* en Render (no solo tu .env local). En Render: Environment -> APP_BOOTSTRAP_ADMIN_PASSWORD, luego Manual Deploy y .\\deploy\\crear-admin-render.ps1 — o .\\deploy\\reset-admin-atlas.ps1 desde tu PC.';
+      return 'Credenciales invalidas o cuenta admin duplicada en Atlas. Usuario: nelsonherazoi y la contraseña de APP_BOOTSTRAP_ADMIN_PASSWORD en Render (no la de tu .env local si difiere). Ejecuta .\\deploy\\crear-admin-render.ps1 y vuelve a intentar; selecciona una sede del listado.';
     }
     if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
     if (error.status === 502 || error.status === 503) {
