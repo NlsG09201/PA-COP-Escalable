@@ -160,42 +160,65 @@ export class IamService {
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
-    const user = await this.findUserForAuth(loginId);
-    const storedHash = extractPasswordHash(user?.password_hash);
-    if (!user || !storedHash || !(await bcrypt.compare(dto.password, storedHash))) {
+    const candidates = await this.findUsersForAuth(loginId);
+    let user: LoginUser | null = null;
+    for (const candidate of candidates) {
+      const storedHash = extractPasswordHash(candidate.password_hash);
+      if (storedHash && (await bcrypt.compare(dto.password, storedHash))) {
+        user = candidate;
+        break;
+      }
+    }
+    if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     return this.generateTokenPair(user, dto.siteId, ip, userAgent);
   }
 
-  /** Colección nativa primero (evita duplicados mongoose/seed); luego Mongoose. */
-  private async findUserForAuth(loginId: string): Promise<LoginUser | null> {
+  /**
+   * Todos los documentos que coinciden (nativo + Mongoose).
+   * Evita 401 cuando hay duplicados por seed y findOne devolvía uno sin hash válido.
+   */
+  private async findUsersForAuth(loginId: string): Promise<LoginUser[]> {
     const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const usernameRegex = new RegExp(`^${escaped}$`, 'i');
-
-    const raw = await this.connection.db.collection<AuthUserDoc>('users').findOne({
+    const filter = {
       $or: [
         { username: usernameRegex },
         ...(loginId.includes('@') ? [{ email: usernameRegex }] : []),
       ],
-    });
-    if (raw && extractPasswordHash(raw.password_hash)) {
-      return this.toLoginUser(raw, loginId);
-    }
-
-    const fromLean = (doc: unknown): LoginUser | null => {
-      if (!doc || typeof doc !== 'object') return null;
-      const d = doc as AuthUserDoc;
-      if (!extractPasswordHash(d.password_hash)) return null;
-      return this.toLoginUser(d, loginId);
     };
 
-    let user = fromLean(await this.userModel.findOne({ username: loginId }).lean().exec());
-    if (!user && loginId.includes('@')) {
-      user = fromLean(await this.userModel.findOne({ email: loginId }).lean().exec());
+    const seen = new Set<string>();
+    const out: LoginUser[] = [];
+
+    const push = (raw: AuthUserDoc | null | undefined) => {
+      if (!raw || !extractPasswordHash(raw.password_hash)) return;
+      const u = this.toLoginUser(raw, loginId);
+      const key = `${u._id}:${u.username}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(u);
+    };
+
+    const natives = await this.connection.db
+      .collection<AuthUserDoc>('users')
+      .find(filter)
+      .toArray();
+    for (const raw of natives) push(raw);
+
+    const fromLean = (doc: unknown) => {
+      if (!doc || typeof doc !== 'object') return;
+      push(doc as AuthUserDoc);
+    };
+
+    fromLean(await this.userModel.findOne({ username: loginId }).lean().exec());
+    if (loginId.includes('@')) {
+      fromLean(await this.userModel.findOne({ email: loginId }).lean().exec());
     }
-    return user;
+
+    return out;
   }
 
   private toLoginUser(raw: AuthUserDoc, loginId: string): LoginUser {
