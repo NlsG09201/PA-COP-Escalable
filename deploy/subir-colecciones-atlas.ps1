@@ -41,7 +41,7 @@ if (-not $AdminUser -or -not $AdminPassword) {
 
 if ($SoloAdmin) { $Pacientes = 0 }
 
-Write-Host '=== Atlas: sedes + admin + pacientes ===' -ForegroundColor Cyan
+Write-Host '=== Atlas: colecciones + sedes + admin + pacientes + muestras ===' -ForegroundColor Cyan
 Write-Host "Admin: $AdminUser"
 Write-Host "Pacientes: $Pacientes"
 Write-Host ''

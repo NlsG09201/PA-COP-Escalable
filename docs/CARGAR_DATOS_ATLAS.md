@@ -1,17 +1,29 @@
 # Cargar todos los datos en MongoDB Atlas
 
-## Carga completa (sedes + admin + 15.000 pacientes)
+## Carga completa (colecciones + datos)
 
-Un solo comando desde la raíz del repo:
+Un solo comando (crea **19 colecciones** y luego inserta datos):
+
+```powershell
+.\deploy\insertar-atlas-todo.ps1
+```
+
+Equivalente:
 
 ```powershell
 .\deploy\cargar-atlas-completo.ps1
 ```
 
-O:
+Solo crear colecciones vacías (sin datos):
 
 ```powershell
-node scripts/seed-atlas-completo.mjs --pacientes 15000
+.\deploy\insertar-atlas-todo.ps1 -SoloColecciones
+```
+
+Sin datos de muestra (citas, clínica, IA…), solo org/sedes/admin/pacientes:
+
+```powershell
+node scripts/seed-atlas-completo.mjs --pacientes 15000 --sin-muestras
 ```
 
 **Requisitos:**
@@ -20,7 +32,9 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000
 2. `.env` con `MONGODB_PASSWORD` (o `MONGODB_URL` completa) y `APP_BOOTSTRAP_ADMIN_*`
 3. `npm install mongodb` en la raíz (el script `cargar-atlas-completo.ps1` lo instala si falta)
 
-Carga:
+**Paso 1 — colecciones** (automático): `organizations`, `sites`, `users`, `refresh_tokens`, `professionals`, `patients`, `appointments`, `clinical_records`, `odontograms`, `psychology_sessions`, `psychological_evaluations`, `psychological_snapshots`, `j48_predictions`, `medical_ai_*`, `ortho_3d_jobs`, `public_reviews`.
+
+**Paso 2 — datos principales:**
 
 | Dato | Colección |
 |------|-----------|
@@ -28,6 +42,8 @@ Carga:
 | ~36 sedes Colombia | `sites` |
 | Admin panel | `users` |
 | 15.000 pacientes | `patients` |
+
+**Paso 3 — datos de muestra** (opcional, por defecto sí): profesionales, citas, historias clínicas, reseñas, registros mínimos en colecciones IA/psicología/ortodoncia.
 
 Opcional: regenerar CSV antes del seed:
 

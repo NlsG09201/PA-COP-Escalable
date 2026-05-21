@@ -4,9 +4,33 @@
  *
  *   node scripts/seed-atlas-completo.mjs
  *   node scripts/seed-atlas-completo.mjs --pacientes 15000 --forzar-pacientes
+ *   node scripts/seed-atlas-completo.mjs --solo-colecciones
+ *   node scripts/seed-atlas-completo.mjs --sin-muestras
  *
  * Requiere .env en la raíz: MONGODB_URL o MONGODB_PASSWORD + APP_BOOTSTRAP_* .
  */
+/** Colecciones del backend Nest (docs/MONGODB_ATLAS_COLECCIONES.md) */
+const ATLAS_COLLECTIONS = [
+  'organizations',
+  'sites',
+  'users',
+  'refresh_tokens',
+  'professionals',
+  'patients',
+  'appointments',
+  'clinical_records',
+  'odontograms',
+  'psychology_sessions',
+  'psychological_evaluations',
+  'psychological_snapshots',
+  'j48_predictions',
+  'medical_ai_alerts',
+  'medical_ai_predictions',
+  'medical_ai_insights',
+  'medical_ai_assistant_threads',
+  'ortho_3d_jobs',
+  'public_reviews',
+];
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -37,6 +61,8 @@ function parseArgs(argv) {
   const out = {
     pacientes: PATIENT_TARGET,
     forzarPacientes: false,
+    soloColecciones: false,
+    sinMuestras: false,
     csv: '',
     uri: '',
     adminUser: '',
@@ -44,6 +70,8 @@ function parseArgs(argv) {
   };
   for (let i = 2; i < argv.length; i++) {
     if (argv[i] === '--forzar-pacientes') out.forzarPacientes = true;
+    else if (argv[i] === '--solo-colecciones') out.soloColecciones = true;
+    else if (argv[i] === '--sin-muestras') out.sinMuestras = true;
     else if (argv[i] === '--pacientes' && argv[i + 1]) {
       out.pacientes = Math.max(0, parseInt(argv[++i], 10));
     } else if (argv[i] === '--csv' && argv[i + 1]) {
@@ -259,39 +287,312 @@ async function seedSites(db, orgId) {
   return { created, total, siteByDept };
 }
 
+async function ensureCollections(db) {
+  const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));
+  let created = 0;
+  for (const name of ATLAS_COLLECTIONS) {
+    if (existing.has(name)) continue;
+    await db.createCollection(name);
+    created += 1;
+    console.log(`[seed] Colección creada: ${name}`);
+  }
+  console.log(`[seed] Colecciones: ${ATLAS_COLLECTIONS.length} definidas, +${created} nuevas`);
+  return created;
+}
+
+function orgIdString(env, orgId) {
+  const fromEnv = String(env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+  if (fromEnv) return fromEnv;
+  try {
+    return orgId.toString();
+  } catch {
+    return String(orgId);
+  }
+}
+
 async function seedAdmin(db, orgId, env, cli = {}) {
   const username = (cli.adminUser || env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim().toLowerCase();
   const password = cli.adminPass || env.APP_BOOTSTRAP_ADMIN_PASSWORD || '';
   const email = (env.APP_BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
   if (!username || !password) {
     console.warn('[seed] Sin APP_BOOTSTRAP_ADMIN_USERNAME/PASSWORD — omitiendo admin');
-    return;
+    return null;
   }
 
   const password_hash = await bcrypt.hash(password, 10);
+  const orgStr = orgIdString(env, orgId);
   const col = db.collection('users');
-  const existing = await col.findOne({ username });
-  const userId = existing?._id ?? toUuid(randomUUID());
-  await col.updateOne(
-    { username },
-    {
-      $set: {
-        _id: userId,
-        username,
-        organization_id: orgId,
-        password_hash,
-        roles: ['SUPER_ADMIN', 'ADMIN'],
-        mfa_enabled: false,
-        ...(email ? { email } : {}),
-        updatedAt: new Date(),
+  const usernameRegex = new RegExp(
+    `^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+    'i',
+  );
+  await col.deleteMany({ username: usernameRegex });
+  const userId = randomUUID();
+  await col.insertOne({
+    _id: userId,
+    username,
+    organization_id: orgStr,
+    password_hash,
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+    mfa_enabled: false,
+    ...(email ? { email } : {}),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  console.log(`[seed] Admin: ${username} (_id string, password_hash actualizado)`);
+  return { userId, username, orgStr };
+}
+
+async function seedSampleData(db, ctx) {
+  const { orgId, orgStr, siteId, adminUserId, adminUsername } = ctx;
+  const now = new Date();
+  const marker = 'seed-atlas-completo';
+
+  const profCol = db.collection('professionals');
+  const profCount = await profCol.countDocuments({ organization_id: orgStr, ingest_source: marker });
+  if (profCount === 0) {
+    const pros = [
+      { full_name: 'Dra. Ana Odontóloga', specialty: 'ODONTOLOGIA' },
+      { full_name: 'Dr. Luis Psicólogo', specialty: 'PSICOLOGIA' },
+      { full_name: 'Dra. María Clínica', specialty: 'MEDICINA_GENERAL' },
+    ];
+    await profCol.insertMany(
+      pros.map((p) => ({
+        _id: randomUUID(),
+        organization_id: orgStr,
+        site_id: siteId ? String(siteId) : undefined,
+        default_site_id: siteId ? String(siteId) : undefined,
+        full_name: p.full_name,
+        specialty: p.specialty,
+        status: 'ACTIVE',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      })),
+    );
+    console.log(`[seed] Profesionales: +${pros.length}`);
+  }
+
+  const professionals = await profCol.find({ organization_id: orgStr }).limit(3).toArray();
+  const patients = await db
+    .collection('patients')
+    .find({ organization_id: orgId })
+    .limit(200)
+    .toArray();
+
+  if (professionals.length && patients.length) {
+    const apptCol = db.collection('appointments');
+    const apptExisting = await apptCol.countDocuments({ organization_id: orgStr, ingest_source: marker });
+    if (apptExisting === 0) {
+      const appts = [];
+      for (let i = 0; i < Math.min(80, patients.length); i++) {
+        const p = patients[i];
+        const pro = professionals[i % professionals.length];
+        const start = new Date(now.getTime() + (i + 1) * 86_400_000);
+        const end = new Date(start.getTime() + 45 * 60_000);
+        appts.push({
+          _id: randomUUID(),
+          organization_id: orgStr,
+          site_id: p.site_id ? String(p.site_id) : orgStr,
+          professional_id: String(pro._id),
+          patient_id: String(p._id),
+          start_at: start,
+          end_at: end,
+          status: i % 4 === 0 ? 'COMPLETED' : 'CONFIRMED',
+          reason: 'Control COP',
+          ingest_source: marker,
+          version: 0,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+      await apptCol.insertMany(appts, { ordered: false });
+      console.log(`[seed] Citas: +${appts.length}`);
+    }
+
+    const clinCol = db.collection('clinical_records');
+    const clinExisting = await clinCol.countDocuments({ organizationId: orgStr, ingest_source: marker });
+    if (clinExisting === 0) {
+      const records = patients.slice(0, 40).map((p, i) => ({
+        _id: randomUUID(),
+        organizationId: orgStr,
+        siteId: p.site_id ? String(p.site_id) : undefined,
+        patientId: String(p._id),
+        entries: [
+          {
+            at: now,
+            author_user_id: adminUserId,
+            author_username: adminUsername,
+            type: 'NOTA',
+            note: `Historia inicial paciente ${p.external_code ?? i}`,
+          },
+        ],
+        ingest_source: marker,
+        createdAt: now,
+        updatedAt: now,
+      }));
+      await clinCol.insertMany(records, { ordered: false });
+      console.log(`[seed] Historias clínicas: +${records.length}`);
+    }
+  }
+
+  const reviewCol = db.collection('public_reviews');
+  if ((await reviewCol.countDocuments({ ingest_source: marker })) === 0) {
+    await reviewCol.insertMany([
+      {
+        authorName: 'Paciente COP',
+        rating: 5,
+        comment: 'Excelente atención en la sede.',
+        status: 'APPROVED',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
       },
-      $setOnInsert: {
-        createdAt: new Date(),
+      {
+        authorName: 'Usuario verificado',
+        rating: 4,
+        comment: 'Muy buen servicio clínico.',
+        status: 'APPROVED',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    ]);
+    console.log('[seed] Reseñas públicas: +2');
+  }
+
+  const sampleDocs = [
+    {
+      col: 'odontograms',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        site_id: siteId ? String(siteId) : orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        status: 'DRAFT',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
       },
     },
-    { upsert: true },
-  );
-  console.log(`[seed] Admin: ${username} (password_hash actualizado)`);
+    {
+      col: 'psychology_sessions',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        site_id: siteId ? String(siteId) : orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        session_date: now,
+        status: 'COMPLETED',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'psychological_evaluations',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        instrument: 'J48',
+        score: 0.42,
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'psychological_snapshots',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        features: { mood: 'stable' },
+        ingest_source: marker,
+        created_at: now,
+      },
+    },
+    {
+      col: 'j48_predictions',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        risk_level: 'LOW',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'medical_ai_alerts',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        severity: 'INFO',
+        message: 'Alerta de ejemplo seed',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'medical_ai_predictions',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        model: 'ensemble',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'medical_ai_insights',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        summary: 'Insight de ejemplo',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'medical_ai_assistant_threads',
+      doc: {
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        messages: [],
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      col: 'ortho_3d_jobs',
+      doc: {
+        _id: randomUUID(),
+        organization_id: orgStr,
+        patient_id: patients[0] ? String(patients[0]._id) : orgStr,
+        status: 'QUEUED',
+        ingest_source: marker,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+  ];
+
+  for (const { col, doc } of sampleDocs) {
+    const c = db.collection(col);
+    if ((await c.countDocuments({ ingest_source: marker })) > 0) continue;
+    await c.insertOne(doc);
+    console.log(`[seed] ${col}: +1 documento muestra`);
+  }
 }
 
 async function seedPatients(db, orgId, siteByDept, opts) {
@@ -382,13 +683,25 @@ async function main() {
   const db = client.db(dbName);
   console.log(`[seed] Base de datos: ${dbName}`);
 
+  await ensureCollections(db);
+
+  if (opts.soloColecciones) {
+    console.log('[seed] Modo --solo-colecciones: colecciones listas, sin datos.');
+    await client.close();
+    return;
+  }
+
   const orgId = await seedOrganization(db, env);
-  console.log(`[seed] Organización: ${orgId}`);
+  const orgStr = orgIdString(env, orgId);
+  console.log(`[seed] Organización: ${orgStr}`);
 
   const { created: sitesNew, total: sitesTotal, siteByDept } = await seedSites(db, orgId);
   console.log(`[seed] Sedes: +${sitesNew} nuevas, ${sitesTotal} activas en catálogo`);
 
-  await seedAdmin(db, orgId, env, {
+  const firstSite = [...siteByDept.values()].flat()[0];
+  const siteId = firstSite?._id;
+
+  const admin = await seedAdmin(db, orgId, env, {
     adminUser: opts.adminUser,
     adminPass: opts.adminPass,
   });
@@ -396,13 +709,23 @@ async function main() {
   const { inserted, total } = await seedPatients(db, orgId, siteByDept, opts);
   console.log(`[seed] Pacientes: +${inserted}, total en org: ${total}`);
 
-  const summary = {
-    organizations: await db.collection('organizations').countDocuments(),
-    sites: await db.collection('sites').countDocuments({ status: 'ACTIVE' }),
-    users: await db.collection('users').countDocuments(),
-    patients: await db.collection('patients').countDocuments(),
-  };
-  console.log('[seed] Resumen Atlas:', summary);
+  if (!opts.sinMuestras && admin) {
+    await seedSampleData(db, {
+      orgId,
+      orgStr,
+      siteId,
+      adminUserId: admin.userId,
+      adminUsername: admin.username,
+    });
+  } else if (opts.sinMuestras) {
+    console.log('[seed] Modo --sin-muestras: omitiendo citas, clínica, IA, etc.');
+  }
+
+  const summary = {};
+  for (const name of ATLAS_COLLECTIONS) {
+    summary[name] = await db.collection(name).countDocuments();
+  }
+  console.log('[seed] Resumen Atlas (documentos por colección):', summary);
 
   await client.close();
   console.log('[seed] Listo.');

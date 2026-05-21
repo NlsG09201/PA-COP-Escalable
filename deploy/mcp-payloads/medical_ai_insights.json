@@ -1,0 +1,11 @@
+[
+  {
+    "_id": "f6323bda-eeeb-477d-8ad5-43888c20a782",
+    "organization_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+    "patient_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+    "summary": "Insight ejemplo",
+    "ingest_source": "mcp-atlas-deploy",
+    "created_at": "2026-05-21T11:12:22.429Z",
+    "updated_at": "2026-05-21T11:12:22.429Z"
+  }
+]

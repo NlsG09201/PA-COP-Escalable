@@ -1,0 +1,16 @@
+[
+  {
+    "_id": "bae0fdfa-1274-4a8b-aec9-0b18793d5d63",
+    "username": "nelsonherazoi",
+    "organization_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+    "password_hash": "$2b$10$8cW5ZIBezQPQmOKid9/EpuLMvuMy/pT.GYojM7Wc5BdYZnA3EFhRS",
+    "roles": [
+      "SUPER_ADMIN",
+      "ADMIN"
+    ],
+    "mfa_enabled": false,
+    "email": "nelsondavid1954@gmail.com",
+    "createdAt": "2026-05-21T11:12:22.429Z",
+    "updatedAt": "2026-05-21T11:12:22.429Z"
+  }
+]

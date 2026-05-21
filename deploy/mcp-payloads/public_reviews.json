@@ -1,0 +1,11 @@
+[
+  {
+    "authorName": "Paciente COP",
+    "rating": 5,
+    "comment": "Excelente atención.",
+    "status": "APPROVED",
+    "ingest_source": "mcp-atlas-deploy",
+    "created_at": "2026-05-21T11:12:22.429Z",
+    "updated_at": "2026-05-21T11:12:22.429Z"
+  }
+]

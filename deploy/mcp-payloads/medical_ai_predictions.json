@@ -1,0 +1,11 @@
+[
+  {
+    "_id": "21dd4517-335f-4f07-8626-95288fd1cf49",
+    "organization_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+    "patient_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+    "model": "ensemble",
+    "ingest_source": "mcp-atlas-deploy",
+    "created_at": "2026-05-21T11:12:22.429Z",
+    "updated_at": "2026-05-21T11:12:22.429Z"
+  }
+]

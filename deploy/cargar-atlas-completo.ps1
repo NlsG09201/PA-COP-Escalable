@@ -12,25 +12,4 @@ if (-not (Test-Path (Join-Path $root '.env'))) {
   Write-Error 'Falta .env en la raíz del repo.'
 }
 
-Write-Host '=== Carga completa a MongoDB Atlas ===' -ForegroundColor Cyan
-Write-Host 'Requisito: Atlas Network Access 0.0.0.0/0 Active y MONGODB_URL en .env' -ForegroundColor DarkGray
-Write-Host '  - Organización COP'
-Write-Host '  - Sedes Colombia (catálogo)'
-Write-Host '  - Usuario admin (APP_BOOTSTRAP_*)'
-Write-Host '  - 15.000 pacientes'
-Write-Host ''
-
-Push-Location $root
-try {
-  if (-not (Test-Path 'node_modules/mongodb')) {
-    Write-Host 'Instalando dependencia mongodb...' -ForegroundColor Yellow
-    npm install mongodb --no-save 2>&1 | Out-Null
-  }
-  node .\scripts\seed-atlas-completo.mjs --pacientes 15000
-} finally {
-  Pop-Location
-}
-
-Write-Host ''
-Write-Host 'Comprueba en Atlas -> Browse Collections -> cop' -ForegroundColor Green
-Write-Host '  sites (~36), users (admin), patients (~15000)'
+& (Join-Path $PSScriptRoot 'insertar-atlas-todo.ps1') -Pacientes 15000
