@@ -4,6 +4,7 @@ import { Injectable } from '@angular/core';
 export class TokenStorageService {
   private readonly accessTokenKey = 'cop_dashboard_token';
   private readonly refreshTokenKey = 'cop_dashboard_refresh_token';
+  private readonly activeSiteNameKey = 'cop_active_site_name';
 
   getAccessToken(): string | null {
     return localStorage.getItem(this.accessTokenKey);
@@ -20,8 +21,18 @@ export class TokenStorageService {
     }
   }
 
+  setActiveSiteName(name: string): void {
+    sessionStorage.setItem(this.activeSiteNameKey, name.trim());
+  }
+
+  getActiveSiteName(): string | null {
+    const name = sessionStorage.getItem(this.activeSiteNameKey);
+    return name?.trim() ? name : null;
+  }
+
   clear(): void {
     localStorage.removeItem(this.accessTokenKey);
     localStorage.removeItem(this.refreshTokenKey);
+    sessionStorage.removeItem(this.activeSiteNameKey);
   }
 }

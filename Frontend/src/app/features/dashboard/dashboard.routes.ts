@@ -4,9 +4,9 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, com
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Routes } from '@angular/router';
-import * as echarts from 'echarts';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
+import { SKIP_GLOBAL_LOADER } from '../../core/http/skip-global-loader.http';
 import {
   ArffDatasetSchema,
   ClinicalPrediction,
@@ -92,13 +92,14 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('j48ClassChart') private j48ClassChartRef?: ElementRef<HTMLDivElement>;
   @ViewChild('j48MonthlyChart') private j48MonthlyChartRef?: ElementRef<HTMLDivElement>;
 
-  private chartAppointments?: echarts.ECharts;
-  private chartRevenue?: echarts.ECharts;
-  private chartSpecialty?: echarts.ECharts;
-  private chartDoctor?: echarts.ECharts;
-  private chartHeatmap?: echarts.ECharts;
-  private chartJ48Class?: echarts.ECharts;
-  private chartJ48Monthly?: echarts.ECharts;
+  private echartsNs?: typeof import('echarts');
+  private chartAppointments?: ReturnType<typeof import('echarts')['init']>;
+  private chartRevenue?: ReturnType<typeof import('echarts')['init']>;
+  private chartSpecialty?: ReturnType<typeof import('echarts')['init']>;
+  private chartDoctor?: ReturnType<typeof import('echarts')['init']>;
+  private chartHeatmap?: ReturnType<typeof import('echarts')['init']>;
+  private chartJ48Class?: ReturnType<typeof import('echarts')['init']>;
+  private chartJ48Monthly?: ReturnType<typeof import('echarts')['init']>;
 
   protected fromDate = this.asDateInput(new Date(Date.now() - 29 * 86400000));
   protected toDate = this.asDateInput(new Date());
@@ -150,9 +151,21 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.initCharts();
-    void this.reload();
     window.addEventListener('resize', this.onResize);
+    void this.startDashboard();
+  }
+
+  private async startDashboard(): Promise<void> {
+    await this.ensureEcharts();
+    this.initCharts();
+    await this.reload();
+  }
+
+  private async ensureEcharts(): Promise<typeof import('echarts')> {
+    if (!this.echartsNs) {
+      this.echartsNs = await import('echarts');
+    }
+    return this.echartsNs;
   }
 
   protected onJ48Predicted(pred: ClinicalPrediction): void {
@@ -172,8 +185,10 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
         a.bucket.localeCompare(b.bucket),
       );
     }
-    this.initCharts();
-    this.renderCharts();
+    void this.ensureEcharts().then(() => {
+      this.initCharts();
+      this.renderCharts();
+    });
   }
 
   ngOnDestroy(): void {
@@ -212,55 +227,60 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     };
 
-    const [kpis, appt, rev, spec, doc, hm, j48Cls, j48Mo] = await Promise.all([
-      unwrap('KPIs', this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/kpis`, { params: range }), null),
+    const httpOpts = (params: HttpParams) => ({ params, ...SKIP_GLOBAL_LOADER });
+
+    this.kpis = await unwrap(
+      'KPIs',
+      this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/kpis`, httpOpts(range)),
+      null,
+    );
+    this.loading = false;
+    this.initCharts();
+    this.renderCharts();
+
+    const [appt, rev, spec, doc, hm, j48Cls, j48Mo] = await Promise.all([
       unwrap(
         'Citas',
-        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/trend`, {
-          params: withExtra({ groupBy: groupByApi }),
-        }),
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/trend`, httpOpts(withExtra({ groupBy: groupByApi }))),
         { series: [] },
       ),
       unwrap(
         'Ingresos',
-        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/revenue/trend`, {
-          params: withExtra({ groupBy: groupByApi }),
-        }),
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/revenue/trend`, httpOpts(withExtra({ groupBy: groupByApi }))),
         { series: [] },
       ),
       unwrap(
         'Especialidades',
-        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/specialties/distribution`, { params: range }),
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/specialties/distribution`, httpOpts(range)),
         { specialties: [] },
       ),
       unwrap(
         'Medicos',
-        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/doctors/performance`, {
-          params: withExtra({ limit: '10' }),
-        }),
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/doctors/performance`, httpOpts(withExtra({ limit: '10' }))),
         { doctors: [] },
       ),
       unwrap(
         'Heatmap',
-        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/heatmap`, { params: range }),
+        this.http.get<any>(`${API_BASE_URL}/api/analytics/dashboard/appointments/heatmap`, httpOpts(range)),
         { cells: [] },
       ),
       unwrap(
         'J48 clases',
-        this.http.get<Array<{ label: string; count: number }>>(`${API_BASE_URL}/api/j48/analytics/class-distribution`),
+        this.http.get<Array<{ label: string; count: number }>>(
+          `${API_BASE_URL}/api/j48/analytics/class-distribution`,
+          SKIP_GLOBAL_LOADER,
+        ),
         [] as Array<{ label: string; count: number }>,
       ),
       unwrap(
         'J48 mensual',
         this.http.get<{ series: Array<{ bucket: string; total: number }> }>(
           `${API_BASE_URL}/api/j48/analytics/monthly`,
-          { params: range },
+          httpOpts(range),
         ),
         { series: [] as Array<{ bucket: string; total: number }> },
       ),
     ]);
-
-    this.kpis = kpis;
     this.appointmentsTrend = (appt?.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
     this.revenueTrend = (rev?.series ?? []).map((x: any) => ({ bucket: x.bucket, total: x.total ?? 0 }));
     this.specialties = spec?.specialties ?? [];
@@ -268,8 +288,6 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.heatmapCells = hm?.cells ?? [];
     this.j48Classes = Array.isArray(j48Cls) ? j48Cls : [];
     this.j48Monthly = j48Mo?.series ?? [];
-    this.loading = false;
-    this.initCharts();
     this.renderCharts();
   }
 
@@ -287,13 +305,29 @@ class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initCharts(): void {
-    if (this.appointmentsChartRef && !this.chartAppointments) this.chartAppointments = echarts.init(this.appointmentsChartRef.nativeElement);
-    if (this.revenueChartRef && !this.chartRevenue) this.chartRevenue = echarts.init(this.revenueChartRef.nativeElement);
-    if (this.specialtyChartRef && !this.chartSpecialty) this.chartSpecialty = echarts.init(this.specialtyChartRef.nativeElement);
-    if (this.doctorChartRef && !this.chartDoctor) this.chartDoctor = echarts.init(this.doctorChartRef.nativeElement);
-    if (this.heatmapChartRef && !this.chartHeatmap) this.chartHeatmap = echarts.init(this.heatmapChartRef.nativeElement);
-    if (this.j48ClassChartRef && !this.chartJ48Class) this.chartJ48Class = echarts.init(this.j48ClassChartRef.nativeElement);
-    if (this.j48MonthlyChartRef && !this.chartJ48Monthly) this.chartJ48Monthly = echarts.init(this.j48MonthlyChartRef.nativeElement);
+    const echarts = this.echartsNs;
+    if (!echarts) return;
+    if (this.appointmentsChartRef && !this.chartAppointments) {
+      this.chartAppointments = echarts.init(this.appointmentsChartRef.nativeElement);
+    }
+    if (this.revenueChartRef && !this.chartRevenue) {
+      this.chartRevenue = echarts.init(this.revenueChartRef.nativeElement);
+    }
+    if (this.specialtyChartRef && !this.chartSpecialty) {
+      this.chartSpecialty = echarts.init(this.specialtyChartRef.nativeElement);
+    }
+    if (this.doctorChartRef && !this.chartDoctor) {
+      this.chartDoctor = echarts.init(this.doctorChartRef.nativeElement);
+    }
+    if (this.heatmapChartRef && !this.chartHeatmap) {
+      this.chartHeatmap = echarts.init(this.heatmapChartRef.nativeElement);
+    }
+    if (this.j48ClassChartRef && !this.chartJ48Class) {
+      this.chartJ48Class = echarts.init(this.j48ClassChartRef.nativeElement);
+    }
+    if (this.j48MonthlyChartRef && !this.chartJ48Monthly) {
+      this.chartJ48Monthly = echarts.init(this.j48MonthlyChartRef.nativeElement);
+    }
   }
 
   private readonly onResize = () => {

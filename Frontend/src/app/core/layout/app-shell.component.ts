@@ -1,11 +1,10 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { catchError, of } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { UserRole } from '../models/user-role.model';
 import { AuthService } from '../services/auth.service';
-import { AuthApiService } from '../services/auth-api.service';
+import { TokenStorageService } from '../services/token-storage.service';
 import { loadPatients } from '../../store/patients.actions';
 import { selectSelectedPatient } from '../../store/patients.selectors';
 import { PUBLIC_SITE_URL } from '../config/public-site.config';
@@ -255,25 +254,22 @@ export class AppShellComponent {
 
   constructor(
     authService: AuthService,
-    private readonly authApi: AuthApiService,
+    private readonly tokenStorage: TokenStorageService,
     private readonly router: Router
   ) {
     this.activeRoles.set(authService.getRoles());
-    this.store.dispatch(loadPatients());
-    const siteId = authService.getSiteId();
-    if (siteId) {
-      this.authApi
-        .getSites$()
-        .pipe(catchError(() => of([])))
-        .subscribe((sites) => {
-          const match = sites.find((s) => s.id === siteId);
-          this.activeSiteName.set(match?.name ?? `Sede ${siteId.slice(0, 8)}…`);
-        });
+
+    const cachedSite = this.tokenStorage.getActiveSiteName();
+    if (cachedSite) {
+      this.activeSiteName.set(cachedSite);
     }
+
+    // Catálogo de pacientes en segundo plano (no bloquea entrada al dashboard).
+    setTimeout(() => this.store.dispatch(loadPatients()), 2500);
   }
 
   protected logout(): void {
-    this.authApi.logout();
+    this.tokenStorage.clear();
     this.router.navigateByUrl('/login');
   }
 }

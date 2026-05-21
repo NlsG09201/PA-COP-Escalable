@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
+import { SKIP_GLOBAL_LOADER } from '../http/skip-global-loader.http';
 
 export type ArffFeatureField = {
   key: string;
@@ -95,19 +96,19 @@ export class WekaLabApiService {
   constructor(private readonly http: HttpClient) {}
 
   dashboard$(): Observable<WekaDashboard> {
-    return this.http.get<WekaDashboard>(`${API_BASE_URL}/api/weka-lab/dashboard`);
+    return this.http.get<WekaDashboard>(`${API_BASE_URL}/api/weka-lab/dashboard`, SKIP_GLOBAL_LOADER);
   }
 
   models$(): Observable<WekaModelRow[]> {
-    return this.http.get<WekaModelRow[]>(`${API_BASE_URL}/api/weka-lab/models`);
+    return this.http.get<WekaModelRow[]>(`${API_BASE_URL}/api/weka-lab/models`, SKIP_GLOBAL_LOADER);
   }
 
   datasets$(): Observable<unknown[]> {
-    return this.http.get<unknown[]>(`${API_BASE_URL}/api/weka-lab/datasets`);
+    return this.http.get<unknown[]>(`${API_BASE_URL}/api/weka-lab/datasets`, SKIP_GLOBAL_LOADER);
   }
 
   datasetSchema$(): Observable<ArffDatasetSchema> {
-    return this.http.get<ArffDatasetSchema>(`${API_BASE_URL}/api/weka-lab/dataset-schema`);
+    return this.http.get<ArffDatasetSchema>(`${API_BASE_URL}/api/weka-lab/dataset-schema`, SKIP_GLOBAL_LOADER);
   }
 
   predictClinical$(payload: ClinicalPredictPayload): Observable<ClinicalPrediction> {

@@ -194,7 +194,12 @@ export class LoginComponent {
     this.authApi.login$(username, password, siteId).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigateByUrl('/app/dashboard');
+        const site = this.allSites.find((s) => s.id === siteId);
+        if (site?.name) {
+          this.tokenStorage.setActiveSiteName(site.name);
+        }
+        void import('../dashboard/dashboard.routes');
+        void this.router.navigateByUrl('/app/dashboard');
       },
       error: () => {
         this.loading = false;

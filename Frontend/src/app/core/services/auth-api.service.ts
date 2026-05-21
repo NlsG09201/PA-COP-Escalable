@@ -2,6 +2,7 @@ import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map, retry, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
+import { SKIP_GLOBAL_LOADER } from '../http/skip-global-loader.http';
 import { TokenStorageService } from './token-storage.service';
 
 export type SiteVm = {
@@ -37,9 +38,9 @@ export class AuthApiService {
   }
 
   getSites$(): Observable<SiteVm[]> {
-    return this.http.get<unknown>(`${API_BASE_URL}/public/sites`).pipe(
+    return this.http.get<unknown>(`${API_BASE_URL}/public/sites`, SKIP_GLOBAL_LOADER).pipe(
       retry({
-        count: 10,
+        count: 2,
         delay: (error: { status?: number }, retryCount) => {
           const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
           if (!isTransient) {
@@ -58,9 +59,9 @@ export class AuthApiService {
   }
 
   getDepartments$(): Observable<string[]> {
-    return this.http.get<{ departments?: string[] }>(`${API_BASE_URL}/public/departments`).pipe(
+    return this.http.get<{ departments?: string[] }>(`${API_BASE_URL}/public/departments`, SKIP_GLOBAL_LOADER).pipe(
       retry({
-        count: 10,
+        count: 2,
         delay: (error: { status?: number }, retryCount) => {
           const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
           if (!isTransient) throw error;
