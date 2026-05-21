@@ -4,31 +4,13 @@ import { Routes } from '@angular/router';
 import {
   ArffDatasetSchema,
   ClinicalPrediction,
+  DEFAULT_ARFF_SCHEMA,
   WekaDashboard,
   WekaLabApiService,
   WekaModelRow,
 } from '../../core/services/weka-lab-api.service';
 import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
 import { WekaClinicalPredictComponent } from './weka-clinical-predict.component';
-
-const DEFAULT_SCHEMA: ArffDatasetSchema = {
-  id: 'builtin-arff',
-  filename: 'relapse_risk_j48.arff',
-  displayName: 'Riesgo de recaída (J48 / ARFF COP)',
-  rows: 15000,
-  target: 'risk_level',
-  classLabels: ['LOW', 'MEDIUM', 'HIGH'],
-  features: [
-    { key: 'gender', label: 'Género', type: 'nominal', options: ['M', 'F', 'O'] },
-    { key: 'age_group', label: 'Grupo de edad', type: 'nominal', options: ['YOUNG_ADULT', 'ADULT', 'SENIOR'] },
-    { key: 'sentiment', label: 'Sentimiento', type: 'nominal', options: ['POSITIVE', 'NEUTRAL', 'NEGATIVE'] },
-    { key: 'wellbeing', label: 'Bienestar', type: 'nominal', options: ['HIGH', 'MEDIUM', 'LOW'] },
-    { key: 'anxiety', label: 'Ansiedad', type: 'numeric', min: 0, max: 1 },
-    { key: 'depression', label: 'Depresión', type: 'numeric', min: 0, max: 1 },
-    { key: 'attendance', label: 'Asistencia', type: 'nominal', options: ['REGULAR', 'IRREGULAR'] },
-    { key: 'days_since_last', label: 'Días sin sesión', type: 'numeric', min: 0, max: 90 },
-  ],
-};
 
 @Component({
   standalone: true,
@@ -184,7 +166,7 @@ class WekaLabPageComponent {
   protected readonly loading = signal(true);
   protected readonly error = signal('');
   protected readonly dash = signal<WekaDashboard | null>(null);
-  protected readonly schema = signal<ArffDatasetSchema>(DEFAULT_SCHEMA);
+  protected readonly schema = signal<ArffDatasetSchema>(DEFAULT_ARFF_SCHEMA);
   protected readonly models = signal<WekaModelRow[]>(WekaLabPageComponent.OFFLINE_MODELS);
 
   constructor() {
@@ -201,7 +183,7 @@ class WekaLabPageComponent {
             rows: d.builtinDataset.rows,
             target: d.builtinDataset.target ?? 'risk_level',
             classLabels: d.builtinDataset.classLabels ?? ['LOW', 'MEDIUM', 'HIGH'],
-            features: d.builtinDataset.features ?? DEFAULT_SCHEMA.features,
+            features: d.builtinDataset.features ?? DEFAULT_ARFF_SCHEMA.features,
           });
         }
         this.loading.set(false);

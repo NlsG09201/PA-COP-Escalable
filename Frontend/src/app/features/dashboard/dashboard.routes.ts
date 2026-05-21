@@ -1,15 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Routes } from '@angular/router';
 import * as echarts from 'echarts';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
+import {
+  ArffDatasetSchema,
+  ClinicalPrediction,
+  DEFAULT_ARFF_SCHEMA,
+  WekaLabApiService,
+  WekaModelRow,
+} from '../../core/services/weka-lab-api.service';
+import { WekaClinicalPredictComponent } from '../weka-lab/weka-clinical-predict.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, WekaClinicalPredictComponent],
   template: `
     <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
       <h4 class="mb-0">Dashboard Analitico</h4>
@@ -47,18 +56,34 @@ import { API_BASE_URL } from '../../core/config/api.config';
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Distribucion por especialidad</h6><div #specialtyChart class="chart-box"></div></div></div></div>
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Rendimiento de medicos</h6><div #doctorChart class="chart-box"></div></div></div></div>
       <div class="col-12"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">Heatmap de citas (dia/hora)</h6><div #heatmapChart class="chart-box chart-heatmap"></div></div></div></div>
-      <div class="col-12 mt-1"><p class="small text-muted mb-2">Modelo J48 (riesgo / agrupación): agregados en servidor — adecuado para volúmenes de miles de predicciones sin transferir fila a fila.</p></div>
+      <div class="col-12 mt-1">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <p class="small text-muted mb-0">
+            Modelo J48 (<code>{{ arffSchema().filename }}</code>): agregados históricos y predicción en vivo con el mismo dataset Weka.
+          </p>
+          <a routerLink="/app/weka-ai-lab" class="btn btn-outline-primary btn-sm">Abrir Weka AI Lab</a>
+        </div>
+      </div>
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">J48 — distribución de clases</h6><div #j48ClassChart class="chart-box"></div></div></div></div>
       <div class="col-lg-6"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="mb-3">J48 — predicciones por mes (rango aplicado)</h6><div #j48MonthlyChart class="chart-box"></div></div></div></div>
     </div>
+
+    <section class="mt-4 pt-2 border-top">
+      <h5 class="h6 mb-3">Predicción J48 en vivo (riesgo de recaída)</h5>
+      <app-weka-clinical-predict
+        [schema]="arffSchema()"
+        [models]="wekaModels()"
+        (predicted)="onJ48Predicted($event)" />
+    </section>
   `,
   styles: [`
     .chart-box { width: 100%; height: 300px; }
     .chart-heatmap { height: 360px; }
   `]
 })
-class DashboardPageComponent implements AfterViewInit, OnDestroy {
+class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
+  private readonly wekaApi = inject(WekaLabApiService);
   @ViewChild('appointmentsChart') private appointmentsChartRef?: ElementRef<HTMLDivElement>;
   @ViewChild('revenueChart') private revenueChartRef?: ElementRef<HTMLDivElement>;
   @ViewChild('specialtyChart') private specialtyChartRef?: ElementRef<HTMLDivElement>;
@@ -89,6 +114,16 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
   private j48Classes: Array<{ label: string; count: number }> = [];
   private j48Monthly: Array<{ bucket: string; total: number }> = [];
 
+  protected readonly arffSchema = signal<ArffDatasetSchema>(DEFAULT_ARFF_SCHEMA);
+  protected readonly wekaModels = signal<WekaModelRow[]>([
+    {
+      id: 'builtin-arff-model',
+      name: 'J48 recaída (ARFF integrado)',
+      version: '1.0.0',
+      isActive: true,
+    },
+  ]);
+
   protected readonly cards = computed(() => {
     if (!this.kpis) return [];
     return [
@@ -99,10 +134,46 @@ class DashboardPageComponent implements AfterViewInit, OnDestroy {
     ];
   });
 
+  ngOnInit(): void {
+    this.wekaApi.datasetSchema$().subscribe({
+      next: (s) => this.arffSchema.set(s),
+      error: () => {},
+    });
+    this.wekaApi.models$().subscribe({
+      next: (rows) => {
+        if (rows?.length) {
+          this.wekaModels.set(rows);
+        }
+      },
+      error: () => {},
+    });
+  }
+
   ngAfterViewInit(): void {
     this.initCharts();
     void this.reload();
     window.addEventListener('resize', this.onResize);
+  }
+
+  protected onJ48Predicted(pred: ClinicalPrediction): void {
+    const label = String(pred.classLabel ?? '').trim() || 'MEDIUM';
+    const row = this.j48Classes.find((c) => c.label === label);
+    if (row) {
+      row.count += 1;
+    } else {
+      this.j48Classes = [...this.j48Classes, { label, count: 1 }];
+    }
+    const bucket = new Date().toISOString().slice(0, 7);
+    const monthRow = this.j48Monthly.find((m) => m.bucket === bucket);
+    if (monthRow) {
+      monthRow.total += 1;
+    } else {
+      this.j48Monthly = [...this.j48Monthly, { bucket, total: 1 }].sort((a, b) =>
+        a.bucket.localeCompare(b.bucket),
+      );
+    }
+    this.initCharts();
+    this.renderCharts();
   }
 
   ngOnDestroy(): void {

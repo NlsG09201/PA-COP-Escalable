@@ -4,29 +4,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   ArffDatasetSchema,
   ClinicalPrediction,
+  DEFAULT_ARFF_SCHEMA,
   WekaLabApiService,
   WekaModelRow,
 } from '../../core/services/weka-lab-api.service';
 import { extractHttpErrorMessage } from '../../core/http/extract-http-error-message';
-
-const DEFAULT_SCHEMA: ArffDatasetSchema = {
-  id: 'builtin-arff',
-  filename: 'relapse_risk_j48.arff',
-  displayName: 'Riesgo de recaída (J48 / ARFF COP)',
-  rows: 15000,
-  target: 'risk_level',
-  classLabels: ['LOW', 'MEDIUM', 'HIGH'],
-  features: [
-    { key: 'gender', label: 'Género', type: 'nominal', options: ['M', 'F', 'O'] },
-    { key: 'age_group', label: 'Grupo de edad', type: 'nominal', options: ['YOUNG_ADULT', 'ADULT', 'SENIOR'] },
-    { key: 'sentiment', label: 'Sentimiento', type: 'nominal', options: ['POSITIVE', 'NEUTRAL', 'NEGATIVE'] },
-    { key: 'wellbeing', label: 'Bienestar', type: 'nominal', options: ['HIGH', 'MEDIUM', 'LOW'] },
-    { key: 'anxiety', label: 'Ansiedad (0–1)', type: 'numeric', min: 0, max: 1 },
-    { key: 'depression', label: 'Depresión (0–1)', type: 'numeric', min: 0, max: 1 },
-    { key: 'attendance', label: 'Asistencia', type: 'nominal', options: ['REGULAR', 'IRREGULAR'] },
-    { key: 'days_since_last', label: 'Días sin última sesión', type: 'numeric', min: 0, max: 90 },
-  ],
-};
 
 @Component({
   selector: 'app-weka-clinical-predict',
@@ -181,7 +163,7 @@ export class WekaClinicalPredictComponent {
   private readonly api = inject(WekaLabApiService);
   private readonly fb = inject(FormBuilder);
 
-  readonly schema = input<ArffDatasetSchema>(DEFAULT_SCHEMA);
+  readonly schema = input<ArffDatasetSchema>(DEFAULT_ARFF_SCHEMA);
   readonly models = input<WekaModelRow[]>([]);
   readonly predicted = output<ClinicalPrediction>();
 
