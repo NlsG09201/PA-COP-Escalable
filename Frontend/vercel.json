@@ -4,11 +4,25 @@
   "installCommand": "node ../scripts/prepare-vercel.mjs Frontend && npm ci",
   "buildCommand": "ng build",
   "outputDirectory": "dist/Frontend/browser",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/render-api/:path*",
+      "destination": "https://pa-cop-escalable.onrender.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/env.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
   ]
 }
