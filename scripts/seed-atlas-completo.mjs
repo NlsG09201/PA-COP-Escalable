@@ -34,13 +34,26 @@ const DEPT_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const out = { pacientes: PATIENT_TARGET, forzarPacientes: false, csv: '' };
+  const out = {
+    pacientes: PATIENT_TARGET,
+    forzarPacientes: false,
+    csv: '',
+    uri: '',
+    adminUser: '',
+    adminPass: '',
+  };
   for (let i = 2; i < argv.length; i++) {
     if (argv[i] === '--forzar-pacientes') out.forzarPacientes = true;
     else if (argv[i] === '--pacientes' && argv[i + 1]) {
-      out.pacientes = Math.max(1, parseInt(argv[++i], 10));
+      out.pacientes = Math.max(0, parseInt(argv[++i], 10));
     } else if (argv[i] === '--csv' && argv[i + 1]) {
       out.csv = argv[++i];
+    } else if (argv[i] === '--uri' && argv[i + 1]) {
+      out.uri = argv[++i];
+    } else if (argv[i] === '--admin-user' && argv[i + 1]) {
+      out.adminUser = argv[++i];
+    } else if (argv[i] === '--admin-password' && argv[i + 1]) {
+      out.adminPass = argv[++i];
     }
   }
   return out;
@@ -246,9 +259,9 @@ async function seedSites(db, orgId) {
   return { created, total, siteByDept };
 }
 
-async function seedAdmin(db, orgId, env) {
-  const username = (env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim().toLowerCase();
-  const password = env.APP_BOOTSTRAP_ADMIN_PASSWORD || '';
+async function seedAdmin(db, orgId, env, cli = {}) {
+  const username = (cli.adminUser || env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim().toLowerCase();
+  const password = cli.adminPass || env.APP_BOOTSTRAP_ADMIN_PASSWORD || '';
   const email = (env.APP_BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
   if (!username || !password) {
     console.warn('[seed] Sin APP_BOOTSTRAP_ADMIN_USERNAME/PASSWORD — omitiendo admin');
@@ -331,11 +344,29 @@ async function seedPatients(db, orgId, siteByDept, opts) {
 async function main() {
   const opts = parseArgs(process.argv);
   const env = loadDotEnv();
-  const uri = resolveMongoUri(env);
+  const uri = opts.uri?.trim() || process.env.MONGODB_URL?.trim() || resolveMongoUri(env);
 
   console.log('[seed] Conectando a Atlas...');
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 60_000 });
-  await client.connect();
+  const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: 60_000,
+    connectTimeoutMS: 60_000,
+  });
+  try {
+    await client.connect();
+    await client.db('admin').command({ ping: 1 });
+  } catch (err) {
+    const msg = err?.message ?? String(err);
+    console.error('\n[seed] No se pudo conectar a MongoDB Atlas.');
+    if (/querySrv|ENOTFOUND|ECONNREFUSED|timed out/i.test(msg)) {
+      console.error(`
+  1. Atlas -> Network Access -> 0.0.0.0/0 Active
+  2. Atlas -> Database -> Connect -> copia la URI y actualiza .env MONGODB_URL
+  3. Comprueba internet/DNS (nslookup cluster0.6oyhyja.mongodb.net)
+  4. Vuelve a ejecutar: .\\deploy\\cargar-atlas-completo.ps1
+`);
+    }
+    throw err;
+  }
 
   const dbName =
     env.MONGODB_DB ||
@@ -357,7 +388,10 @@ async function main() {
   const { created: sitesNew, total: sitesTotal, siteByDept } = await seedSites(db, orgId);
   console.log(`[seed] Sedes: +${sitesNew} nuevas, ${sitesTotal} activas en catálogo`);
 
-  await seedAdmin(db, orgId, env);
+  await seedAdmin(db, orgId, env, {
+    adminUser: opts.adminUser,
+    adminPass: opts.adminPass,
+  });
 
   const { inserted, total } = await seedPatients(db, orgId, siteByDept, opts);
   console.log(`[seed] Pacientes: +${inserted}, total en org: ${total}`);

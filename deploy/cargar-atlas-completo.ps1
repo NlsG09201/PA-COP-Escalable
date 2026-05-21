@@ -13,6 +13,7 @@ if (-not (Test-Path (Join-Path $root '.env'))) {
 }
 
 Write-Host '=== Carga completa a MongoDB Atlas ===' -ForegroundColor Cyan
+Write-Host 'Requisito: Atlas Network Access 0.0.0.0/0 Active y MONGODB_URL en .env' -ForegroundColor DarkGray
 Write-Host '  - Organización COP'
 Write-Host '  - Sedes Colombia (catálogo)'
 Write-Host '  - Usuario admin (APP_BOOTSTRAP_*)'
