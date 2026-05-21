@@ -239,7 +239,9 @@ export class LoginComponent {
         : '') || (typeof error.error === 'string' ? error.error : '');
 
     if (apiMessage) return apiMessage;
-    if (error.status === 401) return 'Credenciales invalidas. Verifica usuario, contrasena y sede seleccionada.';
+    if (error.status === 401) {
+      return 'Credenciales invalidas. Usa APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de tu .env. Si acabas de desplegar, ejecuta .\\deploy\\reset-admin-atlas.ps1 para crear el admin en Atlas.';
+    }
     if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
     if (error.status === 502 || error.status === 503) {
       return 'El servidor aún no responde (502). Espera unos segundos y recarga la página.';

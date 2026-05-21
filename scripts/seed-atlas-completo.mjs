@@ -257,10 +257,13 @@ async function seedAdmin(db, orgId, env) {
 
   const password_hash = await bcrypt.hash(password, 10);
   const col = db.collection('users');
+  const existing = await col.findOne({ username });
+  const userId = existing?._id ?? toUuid(randomUUID());
   await col.updateOne(
     { username },
     {
       $set: {
+        _id: userId,
         username,
         organization_id: orgId,
         password_hash,
@@ -270,16 +273,20 @@ async function seedAdmin(db, orgId, env) {
         updatedAt: new Date(),
       },
       $setOnInsert: {
-        _id: toUuid(randomUUID()),
         createdAt: new Date(),
       },
     },
     { upsert: true },
   );
-  console.log(`[seed] Admin: ${username}`);
+  console.log(`[seed] Admin: ${username} (password_hash actualizado)`);
 }
 
 async function seedPatients(db, orgId, siteByDept, opts) {
+  if (opts.pacientes <= 0) {
+    console.log('[seed] Pacientes: omitido (--pacientes 0)');
+    return { inserted: 0, total: await db.collection('patients').countDocuments() };
+  }
+
   const col = db.collection('patients');
   const existing = await col.countDocuments({ organization_id: orgId });
   if (existing >= opts.pacientes && !opts.forzarPacientes) {
