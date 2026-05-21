@@ -53,7 +53,20 @@ export class BootstrapAdminService implements OnModuleInit {
     ]);
   }
 
-  private async runBootstrap() {
+  /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */
+  async forceBootstrapAdmin(): Promise<{ username: string; action: 'created' | 'reset' | 'skipped' }> {
+    await this.waitForMongo();
+    const prev = process.env.APP_BOOTSTRAP_ADMIN_RESET;
+    process.env.APP_BOOTSTRAP_ADMIN_RESET = 'true';
+    try {
+      return await this.runBootstrap();
+    } finally {
+      if (prev === undefined) delete process.env.APP_BOOTSTRAP_ADMIN_RESET;
+      else process.env.APP_BOOTSTRAP_ADMIN_RESET = prev;
+    }
+  }
+
+  private async runBootstrap(): Promise<{ username: string; action: 'created' | 'reset' | 'skipped' }> {
     const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
     const password = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
     const orgId = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID;
@@ -63,11 +76,11 @@ export class BootstrapAdminService implements OnModuleInit {
 
     if (!usernameRaw || !password || !orgId) {
       this.logger.warn('Bootstrap admin disabled: set APP_BOOTSTRAP_ADMIN_USERNAME/PASSWORD/ORG_ID');
-      return;
+      return { username: '', action: 'skipped' };
     }
 
     const username = usernameRaw.toLowerCase().trim();
-    if (!username) return;
+    if (!username) return { username: '', action: 'skipped' };
 
     const bootstrapRoles = [SUPER_ADMIN_ROLE, 'ADMIN'];
 
@@ -88,6 +101,8 @@ export class BootstrapAdminService implements OnModuleInit {
           },
         ).exec();
         this.logger.warn(`Bootstrap admin password reset (${SUPER_ADMIN_ROLE}): ${username}`);
+        if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
+        return { username, action: 'reset' };
       } else {
         const merged = new Set<string>([...(Array.isArray(existing.roles) ? existing.roles : []), ...bootstrapRoles]);
         await this.users.updateOne(
@@ -101,6 +116,8 @@ export class BootstrapAdminService implements OnModuleInit {
           },
         ).exec();
         this.logger.log(`Bootstrap admin exists (roles ensured): ${username}`);
+        if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
+        return { username, action: 'skipped' };
       }
     } else {
       const password_hash = await bcrypt.hash(password, 10);
@@ -121,10 +138,8 @@ export class BootstrapAdminService implements OnModuleInit {
         { upsert: true },
       ).exec();
       this.logger.log(`Bootstrap admin created (${SUPER_ADMIN_ROLE}): ${username}`);
-    }
-
-    if (enforceSoleAdmin) {
-      await this.demoteOtherElevatedUsers(username);
+      if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
+      return { username, action: 'created' };
     }
   }
 

@@ -22,6 +22,7 @@ $keys = @(
   'APP_BOOTSTRAP_ADMIN_USERNAME', 'APP_BOOTSTRAP_ADMIN_PASSWORD',
   'APP_BOOTSTRAP_ADMIN_EMAIL', 'APP_BOOTSTRAP_ADMIN_ORG_ID',
   'APP_BOOTSTRAP_ADMIN_RESET', 'APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN',
+  'SETUP_ADMIN_SECRET',
   'PUBLIC_API_ORIGIN', 'DASHBOARD_URL', 'PUBLIC_SITE_URL',
   'VERCEL_PUBLIC_WEB_URL', 'VERCEL_DASHBOARD_URL',
   'CORS_ALLOW_VERCEL', 'CORS_ORIGINS', 'J48_URL', 'SEED_COLOMBIA_SITES',
@@ -75,6 +76,10 @@ $lines += "CORS_ORIGINS=$($origins -join ',')"
 
 if (-not ($lines | Where-Object { $_ -match '^\s*PUBLIC_API_ORIGIN\s*=' })) {
   $lines += "PUBLIC_API_ORIGIN=$defaultApiOrigin"
+}
+
+if (-not ($lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=' })) {
+  $lines += 'SETUP_ADMIN_SECRET=cop-atlas-setup-2026'
 }
 
 # Evita REDIS_URL en el bundle salvo flag explicito (Blueprint cop-redis en Render)
