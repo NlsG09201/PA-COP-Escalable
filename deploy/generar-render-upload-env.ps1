@@ -2,8 +2,12 @@
 # Render: "Add Environment Variable" → "From .env" / pegar archivo completo.
 #
 #   .\deploy\generar-render-upload-env.ps1
+#   .\deploy\generar-render-upload-env.ps1 -IncludeUpstashRedis   # solo si la URI Upstash es valida
+
+param([switch]$IncludeUpstashRedis)
 
 $ErrorActionPreference = 'Stop'
+$defaultApiOrigin = 'https://pa-cop-escalable.onrender.com'
 $root = Split-Path -Parent $PSScriptRoot
 $src = Join-Path $root '.env'
 $dst = Join-Path $PSScriptRoot 'render-upload.env'
@@ -13,7 +17,7 @@ if (-not (Test-Path $src)) {
 }
 
 $keys = @(
-  'NODE_ENV', 'MONGODB_URL', 'MONGODB_PASSWORD', 'REDIS_URL',
+  'NODE_ENV', 'MONGODB_URL', 'MONGODB_PASSWORD',
   'JWT_SECRET', 'JWT_ACCESS_EXPIRES',
   'APP_BOOTSTRAP_ADMIN_USERNAME', 'APP_BOOTSTRAP_ADMIN_PASSWORD',
   'APP_BOOTSTRAP_ADMIN_EMAIL', 'APP_BOOTSTRAP_ADMIN_ORG_ID',
@@ -24,10 +28,13 @@ $keys = @(
   'GOOGLE_CLIENT_ID', 'AI_RELAPSE_URL', 'AI_DIAGNOSIS_URL', 'AI_EMOTION_URL',
   'OPENAI_API_KEY', 'OPENAI_MODEL'
 )
+if ($IncludeUpstashRedis) {
+  $keys = @('REDIS_URL') + $keys
+}
 
 $lines = @(
-  '# Importar en Render: cop-nest-api -> Environment -> Add -> From .env file',
-  '# Luego borra REDIS_URL si tiene your-instance.upstash.io (duplicado viejo)',
+  '# Importar en Render: servicio API (pa-cop-escalable o cop-nest-api) -> Environment',
+  '# REDIS: no incluir REDIS_URL aqui si usas cop-redis del Blueprint (evita WRONGPASS con Upstash viejo)',
   ''
 )
 
@@ -66,6 +73,15 @@ foreach ($o in @($vercelPublic, 'https://cop-web-public.onrender.com', 'https://
 $lines = @($lines | Where-Object { $_ -notmatch '^\s*CORS_ORIGINS\s*=' })
 $lines += "CORS_ORIGINS=$($origins -join ',')"
 
+if (-not ($lines | Where-Object { $_ -match '^\s*PUBLIC_API_ORIGIN\s*=' })) {
+  $lines += "PUBLIC_API_ORIGIN=$defaultApiOrigin"
+}
+
+# Evita REDIS_URL en el bundle salvo flag explicito (Blueprint cop-redis en Render)
+if (-not $IncludeUpstashRedis) {
+  $lines = $lines | Where-Object { $_ -notmatch '^\s*REDIS_URL\s*=' }
+}
+
 $lines | Set-Content -Path $dst -Encoding UTF8
 Write-Host "Creado: $dst"
 Write-Host "  CORS_ORIGINS incluye: $vercelPublic"
@@ -74,5 +90,6 @@ Write-Host "Siguiente paso en Render:"
 Write-Host "  1. cop-nest-api -> Environment"
 Write-Host "  2a. Secret Files -> Add -> filename: cop-production.env -> pegar contenido de render-upload.env"
 Write-Host "  2b. O Environment -> From .env -> render-upload.env"
-Write-Host "  3. Elimina REDIS_URL vieja si sigue con your-instance.upstash.io"
-Write-Host "  4. Save Changes -> Manual Deploy"
+Write-Host "  3. En Render BORRA REDIS_URL manual si ves WRONGPASS en logs (usa cop-redis del Blueprint)"
+Write-Host "  4. API publica: $defaultApiOrigin"
+Write-Host "  5. Save Changes -> Manual Deploy"

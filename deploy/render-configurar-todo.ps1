@@ -9,7 +9,8 @@
 param(
   [string]$ApiKey = $env:RENDER_API_KEY,
   [switch]$SkipDeploy,
-  [switch]$NestOnly
+  [switch]$NestOnly,
+  [switch]$WithUpstashRedis
 )
 
 $ErrorActionPreference = 'Stop'
@@ -94,7 +95,7 @@ function Invoke-RenderDeploy([string]$ServiceId, [string]$Name) {
 
 $apiUrl = Get-DotEnvValue 'PUBLIC_API_ORIGIN'
 if (-not $apiUrl) { $apiUrl = Get-DotEnvValue 'NEXT_PUBLIC_API_URL' }
-if (-not $apiUrl) { $apiUrl = 'https://cop-nest-api.onrender.com' }
+if (-not $apiUrl) { $apiUrl = 'https://pa-cop-escalable.onrender.com' }
 
 $redisUrl = Get-DotEnvValue 'REDIS_URL'
 $mongoUri = Get-DotEnvValue 'MONGODB_URL'
@@ -109,11 +110,12 @@ if (-not $aiRelapse) { $aiRelapse = 'https://cop-recommendation-engine.onrender.
 $j48Url = Get-DotEnvValue 'J48_URL'
 if (-not $j48Url) { $j48Url = 'https://cop-j48-python.onrender.com' }
 
-# --- cop-nest-api ---
-Write-Host "`n=== cop-nest-api ==="
+# --- API Nest (nombre en dashboard: cop-nest-api o pa-cop-escalable) ---
+Write-Host "`n=== API Nest (Render) ==="
 $nestId = Get-RenderServiceId 'cop-nest-api'
+if (-not $nestId) { $nestId = Get-RenderServiceId 'pa-cop-escalable' }
 if (-not $nestId) {
-  Write-Warning "cop-nest-api no existe en Render. Crea el Blueprint primero."
+  Write-Warning "No se encontro cop-nest-api ni pa-cop-escalable. Crea el Blueprint o revisa el nombre del servicio."
 } else {
   Write-Host "  id: $nestId"
   Write-Host "  Secret File cop-production.env..."
@@ -124,8 +126,12 @@ if (-not $nestId) {
 
   Remove-RenderEnvVar $nestId 'REDIS_URL'
   if ($mongoPass) { Set-RenderEnvVar $nestId 'MONGODB_PASSWORD' $mongoPass }
-  if ($redisUrl -and $redisUrl -notmatch 'your-instance\.upstash\.io') {
+  if (
+    $WithUpstashRedis -and $redisUrl -and $redisUrl -notmatch 'your-instance\.upstash\.io'
+  ) {
     Set-RenderEnvVar $nestId 'REDIS_URL' $redisUrl
+  } else {
+    Write-Host '    REDIS_URL omitida (usa cop-redis del Blueprint; evita WRONGPASS de Upstash viejo)'
   }
 
   $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content $uploadEnv -Raw)))

@@ -23,7 +23,7 @@ Write-Host '=== 2/4 COP_PRODUCTION_ENV_B64 (portapapeles) ===' -ForegroundColor 
 Write-Host '=== 3/4 Preparar Vercel (env.js + vercel.json con proxy) ===' -ForegroundColor Cyan
 $env:VERCEL = '1'
 $env:VERCEL_URL = 'pa-cop-escalable-2qx1.vercel.app'
-$env:RENDER_API_HOST = 'cop-nest-api.onrender.com'
+$env:RENDER_API_HOST = 'pa-cop-escalable.onrender.com'
 $env:PUBLIC_SITE_URL = 'https://pa-cop-escalable-2qx1.vercel.app'
 $env:VERCEL_API_PROXY = 'true'
 
@@ -75,6 +75,6 @@ Tras el deploy:
 
 '@
 
-curl.exe -sI "https://cop-nest-api.onrender.com/health/live" 2>$null |
+curl.exe -sI "https://pa-cop-escalable.onrender.com/health/live" 2>$null |
   Select-String -Pattern 'HTTP|x-render' |
   ForEach-Object { Write-Host "API ahora: $_" }

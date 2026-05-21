@@ -5,8 +5,11 @@ Si ves alguno de estos mensajes en logs de **cop-nest-api**:
 - `Bootstrap admin omitido (Mongo no conectado): Operation users.findOne() buffering timed out`
 - `MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster`
 - `MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0`
+- `MongoDB TLS/SSL Error` / `tlsv1 alert internal error` / `SSL alert number 80`
 
-casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `0.0.0.0/0` aún en **Pending**. La API puede arrancar pero Mongo y el bootstrap admin fallan hasta que Atlas permita Render.
+casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `0.0.0.0/0` aún en **Pending**. La API puede arrancar (`Application is running`) pero Mongo y el bootstrap admin fallan hasta que Atlas permita Render.
+
+**URL del API en Render:** si los logs dicen `Available at https://pa-cop-escalable.onrender.com`, usa **ese** host en Vercel (`RENDER_API_HOST=pa-cop-escalable.onrender.com`). `cop-nest-api.onrender.com` puede no existir (`no-server`).
 
 ## Arreglo (2 minutos)
 
@@ -28,8 +31,8 @@ No hace falta listar IPs de Render una por una; `0.0.0.0/0` es lo habitual para 
 
 1. Render → **cop-nest-api** → **Manual Deploy** (no hace falta cambiar código).
 2. Logs: debe aparecer `Application is running on: http://localhost:8080` (o el PORT de Render).
-3. `https://cop-nest-api.onrender.com/health/live` → OK.
-4. `https://cop-nest-api.onrender.com/health` → `mongodb: ok`.
+3. `https://pa-cop-escalable.onrender.com/health/live` → OK.
+4. `https://pa-cop-escalable.onrender.com/health` → `mongodb: ok`.
 
 ## Si sigue fallando
 

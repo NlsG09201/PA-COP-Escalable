@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/render-api/:path*",
-      "destination": "https://cop-nest-api.onrender.com/:path*"
+      "destination": "https://pa-cop-escalable.onrender.com/:path*"
     },
     {
       "source": "/(.*)",

@@ -3,7 +3,7 @@
  * Genera public/env.js y vercel.json antes del build en Vercel.
  *
  * Variables (Vercel → Settings → Environment Variables, Production):
- *   RENDER_API_HOST  — ej. cop-nest-api.onrender.com (sin https://)
+ *   RENDER_API_HOST  — ej. pa-cop-escalable.onrender.com (sin https://)
  *   API_BASE_URL     — opcional; en Vercel se usa proxy /render-api si VERCEL_API_PROXY≠false
  *   PUBLIC_SITE_URL  — opcional; si falta, se usa https://VERCEL_URL
  *   DASHBOARD_URL    — opcional (omitir placeholders your-*.vercel.app)
@@ -47,7 +47,7 @@ if (!renderApiUrl || renderApiUrl.includes('YOUR_RENDER') || host.includes('YOUR
 [prepare-vercel] Falta la URL del API en Vercel.
 
   Settings → Environment Variables → Production:
-    RENDER_API_HOST = cop-nest-api.onrender.com
+    RENDER_API_HOST = pa-cop-escalable.onrender.com
 
   Root Directory: PublicWeb o Frontend (no la raíz del repo).
   Luego: Deployments → Redeploy.

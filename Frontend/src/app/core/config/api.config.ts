@@ -1,5 +1,5 @@
 const VERCEL_API_PROXY = '/render-api';
-const DEFAULT_RENDER_API = 'https://cop-nest-api.onrender.com';
+const DEFAULT_RENDER_API = 'https://pa-cop-escalable.onrender.com';
 
 function isVercelHost(): boolean {
   return typeof window !== 'undefined' && /\.vercel\.app$/i.test(window.location.hostname);

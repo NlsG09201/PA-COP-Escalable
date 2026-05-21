@@ -2,7 +2,9 @@
 
 ## API caído (`x-render-routing: no-server`)
 
-Si `https://cop-nest-api.onrender.com/health/live` devuelve **404** y la cabecera `x-render-routing: no-server`:
+**URL real del API:** revisa en logs `Available at https://....onrender.com` (ej. `pa-cop-escalable.onrender.com`). Vercel debe usar ese host en `RENDER_API_HOST`, no `cop-nest-api` si ese devuelve `no-server`.
+
+Si `https://pa-cop-escalable.onrender.com/health/live` devuelve **404** y la cabecera `x-render-routing: no-server`:
 
 1. El servicio **no existe** o está **suspendido** en Render.
 2. [Dashboard](https://dashboard.render.com) → **cop-nest-api** → **Resume** o **Manual Deploy**.
