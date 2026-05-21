@@ -2,6 +2,7 @@
 deploy/render-env.local.txt
 deploy/render-upload.env
 deploy/cop-production-env.b64.txt
+deploy/mongo-dump/
 .env.local
 .env.*.local
 *.log

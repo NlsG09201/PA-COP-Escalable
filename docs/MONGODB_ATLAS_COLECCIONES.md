@@ -62,4 +62,12 @@ Tras un deploy local o en Render con `MONGODB_URL` correcta:
 
 ## Migrar datos desde otro cluster
 
-Si ya tienes datos en otro MongoDB, usa **mongodump / mongorestore** o **Atlas Live Migration** desde la consola de Atlas; no está automatizado en este repo.
+Guía paso a paso (local Docker → Atlas): **`docs/CARGAR_DATOS_ATLAS.md`**
+
+Script en Windows:
+
+```powershell
+.\deploy\subir-datos-atlas.ps1
+```
+
+También puedes usar **Atlas Live Migration** en la consola de Atlas si el origen es otro cluster remoto.
