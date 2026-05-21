@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, retry, timer } from 'rxjs';
+import { Observable, catchError, map, of, retry, switchMap, throwError, timer } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStorageService } from './token-storage.service';
 
@@ -93,23 +93,40 @@ export class AuthApiService {
   }
 
   login$(username: string, password: string, siteId: string): Observable<void> {
-    return this.bareHttp
-      .post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, { username, password, siteId })
-      .pipe(
-        retry({
-          count: 2,
-          delay: (error: { status?: number }, retryCount) => {
-            const isTransient = error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
-            if (!isTransient) {
-              throw error;
-            }
-            return timer(800 * retryCount);
-          },
-        }),
-        map((res) => {
-          this.tokenStorage.setTokens(res.accessToken, res.refreshToken);
-        }),
-      );
+    const body = {
+      username: username.trim().toLowerCase(),
+      password: password.trim(),
+      siteId: siteId.trim(),
+    };
+    const postLogin = () =>
+      this.bareHttp.post<LoginResponse>(`${API_BASE_URL}/api/auth/login`, body);
+
+    return postLogin().pipe(
+      retry({
+        count: 2,
+        delay: (error: { status?: number }, retryCount) => {
+          const isTransient =
+            error.status === 0 || error.status === 500 || error.status === 502 || error.status === 503;
+          if (!isTransient) {
+            throw error;
+          }
+          return timer(800 * retryCount);
+        },
+      }),
+      catchError((err: { status?: number }) => {
+        if (err.status !== 401) {
+          return throwError(() => err);
+        }
+        return this.ensureBootstrap$().pipe(
+          catchError(() => of({ ok: false })),
+          switchMap(() => postLogin()),
+          catchError(() => throwError(() => err)),
+        );
+      }),
+      map((res) => {
+        this.tokenStorage.setTokens(res.accessToken, res.refreshToken);
+      }),
+    );
   }
 
   logout(): void {

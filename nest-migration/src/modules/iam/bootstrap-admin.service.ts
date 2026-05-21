@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserAccount } from './user-account.schema';
 import { SUPER_ADMIN_ROLE } from './roles.constants';
 import { extractPasswordHash } from './password-hash.util';
+import { passwordHashFromDoc } from './auth-user.util';
 
 const ELEVATED_ROLES = new Set([SUPER_ADMIN_ROLE, 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN']);
 const MONGO_WAIT_MS = 45_000;
@@ -94,14 +95,7 @@ export class BootstrapAdminService implements OnModuleInit {
     const dupCount = await this.countBootstrapUsernameMatches(username);
     if (dupCount > 1) return true;
 
-    const user = await this.findBootstrapUser(username);
-    if (!user) return true;
-
-    const normalized = extractPasswordHash(user.password_hash);
-    if (!normalized) return true;
-
-    const passwordOk = await bcrypt.compare(password, normalized);
-    return !passwordOk;
+    return !(await this.verifyBootstrapLogin());
   }
 
   async getBootstrapStatus(): Promise<{
@@ -133,16 +127,11 @@ export class BootstrapAdminService implements OnModuleInit {
       .countDocuments({ roles: { $in: [SUPER_ADMIN_ROLE, 'ADMIN'] } })
       .exec();
     const bootstrapDuplicateCount = await this.countBootstrapUsernameMatches(username);
-    const user = await this.findBootstrapUser(username);
-    let bootstrapPasswordMatchesEnv = false;
-    if (user?.password_hash) {
-      const normalized = extractPasswordHash(user.password_hash);
-      bootstrapPasswordMatchesEnv = !!(normalized && (await bcrypt.compare(password, normalized)));
-    }
+    const bootstrapPasswordMatchesEnv = await this.verifyBootstrapLogin();
     return {
       envConfigured: true,
       elevatedCount: elevated,
-      bootstrapUserExists: !!user,
+      bootstrapUserExists: bootstrapDuplicateCount > 0,
       bootstrapPasswordMatchesEnv,
       bootstrapDuplicateCount,
       canAutoRepair: await this.canAutoEnsureBootstrap(),
@@ -157,7 +146,7 @@ export class BootstrapAdminService implements OnModuleInit {
 
     const matches = await this.findAllBootstrapUsers(username);
     for (const user of matches) {
-      const stored = extractPasswordHash(user.password_hash);
+      const stored = passwordHashFromDoc(user);
       if (stored && (await bcrypt.compare(password, stored))) return true;
     }
     return false;
@@ -265,7 +254,7 @@ export class BootstrapAdminService implements OnModuleInit {
     const existing = await col.findOne({ username: usernameRegex });
     const dupCount = await col.countDocuments({ username: usernameRegex });
     const forceReset = opts.reset || dupCount > 1;
-    const existingHash = extractPasswordHash(existing?.password_hash);
+    const existingHash = passwordHashFromDoc(existing ?? {});
     const passwordMatchesEnv =
       !!existingHash && (await bcrypt.compare(opts.password, existingHash));
     const password_hash = passwordMatchesEnv

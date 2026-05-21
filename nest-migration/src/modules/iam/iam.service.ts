@@ -17,18 +17,8 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { extractPasswordHash } from './password-hash.util';
+import { AuthUserDoc, passwordHashFromDoc, usernameFilter } from './auth-user.util';
 import { idVariants } from '../tenancy/tenant-query.util';
-
-type AuthUserDoc = {
-  _id?: unknown;
-  username?: string;
-  email?: string;
-  organization_id?: unknown;
-  roles?: string[];
-  password_hash?: unknown;
-  patient_id?: unknown;
-  mfa_enabled?: boolean;
-};
 
 /** Usuario mínimo para login/JWT (Mongoose lean o colección nativa). */
 type LoginUser = {
@@ -164,8 +154,9 @@ export class IamService {
     const candidates = await this.findUsersForAuth(loginId);
     let user: LoginUser | null = null;
     for (const candidate of candidates) {
-      const storedHash = extractPasswordHash(candidate.password_hash);
-      if (storedHash && (await bcrypt.compare(dto.password, storedHash))) {
+      const storedHash =
+        extractPasswordHash(candidate.password_hash) || passwordHashFromDoc(candidate as AuthUserDoc);
+      if (storedHash && (await bcrypt.compare(dto.password.trim(), storedHash))) {
         user = candidate;
         break;
       }
@@ -182,21 +173,16 @@ export class IamService {
    * Evita 401 cuando hay duplicados por seed y findOne devolvía uno sin hash válido.
    */
   private async findUsersForAuth(loginId: string): Promise<LoginUser[]> {
-    const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const usernameRegex = new RegExp(`^${escaped}$`, 'i');
-    const filter = {
-      $or: [
-        { username: usernameRegex },
-        ...(loginId.includes('@') ? [{ email: usernameRegex }] : []),
-      ],
-    };
+    const filter = usernameFilter(loginId);
 
     const seen = new Set<string>();
     const out: LoginUser[] = [];
 
     const push = (raw: AuthUserDoc | null | undefined) => {
-      if (!raw || !extractPasswordHash(raw.password_hash)) return;
-      const u = this.toLoginUser(raw, loginId);
+      if (!raw) return;
+      const hash = passwordHashFromDoc(raw);
+      if (!hash) return;
+      const u = this.toLoginUser(raw, loginId, hash);
       const key = `${u._id}:${u.username}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -214,21 +200,18 @@ export class IamService {
       push(doc as AuthUserDoc);
     };
 
-    fromLean(await this.userModel.findOne({ username: loginId }).lean().exec());
-    if (loginId.includes('@')) {
-      fromLean(await this.userModel.findOne({ email: loginId }).lean().exec());
-    }
+    fromLean(await this.userModel.findOne(filter as Record<string, unknown>).lean().exec());
 
     return out;
   }
 
-  private toLoginUser(raw: AuthUserDoc, loginId: string): LoginUser {
+  private toLoginUser(raw: AuthUserDoc, loginId: string, normalizedHash?: string): LoginUser {
     return {
       _id: this.asStringId(raw._id),
       username: String(raw.username ?? loginId).toLowerCase(),
       organization_id: this.asStringId(raw.organization_id),
       roles: Array.isArray(raw.roles) ? raw.roles.map(String) : [],
-      password_hash: raw.password_hash,
+      password_hash: normalizedHash ?? passwordHashFromDoc(raw),
       patient_id: raw.patient_id ? this.asStringId(raw.patient_id) : undefined,
       mfa_enabled: !!raw.mfa_enabled,
     };

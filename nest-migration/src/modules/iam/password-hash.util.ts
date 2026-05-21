@@ -10,12 +10,17 @@ export function extractPasswordHash(hash: unknown): string {
 
   if (typeof hash === 'object') {
     const o = hash as Record<string, unknown>;
+    // BSON Binary (driver MongoDB)
+    if (typeof o.sub_type === 'number' && Buffer.isBuffer(o.buffer)) {
+      const s = Buffer.from(o.buffer as Uint8Array).toString('utf8');
+      if (s.startsWith('$2')) return s;
+    }
     if (typeof o.toString === 'function') {
       const s = String(o);
       if (s.startsWith('$2')) return s;
     }
     if (Buffer.isBuffer(o.buffer)) {
-      return Buffer.from(o.buffer).toString('utf8');
+      return Buffer.from(o.buffer as Uint8Array).toString('utf8');
     }
   }
 
