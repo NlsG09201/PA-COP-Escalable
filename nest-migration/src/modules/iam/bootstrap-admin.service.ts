@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, ConnectionStates, Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
 import { UserAccount } from './user-account.schema';
 import { SUPER_ADMIN_ROLE } from './roles.constants';
 
@@ -169,64 +170,83 @@ export class BootstrapAdminService implements OnModuleInit {
     if (!username) return { username: '', action: 'skipped' };
 
     const bootstrapRoles = [SUPER_ADMIN_ROLE, 'ADMIN'];
+    const action = await this.upsertBootstrapUserNative({
+      username,
+      password,
+      orgId,
+      email,
+      roles: bootstrapRoles,
+      reset,
+    });
 
-    const existing = await this.users.findOne({ username }).exec();
-    if (existing) {
-      if (reset) {
-        const password_hash = await bcrypt.hash(password, 10);
-        await this.users.updateOne(
-          { username },
-          {
-            $set: {
-              password_hash,
-              organization_id: orgId,
-              roles: bootstrapRoles,
-              mfa_enabled: false,
-              ...(email ? { email } : {}),
-            },
-          },
-        ).exec();
-        this.logger.warn(`Bootstrap admin password reset (${SUPER_ADMIN_ROLE}): ${username}`);
-        if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
-        return { username, action: 'reset' };
-      } else {
-        const merged = new Set<string>([...(Array.isArray(existing.roles) ? existing.roles : []), ...bootstrapRoles]);
-        await this.users.updateOne(
-          { username },
-          {
-            $set: {
-              roles: Array.from(merged),
-              organization_id: orgId,
-              ...(email ? { email } : {}),
-            },
-          },
-        ).exec();
-        this.logger.log(`Bootstrap admin exists (roles ensured): ${username}`);
-        if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
-        return { username, action: 'skipped' };
-      }
+    if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
+    if (action === 'reset') {
+      this.logger.warn(`Bootstrap admin password reset (${SUPER_ADMIN_ROLE}): ${username}`);
+    } else if (action === 'created') {
+      this.logger.log(`Bootstrap admin created (${SUPER_ADMIN_ROLE}): ${username}`);
     } else {
-      const password_hash = await bcrypt.hash(password, 10);
-      await this.users.updateOne(
-        { username },
+      this.logger.log(`Bootstrap admin exists (roles ensured): ${username}`);
+    }
+    return { username, action };
+  }
+
+  /** Escritura en colección nativa (compatible con login y seeds Atlas con _id string). */
+  private async upsertBootstrapUserNative(opts: {
+    username: string;
+    password: string;
+    orgId: string;
+    email: string;
+    roles: string[];
+    reset: boolean;
+  }): Promise<'created' | 'reset' | 'skipped'> {
+    const col = this.mongo.db.collection('users');
+    const existing = await col.findOne({
+      username: { $regex: new RegExp(`^${opts.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+    });
+    const password_hash = await bcrypt.hash(opts.password, 10);
+
+    if (existing && !opts.reset) {
+      const merged = new Set<string>([
+        ...(Array.isArray(existing.roles) ? existing.roles.map(String) : []),
+        ...opts.roles,
+      ]);
+      await col.updateOne(
+        { _id: existing._id },
         {
-          $setOnInsert: {
-            username,
-            organization_id: orgId,
-            roles: bootstrapRoles,
-            mfa_enabled: false,
-            ...(email ? { email } : {}),
-          },
           $set: {
-            password_hash,
+            username: opts.username,
+            organization_id: opts.orgId,
+            roles: Array.from(merged),
+            mfa_enabled: false,
+            ...(opts.email ? { email: opts.email } : {}),
+            updatedAt: new Date(),
           },
         },
-        { upsert: true },
-      ).exec();
-      this.logger.log(`Bootstrap admin created (${SUPER_ADMIN_ROLE}): ${username}`);
-      if (enforceSoleAdmin) await this.demoteOtherElevatedUsers(username);
-      return { username, action: 'created' };
+      );
+      return 'skipped';
     }
+
+    const isNew = !existing;
+    await col.updateOne(
+      { username: opts.username },
+      {
+        $set: {
+          username: opts.username,
+          organization_id: opts.orgId,
+          password_hash,
+          roles: opts.roles,
+          mfa_enabled: false,
+          ...(opts.email ? { email: opts.email } : {}),
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          _id: uuidv4(),
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+    return isNew ? 'created' : 'reset';
   }
 
   /** Deja SUPER_ADMIN/ADMIN solo en el usuario bootstrap configurado. */

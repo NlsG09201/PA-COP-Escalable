@@ -30,26 +30,26 @@ o carga completa:
 
 ## Opción B — Reparar admin en Render (sin Mongo local)
 
-1. Generar env:
-
 ```powershell
-.\deploy\generar-render-upload-env.ps1
+.\deploy\generar-render-upload-env.ps1   # opcional, regenera render-upload.env
+.\deploy\opcion-b-render.ps1             # tras importar env + Manual Deploy
 ```
 
-2. En Render (`pa-cop-escalable`) → **Environment**:
+1. Render (`pa-cop-escalable`) → **Environment** → importar `deploy/render-upload.env` (o pegar variables):
    - `APP_BOOTSTRAP_ADMIN_USERNAME=nelsonherazoi`
    - `APP_BOOTSTRAP_ADMIN_PASSWORD=Nelson09092001`
    - `APP_BOOTSTRAP_ADMIN_ORG_ID=be7f4015-67ad-472b-9cf7-aadcd8b0d604`
    - `APP_BOOTSTRAP_ADMIN_RESET=true`
-   - `SETUP_ADMIN_SECRET=cop-atlas-setup-2026` (si usas setup-bootstrap)
-3. **Manual Deploy**
-4. Tras desplegar el código con `ensure-bootstrap`:
+   - `SETUP_ADMIN_SECRET=cop-atlas-setup-2026`
+   - `MONGODB_PASSWORD=Nelson09092001`
+2. **Save** → **Manual Deploy** (obligatorio: sin redeploy Render sigue con la contraseña antigua)
+3. Cuando el servicio esté **Live**:
 
 ```powershell
 .\deploy\crear-admin-render.ps1
 ```
 
-Ese script llama primero `POST /api/auth/ensure-bootstrap` (sin secreto si no hay admin o la contraseña del bootstrap no cuadra) y luego `setup-bootstrap` con secretos habituales.
+4. Login: `nelsonherazoi` / `Nelson09092001` + sede en el panel.
 
 ## Opción C — Solo Render (secreto distinto)
 
