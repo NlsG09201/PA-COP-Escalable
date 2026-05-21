@@ -974,8 +974,13 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   }
 
   protected loadPlans(patientId: string) {
-    this.odontologyApi.getPatientPlans$(patientId).subscribe((plans) => {
-      this.treatmentPlans.set(plans);
+    this.odontologyApi.getPatientPlans$(patientId).subscribe({
+      next: (plans) => {
+        this.treatmentPlans.set(Array.isArray(plans) ? plans : []);
+      },
+      error: () => {
+        this.treatmentPlans.set([]);
+      }
     });
   }
 
@@ -1135,7 +1140,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
         this.applyToothUpdate({
           ...optimistic,
           ...saved,
-          history: saved.history.length > 0 ? saved.history : optimistic.history
+          history: (saved.history?.length ?? 0) > 0 ? saved.history! : optimistic.history
         });
         this.saving.set(false);
       });
@@ -1240,6 +1245,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
       const base = map.get(tooth) ?? buildDefaultRecords().find((record) => record.tooth === tooth)!;
       return {
         ...base,
+        damages: base.damages ?? [],
         x: baseX,
         y,
         row
@@ -1277,7 +1283,7 @@ export class AdvancedOdontogramPageComponent implements AfterViewInit, OnDestroy
   private syncForm(): void {
     const selected = this.selectedRecord();
     if (!selected) return;
-    this.selectedDamages.set([...selected.damages]);
+    this.selectedDamages.set([...(selected.damages ?? [])]);
     this.toothForm.patchValue(
       {
         status: selected.status,

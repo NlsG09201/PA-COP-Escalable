@@ -15,13 +15,13 @@ export class OdontogramController {
   constructor(private readonly service: OdontogramService) {}
 
   @Get(':patientId')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'ODONTOLOGO', 'PSICOLOGO')
   async getByPatient(@Param('patientId') patientId: string, @Req() req) {
     return this.service.getOrCreate(patientId, req.tenant);
   }
 
   @Patch(':patientId')
-  @Roles('ADMIN', 'MEDICO', 'PROFESSIONAL')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'ODONTOLOGO', 'PSICOLOGO')
   async patch(@Param('patientId') patientId: string, @Body() body: any, @Req() req) {
     return this.service.patch(patientId, body, req.tenant);
   }

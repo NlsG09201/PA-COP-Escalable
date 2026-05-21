@@ -245,18 +245,22 @@ export class Ortho3dService {
         ? { ...(prev as any).reconstructionMeta }
         : {};
 
-    o.orthoSimulation = {
-      ...prev,
-      glbUrl: job.glbPublicUrl,
-      reconstructionMeta: {
-        ...prevMeta,
-        source: 'image-to-3d-external',
-        jobId: String(job._id),
-        externalJobId: job.externalJobId,
+    await this.odontogram.patch(
+      job.patientId,
+      {
+        simulation: {
+          ...prev,
+          glbUrl: job.glbPublicUrl,
+          reconstructionMeta: {
+            ...prevMeta,
+            source: 'image-to-3d-external',
+            jobId: String(job._id),
+            externalJobId: job.externalJobId,
+          },
+        },
       },
-    };
-    o.updatedAt = new Date();
-    await o.save();
+      tenant,
+    );
   }
 
   async getGlbStoragePath(jobId: string, tenant: TenantContext): Promise<string | null> {

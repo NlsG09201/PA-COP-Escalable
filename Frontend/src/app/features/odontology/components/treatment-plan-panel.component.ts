@@ -20,14 +20,14 @@ import { TreatmentPlanVm } from '../../../core/services/odontology-api.service';
             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
             <p class="small text-muted mt-2">Generando plan basado en protocolos...</p>
           </div>
-        } @else if (plans().length === 0) {
+        } @else if ((plans() ?? []).length === 0) {
           <div class="alert alert-light border-dashed text-center py-4">
             <i class="bi bi-clipboard2-plus text-muted h3 d-block mb-2"></i>
             <p class="small text-muted mb-0">No hay planes registrados. Haz clic en "Sugerir Plan" para iniciar.</p>
           </div>
         } @else {
           <div class="plans-accordion mt-2">
-            @for (plan of plans(); track plan.id) {
+            @for (plan of (plans() ?? []); track plan.id) {
               <div class="plan-card mb-3 p-3 border rounded-3 bg-light">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <span class="badge text-bg-primary rounded-pill small">{{ plan.status }}</span>
@@ -96,6 +96,6 @@ export class TreatmentPlanPanelComponent {
   }
 
   getTotal(plan: TreatmentPlanVm): number {
-    return plan.steps.reduce((acc, step) => acc + step.estimatedCost, 0);
+    return (plan.steps ?? []).reduce((acc, step) => acc + step.estimatedCost, 0);
   }
 }

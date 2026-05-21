@@ -155,9 +155,11 @@ export class OdontogramApiService {
   }
 
   private mapOdontogramPayload(raw: unknown): { records: ToothStateVm[]; simulation: OrthodonticSimulationVm | null } {
-    const obj = this.toObject(raw) as OdontogramRaw;
-    const simulation = this.mapSimulation(obj.orthoSimulation);
-    const clinical = obj.clinicalTeeth;
+    const obj = this.toObject(raw) as OdontogramRaw & Record<string, unknown>;
+    const simulation = this.mapSimulation(
+      obj.orthoSimulation ?? obj['ortho_simulation'] ?? obj['orthoSimulation']
+    );
+    const clinical = obj.clinicalTeeth ?? obj['clinical_teeth'];
     if (clinical && typeof clinical === 'object' && clinical !== null) {
       const entries = Object.entries(clinical as Record<string, unknown>).map(([tooth, v]) =>
         this.mapClinicalEntry(tooth, v, obj.updatedAt)
