@@ -28,7 +28,11 @@ if ($setup -notmatch 'HTTP:200') {
 
 Write-Host ''
 Write-Host 'Comprobando login...' -ForegroundColor Cyan
-$loginBody = (@{ username = $username; password = $password } | ConvertTo-Json -Compress)
+$loginBody = (@{
+  username = $username
+  password = $password
+  siteId   = '9b912e9a-b30a-4a0f-87bc-6f99d5de1f7e'
+} | ConvertTo-Json -Compress)
 try {
   $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST -ContentType 'application/json' -Body $loginBody
   Write-Host "Login OK (Render): $($login.user.username)" -ForegroundColor Green

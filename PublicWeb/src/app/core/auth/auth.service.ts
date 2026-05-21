@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, map, of, switchMap, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, switchMap, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { AuthTokenResponse, MeResponse } from './auth.models';
 
@@ -45,16 +45,27 @@ export class AuthService {
   }
 
   login$(payload: { email: string; password: string; siteId?: string }): Observable<MeResponse> {
-    return this.http
-      .post<AuthTokenResponse>(`${this.apiBase}/auth/login`, {
-        username: payload.email,
-        password: payload.password,
-        siteId: payload.siteId,
-      })
-      .pipe(
-        tap((res) => this.setToken(res.accessToken)),
-        switchMap(() => this.loadMe$()),
-      );
+    const body = {
+      username: payload.email.trim(),
+      password: payload.password,
+      siteId: payload.siteId,
+    };
+    const doLogin = () =>
+      this.http.post<AuthTokenResponse>(`${this.apiBase}/auth/login`, body);
+
+    return doLogin().pipe(
+      catchError((err: { status?: number }) => {
+        if (err.status !== 401) {
+          return throwError(() => err);
+        }
+        return this.http.post<{ ok?: boolean }>(`${this.apiBase}/auth/ensure-bootstrap`, {}).pipe(
+          switchMap(() => doLogin()),
+          catchError(() => throwError(() => err)),
+        );
+      }),
+      tap((res) => this.setToken(res.accessToken)),
+      switchMap(() => this.loadMe$()),
+    );
   }
 
   logout$(): Observable<boolean> {
