@@ -17,6 +17,17 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Inject } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
+/** Usuario mínimo para login/JWT (Mongoose lean o colección nativa). */
+type LoginUser = {
+  _id: string;
+  username: string;
+  organization_id: string;
+  roles: string[];
+  password_hash?: unknown;
+  patient_id?: string;
+  mfa_enabled?: boolean;
+};
+
 @Injectable()
 export class IamService {
   constructor(
@@ -143,25 +154,51 @@ export class IamService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokenPair(user as UserAccount, dto.siteId, ip, userAgent);
+    return this.generateTokenPair(user, dto.siteId, ip, userAgent);
   }
 
   /** Mongoose primero; si el seed guardó _id UUID binario, busca en la colección nativa. */
-  private async findUserForAuth(loginId: string): Promise<Record<string, unknown> | null> {
-    let user: Record<string, unknown> | null = (await this.userModel.findOne({ username: loginId }).lean().exec()) as any;
+  private async findUserForAuth(loginId: string): Promise<LoginUser | null> {
+    const fromLean = (doc: unknown): LoginUser | null => {
+      if (!doc || typeof doc !== 'object') return null;
+      const d = doc as Record<string, unknown>;
+      if (!d.password_hash) return null;
+      return {
+        _id: this.asStringId(d._id),
+        username: String(d.username ?? loginId).toLowerCase(),
+        organization_id: this.asStringId(d.organization_id),
+        roles: Array.isArray(d.roles) ? d.roles.map(String) : [],
+        password_hash: d.password_hash,
+        patient_id: d.patient_id ? this.asStringId(d.patient_id) : undefined,
+        mfa_enabled: !!d.mfa_enabled,
+      };
+    };
+
+    let user = fromLean(await this.userModel.findOne({ username: loginId }).lean().exec());
     if (!user && loginId.includes('@')) {
-      user = (await this.userModel.findOne({ email: loginId }).lean().exec()) as any;
+      user = fromLean(await this.userModel.findOne({ email: loginId }).lean().exec());
     }
-    if (user?.password_hash) return user;
+    if (user) return user;
 
     const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const raw = await this.connection.db.collection('users').findOne({
-      $or: [
-        { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-        ...(loginId.includes('@') ? [{ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }] : []),
-      ],
-    });
-    if (!raw) return user;
+    const raw = await this.connection.db
+      .collection<{
+        _id?: unknown;
+        username?: string;
+        email?: string;
+        organization_id?: unknown;
+        roles?: string[];
+        password_hash?: unknown;
+        patient_id?: unknown;
+        mfa_enabled?: boolean;
+      }>('users')
+      .findOne({
+        $or: [
+          { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+          ...(loginId.includes('@') ? [{ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }] : []),
+        ],
+      });
+    if (!raw?.password_hash) return null;
 
     return {
       _id: this.asStringId(raw._id),
@@ -350,7 +387,7 @@ export class IamService {
     return this.generateTokenPair(user, storedToken.site_id, ip, userAgent);
   }
 
-  private async generateTokenPair(user: UserAccount, siteId?: string, ip?: string, userAgent?: string) {
+  private async generateTokenPair(user: LoginUser | UserAccount, siteId?: string, ip?: string, userAgent?: string) {
     const jti = crypto.randomUUID();
     const payload = {
       sub: user.username,

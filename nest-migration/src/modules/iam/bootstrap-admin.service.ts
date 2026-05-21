@@ -135,9 +135,9 @@ export class BootstrapAdminService implements OnModuleInit {
     if (fromMongoose) return fromMongoose;
 
     const raw = await this.mongo.db
-      .collection('users')
+      .collection<{ password_hash?: unknown }>('users')
       .findOne({ username: { $regex: new RegExp(`^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
-    return raw;
+    return raw ?? null;
   }
 
   /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */
