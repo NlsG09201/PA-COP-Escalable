@@ -132,8 +132,16 @@ const vercel = {
       headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
     },
     {
+      source: '/main-*.js',
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
+      source: '/chunk-*.js',
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
       source: '/:path*.js',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
     },
     {
       source: '/:path*.css',
