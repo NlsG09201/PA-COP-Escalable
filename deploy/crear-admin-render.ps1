@@ -55,6 +55,13 @@ Write-Host '  Contrasena: Nelson09092001 (debe coincidir con APP_BOOTSTRAP_ADMIN
 
 Write-Host ''
 Write-Host 'Comprobando login...' -ForegroundColor Cyan
-$body = '{"username":"nelsonherazoi","password":"Nelson09092001"}'
-$login = curl.exe -s -w "`nHTTP:%{http_code}" -X POST "$api/api/auth/login" -H "Content-Type: application/json" -d $body
-Write-Host $login
+$loginBody = @{
+  username = 'nelsonherazoi'
+  password = 'Nelson09092001'
+} | ConvertTo-Json -Compress
+try {
+  $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST -ContentType 'application/json' -Body $loginBody
+  Write-Host "Login OK (Render). Token recibido para $($login.user.username)" -ForegroundColor Green
+} catch {
+  Write-Host "Login fallo: $($_.ErrorDetails.Message)" -ForegroundColor Red
+}

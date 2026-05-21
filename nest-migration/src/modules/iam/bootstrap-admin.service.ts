@@ -71,13 +71,72 @@ export class BootstrapAdminService implements OnModuleInit {
       .exec();
     if (elevated === 0) return true;
 
-    const user = await this.users.findOne({ username }).exec();
-    if (!user?.password_hash) return elevated === 0;
+    const user = await this.findBootstrapUser(username);
+    if (!user) return true;
 
-    const hash = String(user.password_hash);
-    const normalized = hash.startsWith('{bcrypt}') ? hash.slice('{bcrypt}'.length) : hash;
+    const normalized = this.normalizePasswordHash(user.password_hash);
+    if (!normalized) return true;
+
     const passwordOk = await bcrypt.compare(password, normalized);
-    return !passwordOk && elevated <= 1;
+    return !passwordOk;
+  }
+
+  async getBootstrapStatus(): Promise<{
+    envConfigured: boolean;
+    elevatedCount: number;
+    bootstrapUserExists: boolean;
+    bootstrapPasswordMatchesEnv: boolean;
+    canAutoRepair: boolean;
+  }> {
+    const usernameRaw = process.env.APP_BOOTSTRAP_ADMIN_USERNAME;
+    const password = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD;
+    const orgId = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID;
+    const envConfigured = !!(usernameRaw && password && orgId);
+    if (!envConfigured) {
+      return {
+        envConfigured: false,
+        elevatedCount: 0,
+        bootstrapUserExists: false,
+        bootstrapPasswordMatchesEnv: false,
+        canAutoRepair: false,
+      };
+    }
+
+    await this.waitForMongo();
+    const username = usernameRaw.toLowerCase().trim();
+    const elevated = await this.users
+      .countDocuments({ roles: { $in: [SUPER_ADMIN_ROLE, 'ADMIN'] } })
+      .exec();
+    const user = await this.findBootstrapUser(username);
+    let bootstrapPasswordMatchesEnv = false;
+    if (user?.password_hash) {
+      const normalized = this.normalizePasswordHash(user.password_hash);
+      bootstrapPasswordMatchesEnv = !!(normalized && (await bcrypt.compare(password, normalized)));
+    }
+    return {
+      envConfigured: true,
+      elevatedCount: elevated,
+      bootstrapUserExists: !!user,
+      bootstrapPasswordMatchesEnv,
+      canAutoRepair: await this.canAutoEnsureBootstrap(),
+    };
+  }
+
+  private normalizePasswordHash(hash: unknown): string {
+    const h = String(hash ?? '');
+    if (h.startsWith('{bcrypt}')) return h.slice('{bcrypt}'.length);
+    return h;
+  }
+
+  /** Mongoose + colección nativa (sedes seed con _id UUID binario). */
+  private async findBootstrapUser(username: string): Promise<{ password_hash?: unknown } | null> {
+    const fromMongoose = await this.users.findOne({ username }).lean().exec();
+    if (fromMongoose) return fromMongoose;
+
+    const raw = await this.mongo.db
+      .collection('users')
+      .findOne({ username: { $regex: new RegExp(`^${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
+    return raw;
   }
 
   /** Fuerza creación/reset del admin (p. ej. endpoint setup-bootstrap en Render). */

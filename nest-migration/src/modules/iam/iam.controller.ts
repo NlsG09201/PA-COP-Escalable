@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
@@ -59,8 +60,10 @@ export class IamController {
   @ApiOperation({ summary: 'One-time bootstrap admin (requires X-COP-Setup-Secret)' })
   async setupBootstrap(@Headers('x-cop-setup-secret') secret?: string) {
     const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
-    const expected = configured || 'cop-atlas-setup-2026';
-    if (secret !== expected) {
+    const allowed = new Set(
+      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+    );
+    if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
     }
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
@@ -83,9 +86,12 @@ export class IamController {
   async ensureBootstrap() {
     const allowed = await this.bootstrapAdmin.canAutoEnsureBootstrap();
     if (!allowed) {
-      throw new ForbiddenException(
-        'Bootstrap auto-repair not allowed (admin exists with valid password, or APP_BOOTSTRAP_* missing)',
-      );
+      const status = await this.bootstrapAdmin.getBootstrapStatus();
+      throw new ForbiddenException({
+        message:
+          'Bootstrap auto-repair not allowed. Usa la contraseña de APP_BOOTSTRAP_ADMIN_PASSWORD en Render o POST setup-bootstrap.',
+        status,
+      });
     }
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
     return {
@@ -95,6 +101,13 @@ export class IamController {
       message:
         'Admin reparado. Inicia sesión con APP_BOOTSTRAP_ADMIN_USERNAME y APP_BOOTSTRAP_ADMIN_PASSWORD de Render.',
     };
+  }
+
+  @Get('bootstrap-status')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @ApiOperation({ summary: 'Diagnose bootstrap admin / login 401 (no secrets)' })
+  async bootstrapStatus() {
+    return this.bootstrapAdmin.getBootstrapStatus();
   }
 
   @Post('logout')

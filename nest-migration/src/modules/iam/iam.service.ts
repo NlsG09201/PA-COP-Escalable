@@ -137,16 +137,41 @@ export class IamService {
 
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
-    let user = await this.userModel.findOne({ username: loginId }).exec();
-    if (!user && loginId.includes('@')) {
-      user = await this.userModel.findOne({ email: loginId }).exec();
-    }
-    const storedHash = user?.password_hash ? this.normalizeHash(user.password_hash) : '';
+    const user = await this.findUserForAuth(loginId);
+    const storedHash = user?.password_hash ? this.normalizeHash(String(user.password_hash)) : '';
     if (!user || !storedHash || !(await bcrypt.compare(dto.password, storedHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokenPair(user, dto.siteId, ip, userAgent);
+    return this.generateTokenPair(user as UserAccount, dto.siteId, ip, userAgent);
+  }
+
+  /** Mongoose primero; si el seed guardó _id UUID binario, busca en la colección nativa. */
+  private async findUserForAuth(loginId: string): Promise<Record<string, unknown> | null> {
+    let user: Record<string, unknown> | null = (await this.userModel.findOne({ username: loginId }).lean().exec()) as any;
+    if (!user && loginId.includes('@')) {
+      user = (await this.userModel.findOne({ email: loginId }).lean().exec()) as any;
+    }
+    if (user?.password_hash) return user;
+
+    const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const raw = await this.connection.db.collection('users').findOne({
+      $or: [
+        { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+        ...(loginId.includes('@') ? [{ email: { $regex: new RegExp(`^${escaped}$`, 'i') } }] : []),
+      ],
+    });
+    if (!raw) return user;
+
+    return {
+      _id: this.asStringId(raw._id),
+      username: String(raw.username ?? loginId).toLowerCase(),
+      organization_id: this.asStringId(raw.organization_id),
+      roles: Array.isArray(raw.roles) ? raw.roles.map(String) : [],
+      password_hash: raw.password_hash,
+      patient_id: raw.patient_id ? this.asStringId(raw.patient_id) : undefined,
+      mfa_enabled: !!raw.mfa_enabled,
+    };
   }
 
   async logout(authorization?: string) {
