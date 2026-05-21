@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface Finding {
@@ -32,7 +32,9 @@ export class DiagnosisApiService {
   }
 
   getResults$(patientId: string): Observable<DiagnosisResult[]> {
-    return this.http.get<DiagnosisResult[]>(`${API_BASE_URL}/api/diagnosis/patients/${patientId}/results`);
+    return this.http
+      .get<DiagnosisResult[]>(`${API_BASE_URL}/api/diagnosis/patients/${patientId}/results`)
+      .pipe(catchError(() => of([])));
   }
 
   getResult$(resultId: string): Observable<DiagnosisResult> {

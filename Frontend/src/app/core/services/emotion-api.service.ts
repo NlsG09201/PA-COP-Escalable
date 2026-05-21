@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface EmotionPrediction {
@@ -45,6 +45,8 @@ export class EmotionApiService {
   }
 
   getResults$(patientId: string): Observable<EmotionAnalysisResult[]> {
-    return this.http.get<EmotionAnalysisResult[]>(`${API_BASE_URL}/api/emotion/patients/${patientId}/results`);
+    return this.http
+      .get<EmotionAnalysisResult[]>(`${API_BASE_URL}/api/emotion/patients/${patientId}/results`)
+      .pipe(catchError(() => of([])));
   }
 }

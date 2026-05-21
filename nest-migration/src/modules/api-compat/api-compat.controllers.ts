@@ -1,19 +1,21 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../iam/guards/jwt-auth.guard';
+import { ApiCompatService } from './api-compat.service';
 
 /**
- * Temporary compatibility endpoints for Angular features still backed by the legacy API.
- * Returns empty/minimal payloads so the UI loads without 404 spam during Nest migration.
+ * Compatibilidad Angular: datos desde Mongo cuando los microservicios AI no están en Render.
  */
 @ApiTags('compat')
 @ApiBearerAuth()
 @Controller('api/diagnosis')
 @UseGuards(JwtAuthGuard)
 export class DiagnosisCompatController {
+  constructor(private readonly compat: ApiCompatService) {}
+
   @Get('patients/:patientId/results')
-  results() {
-    return [];
+  results(@Param('patientId') patientId: string) {
+    return this.compat.diagnosisResultsForPatient(patientId);
   }
 }
 
@@ -52,9 +54,11 @@ export class PsychologyCompatController {
 @Controller('api/emotion')
 @UseGuards(JwtAuthGuard)
 export class EmotionCompatController {
+  constructor(private readonly compat: ApiCompatService) {}
+
   @Get('patients/:patientId/results')
-  results() {
-    return [];
+  results(@Param('patientId') patientId: string) {
+    return this.compat.emotionResultsForPatient(patientId);
   }
 }
 

@@ -240,7 +240,10 @@ export class LoginComponent {
 
     if (apiMessage) return apiMessage;
     if (error.status === 401) {
-      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e intenta de nuevo.';
+      return (
+        'Usuario, contraseña o sede incorrectos. En producción usa la contraseña de APP_BOOTSTRAP_ADMIN_PASSWORD ' +
+        '(Render) o ejecuta deploy/crear-admin-render.ps1 para alinear nelsonherazoi con la sede del formulario.'
+      );
     }
     if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
     if (error.status === 502 || error.status === 503) {

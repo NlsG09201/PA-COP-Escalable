@@ -12,23 +12,8 @@ import { AiProxyService } from './ai-proxy.service';
 export class AiProxyController {
   constructor(private readonly ai: AiProxyService) {}
 
-  @Get('diagnosis/patients/:patientId/results')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'ODONTOLOGO', 'PSICOLOGO')
-  diagnosis(@Param('patientId') patientId: string) {
-    return this.ai.diagnosisResults(patientId);
-  }
+  /** diagnosis/emotion/therapy: ver ApiCompatModule (Mongo). Evita 503 a hosts Docker inexistentes en Render. */
 
-  @Get('emotion/patients/:patientId/results')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'ODONTOLOGO', 'PSICOLOGO')
-  emotion(@Param('patientId') patientId: string) {
-    return this.ai.emotionResults(patientId);
-  }
-
-  @Get('therapy/modules')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
-  therapyModules() {
-    return this.ai.therapyModules();
-  }
 
   @Get('j48/model/tree')
   @Roles('SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 'MEDICO', 'PROFESSIONAL', 'PSICOLOGO')
