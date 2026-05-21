@@ -19,6 +19,7 @@ WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY nest-migration/package*.json ./
+COPY datasets/relapse_risk_j48.arff ./datasets/relapse_risk_j48.arff
 
 ENV NODE_ENV=production
 EXPOSE 8080

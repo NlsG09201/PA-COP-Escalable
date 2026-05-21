@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
+import { AtlasBulkSeedService } from './atlas-bulk-seed.service';
 
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserAccount, UserAccountSchema } from './user-account.schema';
@@ -41,6 +42,7 @@ import { createRedisClient } from '../../config/redis.client';
     JwtAuthGuard,
     RolesGuard,
     BootstrapAdminService,
+    AtlasBulkSeedService,
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) =>

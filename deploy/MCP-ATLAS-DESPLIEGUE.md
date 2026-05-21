@@ -72,7 +72,22 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000
 - **`count`** por colección
 - **`find`** en `users` con `{ "username": "nelsonherazoi" }`
 
-## 5. Prompt para el agente en Cursor
+## 5. Carga masiva 15.000 pacientes + 15.000 J48
+
+```powershell
+.\deploy\insertar-bulk-15k-mcp.ps1
+```
+
+Genera `deploy/mcp-payloads/bulk/` (30 lotes × 500 `patients` + 30 lotes × 500 `j48_predictions`).
+
+- **Pacientes:** sintéticos (o CSV si `pacientes_colombia_15k.csv` tiene 15k filas).
+- **J48:** `datasets/relapse_risk_j48.arff` (15.000 filas), enlazadas 1:1 con cada paciente.
+
+Con MCP conectado, el agente puede usar `insert-many` por cada `patients-batch-NNN.json` y `j48_predictions-batch-NNN.json`.
+
+Si falla `querySrv` / SSL desde tu PC: Atlas → **Network Access** → `0.0.0.0/0` Active, reinicia MCP (`.\deploy\configurar-mcp-atlas.ps1`).
+
+## 6. Prompt para el agente en Cursor
 
 Copia esto cuando el MCP ya esté conectado:
 

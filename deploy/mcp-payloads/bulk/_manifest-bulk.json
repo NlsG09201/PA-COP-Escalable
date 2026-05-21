@@ -1,0 +1,315 @@
+{
+  "database": "cop",
+  "organization_id": "be7f4015-67ad-472b-9cf7-aadcd8b0d604",
+  "marker": "mcp-bulk-15k",
+  "patients": {
+    "total": 15000,
+    "batches": 30
+  },
+  "j48_predictions": {
+    "total": 15000,
+    "batches": 30
+  },
+  "files": [
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-001.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-002.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-003.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-004.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-005.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-006.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-007.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-008.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-009.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-010.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-011.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-012.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-013.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-014.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-015.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-016.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-017.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-018.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-019.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-020.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-021.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-022.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-023.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-024.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-025.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-026.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-027.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-028.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-029.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\patients-batch-030.json",
+      "collection": "patients",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-001.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-002.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-003.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-004.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-005.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-006.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-007.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-008.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-009.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-010.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-011.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-012.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-013.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-014.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-015.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-016.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-017.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-018.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-019.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-020.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-021.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-022.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-023.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-024.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-025.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-026.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-027.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-028.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-029.json",
+      "collection": "j48_predictions",
+      "count": 500
+    },
+    {
+      "path": "c:\\Users\\nelso\\OneDrive\\Escritorio\\PA COP Escalable\\deploy\\mcp-payloads\\bulk\\j48_predictions-batch-030.json",
+      "collection": "j48_predictions",
+      "count": 500
+    }
+  ]
+}

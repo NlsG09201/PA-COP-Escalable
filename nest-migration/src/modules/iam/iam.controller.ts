@@ -21,6 +21,7 @@ import { RegisterPublicDto } from './dto/register-public.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
+import { AtlasBulkSeedService } from './atlas-bulk-seed.service';
 
 @ApiTags('auth')
 @Controller('api/auth')
@@ -28,6 +29,7 @@ export class IamController {
   constructor(
     private readonly iamService: IamService,
     private readonly bootstrapAdmin: BootstrapAdminService,
+    private readonly atlasBulkSeed: AtlasBulkSeedService,
   ) {}
 
   @Post('register')
@@ -124,6 +126,25 @@ export class IamController {
   @ApiOperation({ summary: 'Diagnose bootstrap admin / login 401 (no secrets)' })
   async bootstrapStatus() {
     return this.bootstrapAdmin.getBootstrapStatus();
+  }
+
+  /** Carga 15.000 pacientes + 15.000 j48_predictions (dataset ARFF) en Atlas. */
+  @Post('seed-bulk-15k')
+  @Throttle({ default: { limit: 2, ttl: 600000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Seed 15k patients + 15k J48 predictions (requires X-COP-Setup-Secret)' })
+  async seedBulk15k(
+    @Headers('x-cop-setup-secret') secret?: string,
+    @Body() body?: { forzar?: boolean },
+  ) {
+    const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
+    const allowed = new Set(
+      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+    );
+    if (!secret || !allowed.has(secret)) {
+      throw new ForbiddenException('Invalid setup secret');
+    }
+    return this.atlasBulkSeed.seedBulk15k({ forzar: !!body?.forzar });
   }
 
   @Post('logout')
