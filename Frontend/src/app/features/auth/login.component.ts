@@ -94,9 +94,6 @@ import { TokenStorageService } from '../../core/services/token-storage.service';
                 @if (errorMessage) {
                   <div class="alert alert-danger py-2" data-testid="login-error-message">{{ errorMessage }}</div>
                 }
-                @if (bootstrapHint) {
-                  <div class="alert alert-warning py-2 small" role="status">{{ bootstrapHint }}</div>
-                }
                 @if (showDevLoginHint) {
                   <div class="alert alert-secondary py-2 small">
                     Modo desarrollo: usa las credenciales de tu entorno local (.env / Docker).
@@ -121,7 +118,6 @@ export class LoginComponent {
   private readonly tokenStorage = inject(TokenStorageService);
 
   protected readonly showDevLoginHint = isDevMode();
-  protected bootstrapHint = '';
 
   protected loading = false;
   protected errorMessage = '';
@@ -145,31 +141,16 @@ export class LoginComponent {
     this.loadSites();
   }
 
+  /** Repara admin en servidor si hace falta, sin mostrar avisos en pantalla. */
   private repairBootstrapIfNeeded(): void {
-    this.authApi.getBootstrapStatus$().subscribe({
-      next: (status) => {
+    this.authApi
+      .getBootstrapStatus$()
+      .pipe(catchError(() => of({ canAutoRepair: false })))
+      .subscribe((status) => {
         if (status.canAutoRepair) {
-          this.bootstrapHint = 'Reparando cuenta de administrador en el servidor…';
-          this.authApi.ensureBootstrap$().subscribe({
-            next: () => {
-              this.bootstrapHint = 'Cuenta admin reparada. Usa usuario y contraseña de Render (APP_BOOTSTRAP_*).';
-            },
-            error: () => {
-              this.bootstrapHint =
-                'No se pudo reparar el admin automáticamente. Ejecuta deploy/crear-admin-render.ps1 o revisa Render → Environment.';
-            },
-          });
-          return;
+          this.authApi.ensureBootstrap$().subscribe({ error: () => {} });
         }
-        const ready =
-          status.adminReady ??
-          (status.bootstrapPasswordMatchesEnv !== false && status.bootstrapUserExists !== false);
-        if (!ready && status.bootstrapPasswordMatchesEnv === false) {
-          this.bootstrapHint =
-            'El admin del servidor no coincide con la contraseña configurada. Ejecuta deploy/crear-admin-render.ps1 o alinea APP_BOOTSTRAP_ADMIN_PASSWORD en Render.';
-        }
-      },
-    });
+      });
   }
 
   protected loadSites(): void {
@@ -268,17 +249,15 @@ export class LoginComponent {
   }
 
   private resolveErrorMessage(error: HttpErrorResponse): string {
-    const apiMessage =
+    const raw =
       (typeof error.error === 'object' && error.error && 'message' in error.error
         ? String(error.error.message)
         : '') || (typeof error.error === 'string' ? error.error : '');
+    const apiMessage = this.sanitizeApiMessage(raw);
 
     if (apiMessage) return apiMessage;
     if (error.status === 401) {
-      return (
-        'Usuario, contraseña o sede incorrectos. En producción usa la contraseña de APP_BOOTSTRAP_ADMIN_PASSWORD ' +
-        '(Render) o ejecuta deploy/crear-admin-render.ps1 para alinear nelsonherazoi con la sede del formulario.'
-      );
+      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e inténtalo de nuevo.';
     }
     if (error.status === 400) return 'Solicitud invalida. Revisa los datos del formulario.';
     if (error.status === 502 || error.status === 503) {
@@ -286,5 +265,20 @@ export class LoginComponent {
     }
     if (error.status === 0) return 'Sin conexión al API. ¿Está corriendo docker compose?';
     return 'No fue posible iniciar sesion en este momento.';
+  }
+
+  /** Oculta mensajes internos de bootstrap/Render en la UI de login. */
+  private sanitizeApiMessage(message: string): string {
+    const m = message.trim();
+    if (!m) return '';
+    if (
+      /APP_BOOTSTRAP|setup-bootstrap|ensure-bootstrap|crear-admin-render|Render →/i.test(m)
+    ) {
+      return '';
+    }
+    if (/Invalid credentials/i.test(m)) {
+      return 'Usuario, contraseña o sede incorrectos. Verifica los datos e inténtalo de nuevo.';
+    }
+    return m;
   }
 }
