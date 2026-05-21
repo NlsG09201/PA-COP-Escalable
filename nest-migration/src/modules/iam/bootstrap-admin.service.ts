@@ -245,9 +245,14 @@ export class BootstrapAdminService implements OnModuleInit {
     const col = this.mongo.db.collection('users');
     const usernameRegex = this.usernameRegex(opts.username);
     const existing = await col.findOne({ username: usernameRegex });
-    const password_hash = await bcrypt.hash(opts.password, 10);
     const dupCount = await col.countDocuments({ username: usernameRegex });
     const forceReset = opts.reset || dupCount > 1;
+    const existingHash = extractPasswordHash(existing?.password_hash);
+    const passwordMatchesEnv =
+      !!existingHash && (await bcrypt.compare(opts.password, existingHash));
+    const password_hash = passwordMatchesEnv
+      ? existingHash
+      : await bcrypt.hash(opts.password, 10);
 
     if (existing && !forceReset) {
       const merged = new Set<string>([

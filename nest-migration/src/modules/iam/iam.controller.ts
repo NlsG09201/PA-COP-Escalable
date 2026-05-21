@@ -128,6 +128,28 @@ export class IamController {
     return this.bootstrapAdmin.getBootstrapStatus();
   }
 
+  /** Pistas públicas para el formulario de login (sin contraseñas). */
+  @Get('login-help')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @ApiOperation({ summary: 'Login form hints (no secrets)' })
+  async loginHelp() {
+    const status = await this.bootstrapAdmin.getBootstrapStatus();
+    const username = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+    const email = String(process.env.APP_BOOTSTRAP_ADMIN_EMAIL ?? '').trim().toLowerCase();
+    const loginIds = [username, email].filter(Boolean);
+    return {
+      loginIds,
+      requireSite: true,
+      adminReady:
+        status.bootstrapUserExists &&
+        status.bootstrapPasswordMatchesEnv &&
+        status.bootstrapDuplicateCount <= 1,
+      bootstrapDuplicateCount: status.bootstrapDuplicateCount,
+      hint:
+        'Usa el usuario admin de Render (APP_BOOTSTRAP_ADMIN_USERNAME o EMAIL). La contraseña es APP_BOOTSTRAP_ADMIN_PASSWORD en Render, no la de tu .env local si difiere. Ejecuta deploy/crear-admin-render.ps1 para sincronizar.',
+    };
+  }
+
   /** Carga 15.000 pacientes + 15.000 j48_predictions (dataset ARFF) en Atlas. */
   @Post('seed-bulk-15k')
   @Throttle({ default: { limit: 2, ttl: 600000 } })
