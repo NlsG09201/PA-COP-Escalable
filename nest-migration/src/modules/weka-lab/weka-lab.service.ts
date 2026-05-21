@@ -14,6 +14,31 @@ import { TenantContext } from '../tenancy/tenancy.interceptor';
 import { TrainWekaModelDto } from './dto/train-weka-model.dto';
 import { ClinicalPredictDto } from './dto/clinical-predict.dto';
 
+/** Dataset ARFF del repo (~15k instancias) — visible sin servicio J48 Python. */
+const BUILTIN_ARFF_DATASET = {
+  id: 'builtin-arff',
+  filename: 'relapse_risk_j48.arff',
+  displayName: 'Riesgo de recaída (ARFF COP)',
+  format: 'arff',
+  rows: 15_000,
+  columns: ['gender', 'age_group', 'sentiment', 'wellbeing', 'attendance', 'class'],
+  defaultTarget: 'class',
+  defaultFeatures: ['gender', 'age_group', 'sentiment', 'wellbeing', 'attendance'],
+  columnTypes: { class: 'nominal' },
+  builtin: true,
+};
+
+const BUILTIN_ARFF_MODEL = {
+  id: 'builtin-arff-model',
+  name: 'J48 recaída (ARFF integrado)',
+  version: '1.0.0',
+  datasetId: 'builtin-arff',
+  engine: 'scikit-learn',
+  isActive: true,
+  metrics: { note: 'Requiere cop-j48-python Live y J48_URL en Render para entrenar/predict' },
+  builtin: true,
+};
+
 @Injectable()
 export class WekaLabService {
   private readonly logger = new Logger(WekaLabService.name);
@@ -77,26 +102,32 @@ export class WekaLabService {
   }
 
   async listDatasets(tenant: TenantContext) {
-    const rows = await this.datasetModel
-      .find({ organizationId: tenant.organizationId })
-      .sort({ created_at: -1 })
-      .lean();
-    if (rows.length) {
-      return rows.map((r) => ({
-        id: r.externalId,
-        filename: r.filename,
-        displayName: r.displayName,
-        format: r.format,
-        rows: r.rows,
-        columns: r.columns,
-        defaultTarget: r.defaultTarget,
-        defaultFeatures: r.defaultFeatures,
-        columnTypes: r.columnTypes,
-        uploadedAt: (r as { created_at?: Date }).created_at,
-      }));
+    try {
+      const rows = await this.datasetModel
+        .find({ organizationId: tenant.organizationId })
+        .sort({ created_at: -1 })
+        .lean();
+      if (rows.length) {
+        return rows.map((r) => ({
+          id: r.externalId,
+          filename: r.filename,
+          displayName: r.displayName,
+          format: r.format,
+          rows: r.rows,
+          columns: r.columns,
+          defaultTarget: r.defaultTarget,
+          defaultFeatures: r.defaultFeatures,
+          columnTypes: r.columnTypes,
+          uploadedAt: (r as { created_at?: Date }).created_at,
+        }));
+      }
+      const remote = await this.labJson<Array<Record<string, unknown>>>('/lab/datasets');
+      if (remote?.length) return remote;
+      return [BUILTIN_ARFF_DATASET];
+    } catch (err) {
+      this.logger.warn(`listDatasets fallback: ${(err as Error).message}`);
+      return [BUILTIN_ARFF_DATASET];
     }
-    const remote = await this.labJson<Array<Record<string, unknown>>>('/lab/datasets');
-    return remote ?? [];
   }
 
   async uploadDataset(
@@ -162,8 +193,11 @@ export class WekaLabService {
       organizationId: tenant.organizationId,
       externalId: datasetId,
     });
-    if (!owned && datasetId !== 'builtin-arff') {
+    if (!owned && datasetId !== BUILTIN_ARFF_DATASET.id) {
       throw new BadRequestException('Dataset no encontrado en su organización');
+    }
+    if (datasetId === BUILTIN_ARFF_DATASET.id) {
+      return BUILTIN_ARFF_DATASET;
     }
     return this.requireLab(
       await this.labJson<Record<string, unknown>>(`/lab/datasets/${encodeURIComponent(datasetId)}`),
@@ -228,26 +262,33 @@ export class WekaLabService {
   }
 
   async listModels(tenant: TenantContext) {
-    const rows = await this.modelModel
-      .find({ organizationId: tenant.organizationId })
-      .sort({ trainedAt: -1 })
-      .lean();
-    if (rows.length) {
-      return rows.map((r) => ({
-        id: r.externalId,
-        name: r.name,
-        version: r.version,
-        datasetId: r.datasetId,
-        featureColumns: r.featureColumns,
-        targetColumn: r.targetColumn,
-        hyperparameters: r.hyperparameters,
-        metrics: r.metrics,
-        engine: r.engine,
-        isActive: r.isActive,
-        trainedAt: r.trainedAt,
-      }));
+    try {
+      const rows = await this.modelModel
+        .find({ organizationId: tenant.organizationId })
+        .sort({ trainedAt: -1 })
+        .lean();
+      if (rows.length) {
+        return rows.map((r) => ({
+          id: r.externalId,
+          name: r.name,
+          version: r.version,
+          datasetId: r.datasetId,
+          featureColumns: r.featureColumns,
+          targetColumn: r.targetColumn,
+          hyperparameters: r.hyperparameters,
+          metrics: r.metrics,
+          engine: r.engine,
+          isActive: r.isActive,
+          trainedAt: r.trainedAt,
+        }));
+      }
+      const remote = await this.labJson<Array<Record<string, unknown>>>('/lab/models');
+      if (remote?.length) return remote;
+      return [BUILTIN_ARFF_MODEL];
+    } catch (err) {
+      this.logger.warn(`listModels fallback: ${(err as Error).message}`);
+      return [BUILTIN_ARFF_MODEL];
     }
-    return (await this.labJson<Array<Record<string, unknown>>>('/lab/models')) ?? [];
   }
 
   async getModel(tenant: TenantContext, modelId: string) {
@@ -351,34 +392,56 @@ export class WekaLabService {
   }
 
   async dashboard(tenant: TenantContext) {
-    const remote = await this.labJson<Record<string, unknown>>('/lab/dashboard');
-    const orgModels = await this.modelModel.countDocuments({ organizationId: tenant.organizationId });
-    const orgDatasets = await this.datasetModel.countDocuments({ organizationId: tenant.organizationId });
-    const orgPredictions = await this.predictionModel.countDocuments({
-      organizationId: tenant.organizationId,
-    });
-    const active = await this.modelModel.findOne({
-      organizationId: tenant.organizationId,
-      isActive: true,
-    }).lean();
+    try {
+      const remote = await this.labJson<Record<string, unknown>>('/lab/dashboard');
+      const orgModels = await this.modelModel.countDocuments({ organizationId: tenant.organizationId });
+      const orgDatasets = await this.datasetModel.countDocuments({ organizationId: tenant.organizationId });
+      const orgPredictions = await this.predictionModel.countDocuments({
+        organizationId: tenant.organizationId,
+      });
+      const active = await this.modelModel.findOne({
+        organizationId: tenant.organizationId,
+        isActive: true,
+      }).lean();
 
-    const orgActiveModel = active
-      ? { id: active.externalId, name: active.name, metrics: active.metrics }
-      : remote?.activeModel;
+      const orgActiveModel = active
+        ? { id: active.externalId, name: active.name, metrics: active.metrics }
+        : remote?.activeModel ?? {
+            id: BUILTIN_ARFF_MODEL.id,
+            name: BUILTIN_ARFF_MODEL.name,
+            metrics: BUILTIN_ARFF_MODEL.metrics,
+          };
 
-    return {
-      ...(remote ?? {}),
-      organizationId: tenant.organizationId,
-      orgModelsCount: orgModels,
-      orgDatasetsCount: orgDatasets,
-      orgPredictionsCount: orgPredictions,
-      orgActiveModel,
-      j48LabOnline: remote != null,
-      message:
-        remote == null
-          ? 'J48 Python no responde; se muestran contadores guardados en MongoDB. Configura J48_URL en Render.'
-          : undefined,
-    };
+      const j48Online = remote != null;
+      return {
+        ...(remote ?? {}),
+        organizationId: tenant.organizationId,
+        orgModelsCount: orgModels || (j48Online ? 0 : 1),
+        orgDatasetsCount: orgDatasets || (j48Online ? 0 : 1),
+        orgPredictionsCount: orgPredictions,
+        orgActiveModel,
+        j48LabOnline: j48Online,
+        message: j48Online
+          ? undefined
+          : 'Motor J48 Python offline. Dataset ARFF del repo disponible; despliega cop-j48-python y J48_URL en Render para entrenar.',
+      };
+    } catch (err) {
+      this.logger.warn(`dashboard fallback: ${(err as Error).message}`);
+      return {
+        organizationId: tenant.organizationId,
+        orgModelsCount: 1,
+        orgDatasetsCount: 1,
+        orgPredictionsCount: 0,
+        orgActiveModel: {
+          id: BUILTIN_ARFF_MODEL.id,
+          name: BUILTIN_ARFF_MODEL.name,
+          metrics: BUILTIN_ARFF_MODEL.metrics,
+        },
+        j48LabOnline: false,
+        message:
+          'Weka Lab en modo offline. Despliega cop-j48-python en Render y configura J48_URL en pa-cop-escalable.',
+      };
+    }
   }
 
   async predictionHistory(tenant: TenantContext, limit = 50) {

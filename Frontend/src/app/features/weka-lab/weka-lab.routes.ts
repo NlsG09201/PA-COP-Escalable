@@ -100,6 +100,30 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
 class WekaLabPageComponent {
   private readonly api = inject(WekaLabApiService);
 
+  private static readonly OFFLINE_DASH: import('../../core/services/weka-lab-api.service').WekaDashboard = {
+    orgModelsCount: 1,
+    orgDatasetsCount: 1,
+    orgPredictionsCount: 0,
+    j48LabOnline: false,
+    orgActiveModel: {
+      id: 'builtin-arff-model',
+      name: 'J48 recaída (ARFF integrado)',
+      metrics: { note: 'Motor J48 en Render pendiente' },
+    },
+    message:
+      'Motor J48 Python no disponible. El dataset relapse_risk_j48.arff está en el proyecto; activa cop-j48-python y J48_URL en Render.',
+  };
+
+  private static readonly OFFLINE_MODELS: import('../../core/services/weka-lab-api.service').WekaModelRow[] = [
+    {
+      id: 'builtin-arff-model',
+      name: 'J48 recaída (ARFF integrado)',
+      version: '1.0.0',
+      isActive: true,
+      metrics: { note: 'Entrenar cuando J48_URL esté configurado' },
+    },
+  ];
+
   protected readonly loading = signal(true);
   protected readonly error = signal('');
   protected readonly dash = signal<import('../../core/services/weka-lab-api.service').WekaDashboard | null>(null);
@@ -114,16 +138,22 @@ class WekaLabPageComponent {
       error: (err) => {
         this.loading.set(false);
         const status = (err as { status?: number })?.status;
-        const hint =
-          status === 503
-            ? 'El servicio J48 Python no está disponible en Render. Configura J48_URL y despliega cop-j48-python.'
-            : 'No se pudo cargar el resumen de Weka Lab.';
-        this.error.set(extractHttpErrorMessage(err, hint));
+        if (status === 503 || status === 502 || status === 0) {
+          this.dash.set(WekaLabPageComponent.OFFLINE_DASH);
+          this.models.set(WekaLabPageComponent.OFFLINE_MODELS);
+          return;
+        }
+        this.error.set(extractHttpErrorMessage(err, 'No se pudo cargar el resumen de Weka Lab.'));
       },
     });
     this.api.models$().subscribe({
-      next: (rows) => this.models.set(rows ?? []),
-      error: () => undefined,
+      next: (rows) => this.models.set(rows?.length ? rows : WekaLabPageComponent.OFFLINE_MODELS),
+      error: (err) => {
+        const status = (err as { status?: number })?.status;
+        if (status === 503 || status === 502 || status === 0) {
+          this.models.set(WekaLabPageComponent.OFFLINE_MODELS);
+        }
+      },
     });
   }
 }
