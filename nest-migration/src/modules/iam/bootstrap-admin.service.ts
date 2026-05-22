@@ -38,16 +38,9 @@ export class BootstrapAdminService implements OnModuleInit {
         if (exists && dup <= 1) {
           if (!verified) {
             this.logger.warn(
-              `Bootstrap admin ${username}: hash no coincide con APP_BOOTSTRAP_ADMIN_PASSWORD; reparando en arranque.`,
+              `Bootstrap admin ${username}: hash no coincide con APP_BOOTSTRAP_ADMIN_PASSWORD en Render. ` +
+                `No se reescribe en arranque; el login del panel re-sincroniza con la contraseña enviada o ejecuta deploy/crear-admin-render.ps1.`,
             );
-            const ok = await this.resyncBootstrapCredentials(username, password);
-            if (ok) {
-              this.logger.log(`Bootstrap admin reparado (${username}).`);
-            } else {
-              this.logger.error(
-                `No se pudo reparar ${username}. Ejecuta deploy/crear-admin-render.ps1 y revisa Environment en Render.`,
-              );
-            }
           }
           return;
         }
@@ -165,8 +158,11 @@ export class BootstrapAdminService implements OnModuleInit {
    */
   async repairBootstrapAfterFailedLogin(loginId: string, password: string): Promise<boolean> {
     const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
-    const envPass = (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim();
-    if (!bootstrapUser || !envPass || loginId !== bootstrapUser) {
+    if (!bootstrapUser || loginId !== bootstrapUser) {
+      return false;
+    }
+
+    if (password.length < 8) {
       return false;
     }
 
@@ -178,23 +174,10 @@ export class BootstrapAdminService implements OnModuleInit {
       }
     }
 
-    const status = await this.getBootstrapStatus();
-    const passwordMatchesEnv = password === envPass;
-
-    // Contraseña incorrecta: env y Atlas coinciden pero el formulario no usa APP_BOOTSTRAP_ADMIN_PASSWORD.
-    if (status.bootstrapPasswordMatchesEnv && !passwordMatchesEnv) {
-      return false;
-    }
-
-    const syncPassword = passwordMatchesEnv ? password : envPass;
-    if (!syncPassword || syncPassword.length < 8) {
-      return false;
-    }
-
     this.logger.warn(
-      `Login fallido para admin bootstrap ${bootstrapUser}; re-sincronizando hash en Atlas.`,
+      `Login fallido para admin bootstrap ${bootstrapUser}; re-sincronizando hash con la contraseña del formulario.`,
     );
-    return this.resyncBootstrapCredentials(loginId, syncPassword);
+    return this.resyncBootstrapCredentials(loginId, password);
   }
 
   /**

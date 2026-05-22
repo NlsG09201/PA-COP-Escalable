@@ -154,9 +154,11 @@ export class IamService {
   async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const loginId = dto.username.toLowerCase().trim();
     const password = dto.password.trim();
+    const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
+
     let user = await this.resolveAuthenticatedUser(loginId, password);
 
-    if (!user) {
+    if (!user && bootstrapUser && loginId === bootstrapUser) {
       const repaired = await this.bootstrapAdmin.repairBootstrapAfterFailedLogin(loginId, password);
       if (repaired) {
         user = await this.resolveAuthenticatedUser(loginId, password);
