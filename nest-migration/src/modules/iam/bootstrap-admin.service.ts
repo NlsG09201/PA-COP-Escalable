@@ -34,20 +34,25 @@ export class BootstrapAdminService implements OnModuleInit {
           this.logger.log(`Bootstrap admin OK (${username}); sin reescritura en arranque.`);
           return;
         }
-        const reset = (process.env.APP_BOOTSTRAP_ADMIN_RESET ?? '').toLowerCase() === 'true';
         const exists = dup > 0;
-        if (exists && dup <= 1 && !reset) {
-          this.logger.warn(
-            `Bootstrap admin ${username} en Atlas pero APP_BOOTSTRAP_ADMIN_PASSWORD no coincide con el hash. ` +
-              `Ejecuta deploy/crear-admin-render.ps1 o APP_BOOTSTRAP_ADMIN_RESET=true (una vez).`,
-          );
+        if (exists && dup <= 1) {
+          if (!verified) {
+            this.logger.warn(
+              `Bootstrap admin ${username}: hash no coincide con APP_BOOTSTRAP_ADMIN_PASSWORD; reparando en arranque.`,
+            );
+            const ok = await this.resyncBootstrapCredentials(username, password);
+            if (ok) {
+              this.logger.log(`Bootstrap admin reparado (${username}).`);
+            } else {
+              this.logger.error(
+                `No se pudo reparar ${username}. Ejecuta deploy/crear-admin-render.ps1 y revisa Environment en Render.`,
+              );
+            }
+          }
           return;
         }
-        if (!verified) {
-          this.logger.warn(`Bootstrap: login de verificacion fallo para ${username}; reparando hash.`);
-        }
         if (dup > 1) {
-          this.logger.warn(`Bootstrap: ${dup} usuarios duplicados para ${username}; reparando.`);
+          this.logger.warn(`Bootstrap: ${dup} usuarios duplicados para ${username}; consolidando.`);
         }
       }
       await this.runBootstrap();
@@ -165,19 +170,16 @@ export class BootstrapAdminService implements OnModuleInit {
       return false;
     }
 
-    const submittedVerifies = await this.verifyBootstrapLogin(password);
     const passwordMatchesEnv = password === envPass;
+    const submittedVerifies = await this.verifyBootstrapLogin(password);
 
-    if (!submittedVerifies && !passwordMatchesEnv) {
+    if (!passwordMatchesEnv && !submittedVerifies) {
       return false;
     }
 
-    if (submittedVerifies) {
-      this.logger.warn(
-        `Bootstrap verify OK para ${bootstrapUser} pero login falló; re-sincronizando documento en Atlas.`,
-      );
-    }
-
+    this.logger.warn(
+      `Login fallido para admin bootstrap ${bootstrapUser}; re-sincronizando hash en Atlas.`,
+    );
     return this.resyncBootstrapCredentials(loginId, password);
   }
 
@@ -186,7 +188,7 @@ export class BootstrapAdminService implements OnModuleInit {
    */
   async resyncBootstrapCredentials(username: string, password: string): Promise<boolean> {
     const bootstrapUser = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME ?? '').toLowerCase().trim();
-    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? 'be7f4015-67ad-472b-9cf7-aadcd8b0d604').trim();
     const email = String(process.env.APP_BOOTSTRAP_ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (!bootstrapUser || !orgId || username.toLowerCase().trim() !== bootstrapUser) {
       return false;
