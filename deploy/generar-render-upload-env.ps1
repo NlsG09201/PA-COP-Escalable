@@ -83,7 +83,7 @@ if (-not ($lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=' })) {
 }
 
 if (-not ($lines | Where-Object { $_ -match '^\s*APP_BOOTSTRAP_ADMIN_RESET\s*=' })) {
-  $lines += 'APP_BOOTSTRAP_ADMIN_RESET=true'
+  $lines += 'APP_BOOTSTRAP_ADMIN_RESET=false'
 }
 
 # Evita REDIS_URL en el bundle salvo flag explicito (Blueprint cop-redis en Render)

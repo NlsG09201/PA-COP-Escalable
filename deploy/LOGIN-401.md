@@ -84,7 +84,7 @@ Mínimas para bootstrap estable:
 
 Tras cambiar `APP_BOOTSTRAP_ADMIN_PASSWORD` en Environment: **Save** → **Manual Deploy** → ejecutar `crear-admin-render.ps1` si el login sigue en 401.
 
-`APP_BOOTSTRAP_ADMIN_RESET=true` fuerza re-hash en el próximo arranque (útil una vez; luego puedes quitarla cuando el código nuevo evite reescrituras innecesarias).
+Deja `APP_BOOTSTRAP_ADMIN_RESET=false` en producción. Con `true`, cada reinicio del API en Render puede volver a reescribir el hash y provocar 401 si la contraseña del panel no coincide exactamente con `APP_BOOTSTRAP_ADMIN_PASSWORD`.
 
 ## Otras opciones
 

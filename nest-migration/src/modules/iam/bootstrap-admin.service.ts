@@ -170,24 +170,31 @@ export class BootstrapAdminService implements OnModuleInit {
       return false;
     }
 
+    const docs = await this.findBootstrapUserDocs(loginId);
+    for (const raw of docs) {
+      const stored = passwordHashFromDoc(raw);
+      if (stored && (await bcrypt.compare(password, stored))) {
+        return false;
+      }
+    }
+
     const status = await this.getBootstrapStatus();
     const passwordMatchesEnv = password === envPass;
-    const submittedVerifies = await this.verifyBootstrapLogin(password);
 
-    // Si Atlas está desincronizado con Render, acepta la contraseña enviada en el formulario de login.
-    const allowResync =
-      passwordMatchesEnv ||
-      submittedVerifies ||
-      !status.bootstrapPasswordMatchesEnv;
+    // Contraseña incorrecta: env y Atlas coinciden pero el formulario no usa APP_BOOTSTRAP_ADMIN_PASSWORD.
+    if (status.bootstrapPasswordMatchesEnv && !passwordMatchesEnv) {
+      return false;
+    }
 
-    if (!allowResync) {
+    const syncPassword = passwordMatchesEnv ? password : envPass;
+    if (!syncPassword || syncPassword.length < 8) {
       return false;
     }
 
     this.logger.warn(
       `Login fallido para admin bootstrap ${bootstrapUser}; re-sincronizando hash en Atlas.`,
     );
-    return this.resyncBootstrapCredentials(loginId, password);
+    return this.resyncBootstrapCredentials(loginId, syncPassword);
   }
 
   /**
