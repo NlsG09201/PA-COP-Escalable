@@ -59,6 +59,13 @@ export class AuthService {
           return throwError(() => err);
         }
         return this.http.post<{ ok?: boolean }>(`${this.apiBase}/auth/ensure-bootstrap`, {}).pipe(
+          catchError((bootstrapErr: { status?: number }) => {
+            // 403 = admin ya existe y no hace falta reparar; no spamear consola ni reintentar login.
+            if (bootstrapErr.status === 403) {
+              return of({ ok: false });
+            }
+            return throwError(() => err);
+          }),
           switchMap(() => doLogin()),
           catchError(() => throwError(() => err)),
         );

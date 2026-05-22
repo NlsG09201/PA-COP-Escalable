@@ -65,9 +65,21 @@ export class PublicSiteService {
   }
 
   private async findOfferingForSite(site: any, serviceId: string): Promise<any | null> {
-    return this.connection.collection<any>('service_offerings').findOne({
-      _id: { $in: idVariants(serviceId) },
-      site_id: { $in: idVariants(asStringId(site._id)) },
+    const siteFilter = { $in: idVariants(asStringId(site._id)) };
+    const serviceFilter = { $in: idVariants(serviceId) };
+    const col = this.connection.collection<any>('service_offerings');
+
+    const byOfferingId = await col.findOne({
+      _id: serviceFilter,
+      site_id: siteFilter,
+    } as any);
+    if (byOfferingId) return byOfferingId;
+
+    // Compat: el cliente puede enviar catalog_service_id (IDs antiguos en caché del navegador).
+    return col.findOne({
+      catalog_service_id: serviceFilter,
+      site_id: siteFilter,
+      visible_public: { $ne: false },
     } as any);
   }
 
@@ -145,7 +157,9 @@ export class PublicSiteService {
 
     const site = await this.requireSite(input.siteId);
     const offering = await this.findOfferingForSite(site, input.serviceId);
-    if (!offering) throw new BadRequestException('serviceId not found');
+    if (!offering) {
+      return { siteId: input.siteId, serviceId: input.serviceId, slots: [] };
+    }
 
     const catalog = offering.catalog_service_id
       ? await this.connection.collection<any>('catalog_services').findOne({ _id: { $in: idVariants(asStringId(offering.catalog_service_id)) } } as any)

@@ -94,11 +94,13 @@ export class IamController {
     const allowed = await this.bootstrapAdmin.canAutoEnsureBootstrap();
     if (!allowed) {
       const status = await this.bootstrapAdmin.getBootstrapStatus();
-      throw new ForbiddenException({
+      return {
+        ok: false,
+        skipped: true,
         message:
-          'Bootstrap auto-repair not allowed. Usa la contraseña de APP_BOOTSTRAP_ADMIN_PASSWORD en Render o POST setup-bootstrap.',
+          'Bootstrap ya configurado. Usa APP_BOOTSTRAP_ADMIN_PASSWORD en Render o ejecuta deploy/crear-admin-render.ps1.',
         status,
-      });
+      };
     }
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
     if (!result.verified) {

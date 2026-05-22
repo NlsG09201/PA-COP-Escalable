@@ -473,7 +473,10 @@ export class PublicSiteFacade {
       .subscribe((services) => {
         this.loadingServices.set(false);
         this.services.set(services);
-        const nextServiceId = this.bookingForm.controls.serviceId.value || services[0]?.id || '';
+        const currentServiceId = this.bookingForm.controls.serviceId.value;
+        const nextServiceId = services.some((s) => s.id === currentServiceId)
+          ? currentServiceId
+          : services[0]?.id ?? '';
         this.bookingForm.controls.serviceId.setValue(nextServiceId);
         this.selectedServiceId.set(nextServiceId);
         this.loadAvailability();
