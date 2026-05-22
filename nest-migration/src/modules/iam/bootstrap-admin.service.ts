@@ -170,10 +170,17 @@ export class BootstrapAdminService implements OnModuleInit {
       return false;
     }
 
+    const status = await this.getBootstrapStatus();
     const passwordMatchesEnv = password === envPass;
     const submittedVerifies = await this.verifyBootstrapLogin(password);
 
-    if (!passwordMatchesEnv && !submittedVerifies) {
+    // Si Atlas está desincronizado con Render, acepta la contraseña enviada en el formulario de login.
+    const allowResync =
+      passwordMatchesEnv ||
+      submittedVerifies ||
+      !status.bootstrapPasswordMatchesEnv;
+
+    if (!allowResync) {
       return false;
     }
 
