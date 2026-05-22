@@ -90,6 +90,9 @@ if (publicSiteUrl) {
   envLines.push(`window.__env.PUBLIC_SITE_URL = ${JSON.stringify(publicSiteUrl)};`);
 }
 
+const buildId = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? String(Date.now());
+envLines.push(`window.__env.BUILD_ID = ${JSON.stringify(buildId)};`);
+
 fs.writeFileSync(path.join(appDir, 'public', 'env.js'), `${envLines.join('\n')}\n`, 'utf8');
 
 const outputDirectory =
