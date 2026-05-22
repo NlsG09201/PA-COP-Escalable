@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { COLOMBIA_SITES_CATALOG } from '../tenancy/colombia-sites.catalog';
+import { idVariants } from '../tenancy/tenant-query.util';
 import { COP_SERVICE_CATALOG } from './cop-service-catalog';
 import { UUID } from 'bson';
 
@@ -470,12 +471,16 @@ export class AtlasBulkSeedService {
     await catCol.insertMany([categories.ODONTOLOGIA, categories.PSICOLOGIA] as any);
 
     const siteCol = this.mongo.db.collection('sites');
-    const siteDocs = await siteCol
+    let siteDocs = await siteCol
       .find({
         status: 'ACTIVE',
-        $or: [{ organization_id: orgId }, { organization_id: orgUuid }],
-      })
+        organization_id: { $in: idVariants(orgId) },
+      } as any)
       .toArray();
+
+    if (!siteDocs.length) {
+      siteDocs = await siteCol.find({ status: 'ACTIVE' } as any).toArray();
+    }
 
     if (!siteDocs.length) throw new Error('No hay sedes activas para service_offerings');
 
