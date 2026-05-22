@@ -32,6 +32,15 @@ def add_bullets(doc: Document, items: list[str]) -> None:
             run.font.name = "Calibri"
 
 
+def add_cover_line(doc: Document, text: str, *, size: int = 12, bold: bool = False) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(text)
+    run.font.size = Pt(size)
+    run.font.name = "Calibri"
+    run.bold = bold
+
+
 def build_document() -> Document:
     doc = Document()
     section = doc.sections[0]
@@ -39,6 +48,28 @@ def build_document() -> Document:
     section.bottom_margin = Cm(2.5)
     section.left_margin = Cm(3)
     section.right_margin = Cm(2.5)
+
+    # Portada académica (editar nombre, universidad y tutor antes de entregar)
+    for _ in range(4):
+        doc.add_paragraph()
+    add_cover_line(doc, "[Nombre de la universidad]", size=13, bold=True)
+    doc.add_paragraph()
+    add_cover_line(doc, "TRABAJO DE FIN DE GRADO", size=12, bold=True)
+    doc.add_paragraph()
+    add_cover_line(
+        doc,
+        "Plataforma clínica escalable con análisis predictivo de riesgo\n"
+        "para el Centro Odontológico y Psicológico COP",
+        size=14,
+        bold=True,
+    )
+    doc.add_paragraph()
+    add_cover_line(doc, "Autor: Nelson Herazo", size=12)
+    add_cover_line(doc, "Director: [Nombre del director]", size=12)
+    add_cover_line(doc, "Programa: [Nombre del programa académico]", size=12)
+    doc.add_paragraph()
+    add_cover_line(doc, "Bogotá, Colombia — Mayo 2026", size=12)
+    doc.add_page_break()
 
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER

@@ -4,6 +4,7 @@ import { UUID } from 'bson';
 import * as crypto from 'crypto';
 import { Connection } from 'mongoose';
 import { BookingNotificationsService } from '../notifications/booking-notifications.service';
+import { idVariants } from '../tenancy/tenant-query.util';
 import { ColombianPaymentGatewayService } from './payments/colombian-payment-gateway.service';
 import {
   extractWompiTransaction,
@@ -48,6 +49,27 @@ export class PublicSiteService {
     private readonly colombianPayments: ColombianPaymentGatewayService,
     private readonly bookingNotificationsSvc: BookingNotificationsService,
   ) {}
+
+  /** Sedes en Atlas pueden tener `_id` como string (Mongoose) o BSON UUID (seed nativo). */
+  private async findSiteDoc(siteId: string): Promise<any | null> {
+    return this.connection.collection<any>('sites').findOne({ _id: { $in: idVariants(siteId) } } as any);
+  }
+
+  private async requireSite(siteId?: string): Promise<any> {
+    const id = String(siteId ?? '').trim();
+    if (!id) throw new BadRequestException('siteId is required');
+    if (!asUuid(id)) throw new BadRequestException('siteId must be a valid UUID');
+    const site = await this.findSiteDoc(id);
+    if (!site) throw new BadRequestException('siteId not found');
+    return site;
+  }
+
+  private async findOfferingForSite(site: any, serviceId: string): Promise<any | null> {
+    return this.connection.collection<any>('service_offerings').findOne({
+      _id: { $in: idVariants(serviceId) },
+      site_id: { $in: idVariants(asStringId(site._id)) },
+    } as any);
+  }
 
   private async findOrCreatePatient(input: {
     organizationId: any;
@@ -118,21 +140,15 @@ export class PublicSiteService {
   }
 
   async availability(input: { siteId: string; serviceId: string; fromDate?: string }) {
-    const siteUuid = asUuid(input.siteId);
-    if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
     if (!input.serviceId) throw new BadRequestException('serviceId is required');
+    if (!asUuid(input.serviceId)) throw new BadRequestException('serviceId must be a valid UUID');
 
-    const offeringUuid = asUuid(input.serviceId);
-    if (!offeringUuid) throw new BadRequestException('serviceId must be a valid UUID');
-
-    const site = await this.connection.collection<any>('sites').findOne({ _id: siteUuid as any } as any);
-    if (!site) throw new BadRequestException('siteId not found');
-
-    const offering = await this.connection.collection<any>('service_offerings').findOne({ _id: offeringUuid as any } as any);
+    const site = await this.requireSite(input.siteId);
+    const offering = await this.findOfferingForSite(site, input.serviceId);
     if (!offering) throw new BadRequestException('serviceId not found');
 
     const catalog = offering.catalog_service_id
-      ? await this.connection.collection<any>('catalog_services').findOne({ _id: offering.catalog_service_id as any } as any)
+      ? await this.connection.collection<any>('catalog_services').findOne({ _id: { $in: idVariants(asStringId(offering.catalog_service_id)) } } as any)
       : null;
 
     const durationMinutes = Number(catalog?.default_duration_minutes ?? 45);
@@ -236,29 +252,23 @@ export class PublicSiteService {
     billingMode?: string;
     installmentCount?: number;
   }) {
-    const siteUuid = asUuid(input.siteId);
-    if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
     if (!input.serviceId) throw new BadRequestException('serviceId is required');
     if (!input.slotStartAt) throw new BadRequestException('slotStartAt is required');
+    if (!asUuid(input.serviceId)) throw new BadRequestException('serviceId must be a valid UUID');
 
     const startAt = new Date(input.slotStartAt);
     if (Number.isNaN(startAt.getTime())) throw new BadRequestException('slotStartAt must be a valid ISO date');
 
-    const site = await this.connection.collection<any>('sites').findOne({ _id: siteUuid as any } as any);
-    if (!site) throw new BadRequestException('siteId not found');
-
-    const offeringUuid = asUuid(input.serviceId);
-    if (!offeringUuid) throw new BadRequestException('serviceId must be a valid UUID');
-
-    const offering = await this.connection.collection<any>('service_offerings').findOne({ _id: offeringUuid as any } as any);
+    const site = await this.requireSite(input.siteId);
+    const offering = await this.findOfferingForSite(site, input.serviceId);
     if (!offering) throw new BadRequestException('serviceId not found');
 
     const catalogItem = offering.catalog_service_id
-      ? await this.connection.collection<any>('catalog_services').findOne({ _id: offering.catalog_service_id as any } as any)
+      ? await this.connection.collection<any>('catalog_services').findOne({ _id: { $in: idVariants(asStringId(offering.catalog_service_id)) } } as any)
       : null;
 
     const category = catalogItem?.category_id
-      ? await this.connection.collection<any>('service_categories').findOne({ _id: catalogItem.category_id as any } as any)
+      ? await this.connection.collection<any>('service_categories').findOne({ _id: { $in: idVariants(asStringId(catalogItem.category_id)) } } as any)
       : null;
 
     const durationMinutes = Number(catalogItem?.default_duration_minutes ?? 45);
@@ -321,10 +331,9 @@ export class PublicSiteService {
     installmentCount?: number;
     idempotencyKey?: string;
   }) {
-    const siteUuid = asUuid(input.siteId);
-    if (!siteUuid) throw new BadRequestException('siteId must be a valid UUID');
     if (!input.serviceId) throw new BadRequestException('serviceId is required');
     if (!input.slotStartAt) throw new BadRequestException('slotStartAt is required');
+    if (!asUuid(input.serviceId)) throw new BadRequestException('serviceId must be a valid UUID');
 
     const docType = String(input.documentType ?? '').trim().toUpperCase();
     const docNum = String(input.documentNumber ?? '').trim();
@@ -334,21 +343,16 @@ export class PublicSiteService {
     const startAt = new Date(input.slotStartAt);
     if (Number.isNaN(startAt.getTime())) throw new BadRequestException('slotStartAt must be a valid ISO date');
 
-    const site = await this.connection.collection<any>('sites').findOne({ _id: siteUuid as any } as any);
-    if (!site) throw new BadRequestException('siteId not found');
-
-    const offeringUuid = asUuid(input.serviceId);
-    if (!offeringUuid) throw new BadRequestException('serviceId must be a valid UUID');
-
-    const offering = await this.connection.collection<any>('service_offerings').findOne({ _id: offeringUuid as any } as any);
+    const site = await this.requireSite(input.siteId);
+    const offering = await this.findOfferingForSite(site, input.serviceId);
     if (!offering) throw new BadRequestException('serviceId not found');
 
     const catalogItem = offering.catalog_service_id
-      ? await this.connection.collection<any>('catalog_services').findOne({ _id: offering.catalog_service_id as any } as any)
+      ? await this.connection.collection<any>('catalog_services').findOne({ _id: { $in: idVariants(asStringId(offering.catalog_service_id)) } } as any)
       : null;
 
     const category = catalogItem?.category_id
-      ? await this.connection.collection<any>('service_categories').findOne({ _id: catalogItem.category_id as any } as any)
+      ? await this.connection.collection<any>('service_categories').findOne({ _id: { $in: idVariants(asStringId(catalogItem.category_id)) } } as any)
       : null;
 
     const durationMinutes = Number(catalogItem?.default_duration_minutes ?? 45);
@@ -740,21 +744,16 @@ export class PublicSiteService {
   }
 
   async listCatalog(input: { siteId?: string }) {
-    // Catalog in legacy DB is organization-level. We still accept siteId to keep frontend contract stable.
-    const siteUuid = asUuid(input.siteId);
-    if (input.siteId && !siteUuid) throw new BadRequestException('siteId must be a valid UUID');
+    const siteId = String(input.siteId ?? '').trim();
+    if (!siteId) return [];
+    if (!asUuid(siteId)) throw new BadRequestException('siteId must be a valid UUID');
 
-    if (!siteUuid) {
-      // PublicWeb always sends siteId; keep behavior safe.
-      return [];
-    }
-
-    const site = await this.connection.collection<any>('sites').findOne({ _id: siteUuid as any } as any);
+    const site = await this.findSiteDoc(siteId);
     if (!site) throw new BadRequestException('siteId not found');
 
     const offerings = await this.connection
       .collection<any>('service_offerings')
-      .find({ site_id: site._id, visible_public: true } as any, {
+      .find({ site_id: { $in: idVariants(asStringId(site._id)) }, visible_public: true } as any, {
         projection: {
           _id: 1,
           catalog_service_id: 1,
@@ -807,7 +806,7 @@ export class PublicSiteService {
     if (!booking) return null;
 
     const site = booking.site_id
-      ? await this.connection.collection<any>('sites').findOne({ _id: booking.site_id as any } as any, { projection: { timezone: 1 } })
+      ? await this.findSiteDoc(asStringId(booking.site_id))
       : null;
 
     const payment = booking.payment_id
