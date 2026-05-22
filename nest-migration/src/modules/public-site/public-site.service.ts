@@ -767,14 +767,16 @@ export class PublicSiteService {
       .toArray();
 
     const catalogIds = Array.from(new Set(offerings.map((o: any) => o.catalog_service_id).filter(Boolean)));
-    const catalogs = catalogIds.length
-      ? await this.connection.collection<any>('catalog_services').find({ _id: { $in: catalogIds } } as any).toArray()
+    const catalogIdVariants = catalogIds.flatMap((id: unknown) => idVariants(asStringId(id)));
+    const catalogs = catalogIdVariants.length
+      ? await this.connection.collection<any>('catalog_services').find({ _id: { $in: catalogIdVariants } } as any).toArray()
       : [];
     const catalogById = new Map(catalogs.map((c: any) => [asStringId(c._id), c]));
 
     const categoryIds = Array.from(new Set(catalogs.map((c: any) => c.category_id).filter(Boolean)));
-    const categories = categoryIds.length
-      ? await this.connection.collection<any>('service_categories').find({ _id: { $in: categoryIds } } as any, { projection: { _id: 1, name: 1 } }).toArray()
+    const categoryIdVariants = categoryIds.flatMap((id: unknown) => idVariants(asStringId(id)));
+    const categories = categoryIdVariants.length
+      ? await this.connection.collection<any>('service_categories').find({ _id: { $in: categoryIdVariants } } as any, { projection: { _id: 1, name: 1 } }).toArray()
       : [];
     const categoryNameById = new Map(categories.map((c: any) => [asStringId(c._id), String(c.name ?? 'General')]));
 

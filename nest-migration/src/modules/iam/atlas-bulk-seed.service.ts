@@ -35,7 +35,7 @@ export class AtlasBulkSeedService {
   constructor(@InjectConnection() private readonly mongo: Connection) {}
 
   async seedBulk15k(opts?: { forzar?: boolean }): Promise<Record<string, unknown>> {
-    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? 'be7f4015-67ad-472b-9cf7-aadcd8b0d604').trim();
     if (!orgId) throw new Error('APP_BOOTSTRAP_ADMIN_ORG_ID no configurado');
 
     const siteByDept = await this.loadSiteByDept(orgId);
@@ -334,7 +334,7 @@ export class AtlasBulkSeedService {
     soloCatalogo?: boolean;
     soloPacientes?: boolean;
   }): Promise<Record<string, unknown>> {
-    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? '').trim();
+    const orgId = (process.env.APP_BOOTSTRAP_ADMIN_ORG_ID ?? 'be7f4015-67ad-472b-9cf7-aadcd8b0d604').trim();
     if (!orgId) throw new Error('APP_BOOTSTRAP_ADMIN_ORG_ID no configurado');
 
     const patientsCol = this.mongo.db.collection('patients');
@@ -500,7 +500,17 @@ export class AtlasBulkSeedService {
       });
 
       for (const site of siteDocs) {
-        const siteId = site._id instanceof UUID ? site._id : new UUID(String(site._id));
+        let siteId: UUID | string;
+        if (site._id instanceof UUID) {
+          siteId = site._id;
+        } else {
+          const sid = String(site._id ?? '').trim();
+          try {
+            siteId = new UUID(sid);
+          } catch {
+            siteId = sid;
+          }
+        }
         offeringDocs.push({
           _id: new UUID(randomUUID()),
           catalog_service_id: catalogId,

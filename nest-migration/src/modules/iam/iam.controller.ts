@@ -9,6 +9,7 @@ import {
   UseGuards,
   Headers,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -177,11 +178,16 @@ export class IamController {
     if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
     }
-    return this.atlasBulkSeed.seedBulk35kAndCatalog({
-      forzar: !!body?.forzar,
-      soloCatalogo: !!body?.soloCatalogo,
-      soloPacientes: !!body?.soloPacientes,
-    });
+    try {
+      return await this.atlasBulkSeed.seedBulk35kAndCatalog({
+        forzar: !!body?.forzar,
+        soloCatalogo: !!body?.soloCatalogo,
+        soloPacientes: !!body?.soloPacientes,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Seed catalog failed';
+      throw new BadRequestException(msg);
+    }
   }
 
   @Post('logout')
