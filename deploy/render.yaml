@@ -53,6 +53,8 @@ services:
         sync: false
       - key: PUBLIC_SITE_URL
         sync: false
+      - key: PUBLIC_WEB_ORIGIN
+        sync: false
       - key: APP_BOOTSTRAP_ADMIN_USERNAME
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_PASSWORD

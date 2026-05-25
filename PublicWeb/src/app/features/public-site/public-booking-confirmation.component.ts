@@ -85,7 +85,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
               </div>
               <div class="detail-item detail-item-wide">
                 <span>Checkout sandbox</span>
-                <strong>{{ booking.payment?.checkoutUrl ?? 'No disponible' }}</strong>
+                <strong>{{ normalizedCheckoutUrl(booking.payment?.checkoutUrl) ?? 'No disponible' }}</strong>
               </div>
               <div class="detail-item detail-item-wide">
                 <span>Motivo de falla</span>
@@ -180,7 +180,7 @@ import { PublicBookingService, PublicBookingVm, PublicNotificationVm } from './d
               Actualizar ahora
             </button>
             @if (booking()?.payment?.checkoutUrl && booking()?.payment?.status !== 'PAID' && booking()?.status !== 'CONFIRMED') {
-              <a [href]="booking()?.payment?.checkoutUrl" class="btn btn-primary" data-testid="confirmation-continue-checkout">Continuar checkout sandbox</a>
+              <a [href]="normalizedCheckoutUrl(booking()?.payment?.checkoutUrl)" class="btn btn-primary" data-testid="confirmation-continue-checkout">Continuar checkout sandbox</a>
             }
             <a routerLink="/" class="btn btn-primary">Volver al inicio</a>
             <a [href]="dashboardLoginUrl" class="btn btn-outline-secondary">Ingreso profesional</a>
@@ -458,6 +458,20 @@ export class PublicBookingConfirmationComponent {
       }))
     ];
   });
+
+  protected normalizedCheckoutUrl(checkoutUrl?: string | null): string | null {
+    const raw = String(checkoutUrl ?? '').trim();
+    if (!raw) return null;
+    try {
+      const url = new URL(raw, window.location.origin);
+      if (url.pathname.startsWith('/public/payments/sandbox/')) {
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+      return raw;
+    } catch {
+      return raw;
+    }
+  }
 
   constructor() {
     this.route.paramMap

@@ -622,7 +622,21 @@ export class PublicSiteFacade {
 
   private openCheckoutUrl(checkoutUrl: string): void {
     this.document.defaultView?.setTimeout(() => this.processingPayment.set(false), 1500);
-    this.document.defaultView?.location.assign(checkoutUrl);
+    this.document.defaultView?.location.assign(this.normalizeSandboxCheckoutUrl(checkoutUrl));
+  }
+
+  private normalizeSandboxCheckoutUrl(checkoutUrl: string): string {
+    const raw = String(checkoutUrl ?? '').trim();
+    if (!raw) return raw;
+    try {
+      const url = new URL(raw, this.document.defaultView?.location.origin ?? 'http://localhost');
+      if (url.pathname.startsWith('/public/payments/sandbox/')) {
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+      return raw;
+    } catch {
+      return raw;
+    }
   }
 
   private toUserMessage(error: unknown, fallback: string): string {

@@ -137,7 +137,12 @@ export class ColombianPaymentGatewayService {
   }
 
   private publicWebOrigin(): string {
-    return (process.env.PUBLIC_WEB_ORIGIN ?? 'http://localhost:5174').replace(/\/$/, '');
+    return (
+      process.env.PUBLIC_WEB_ORIGIN ??
+      process.env.PUBLIC_SITE_URL ??
+      process.env.DASHBOARD_URL ??
+      'http://localhost:5174'
+    ).replace(/\/$/, '');
   }
 
   private pesosToWompiCents(pesos: number): number {
