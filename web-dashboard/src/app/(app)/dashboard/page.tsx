@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { dashboardApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
+import { ClinicalPredictForm } from "@/components/weka-lab/clinical-predict-form";
 
 const COLORS = ["#14b8a6", "#f59e0b", "#ef4444"];
 
@@ -81,6 +82,16 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-100">Predicción clínica Weka</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Complete el caso y consulte el modelo Weka/J48 activo sin salir del dashboard.
+          </p>
+        </div>
+        <ClinicalPredictForm token={token} />
+      </section>
     </div>
   );
 }
