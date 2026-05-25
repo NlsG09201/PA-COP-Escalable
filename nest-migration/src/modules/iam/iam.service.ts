@@ -367,9 +367,35 @@ export class IamService {
     const account = await this.userModel.findOne({ username }).exec();
     if (!account) throw new UnauthorizedException('User not found');
 
+    let refreshedAccessToken: string | undefined;
+    if (dto.email) {
+      const newUsername = String(dto.email).trim().toLowerCase();
+      if (newUsername && newUsername !== account.username) {
+        const exists = await this.userModel.findOne({ username: newUsername }).exec();
+        if (exists && String(exists._id) !== String(account._id)) {
+          throw new BadRequestException('email already in use');
+        }
+        account.username = newUsername;
+        account.email = newUsername;
+        refreshedAccessToken = this.signAccessToken(account, user?.site_id ? String(user.site_id) : undefined);
+      } else if (newUsername) {
+        account.email = newUsername;
+      }
+    }
+
+    if (dto.password) {
+      account.password_hash = await bcrypt.hash(dto.password, 12);
+    }
+
     const patientIdStr = account.patient_id ? String(account.patient_id) : '';
     const patientUuid = this.asUuid(patientIdStr);
-    if (!patientUuid) throw new BadRequestException('Profile not linked to a patient');
+    if (!patientUuid) {
+      await account.save();
+      return {
+        ...(await this.getMyProfile({ ...user, username: account.username })),
+        ...(refreshedAccessToken ? { accessToken: refreshedAccessToken } : {}),
+      };
+    }
 
     const patch: any = { updated_at: new Date() };
     if (dto.fullName !== undefined) patch.full_name = String(dto.fullName ?? '').trim();
@@ -386,22 +412,6 @@ export class IamService {
     }
 
     await this.connection.collection<any>('patients').updateOne({ _id: patientUuid as any } as any, { $set: patch });
-
-    // If email changed: update username too (we use email as username).
-    let refreshedAccessToken: string | undefined;
-    if (dto.email) {
-      const newUsername = String(dto.email).trim().toLowerCase();
-      if (newUsername && newUsername !== account.username) {
-        const exists = await this.userModel.findOne({ username: newUsername }).exec();
-        if (exists) throw new BadRequestException('email already in use');
-        account.username = newUsername;
-        refreshedAccessToken = this.signAccessToken(account, user?.site_id ? String(user.site_id) : undefined);
-      }
-    }
-
-    if (dto.password) {
-      account.password_hash = await bcrypt.hash(dto.password, 12);
-    }
 
     await account.save();
 
