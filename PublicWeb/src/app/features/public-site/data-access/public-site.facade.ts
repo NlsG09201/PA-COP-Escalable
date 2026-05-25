@@ -208,11 +208,6 @@ export class PublicSiteFacade {
       return;
     }
 
-    if (!this.bookingQuote()) {
-      this.loadQuote();
-      return;
-    }
-
     this.submitting.set(true);
     this.pageError.set('');
     const {
@@ -262,7 +257,6 @@ export class PublicSiteFacade {
           this.openCheckoutUrl(booking.payment.checkoutUrl);
           return;
         }
-        this.prepareCheckout(booking);
       });
   }
 

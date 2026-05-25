@@ -302,10 +302,6 @@ export class PublicSiteService {
       totalTreatmentPrice = basePrice;
     }
 
-    const availability = await this.availability({ siteId: asStringId(site._id), serviceId: asStringId(offering._id), fromDate: startAt.toISOString().slice(0, 10) });
-    const matchSlot = availability.slots.find((s) => s.startAt === startAt.toISOString());
-    if (!matchSlot) throw new BadRequestException('Horario no disponible');
-
     return {
       siteId: asStringId(site._id),
       siteName: String(site.name ?? 'Sede'),
@@ -325,7 +321,7 @@ export class PublicSiteService {
       currency: 'COP',
       timezone: String(site.timezone ?? 'UTC'),
       holdMinutes: 15,
-      nextStatus: 'PENDING_PAYMENT',
+      nextStatus: 'REQUESTED',
     };
   }
 
@@ -379,10 +375,6 @@ export class PublicSiteService {
     if (overlap) throw new BadRequestException('Ese horario ya no esta disponible');
 
     const bookingId = new UUID(crypto.randomUUID());
-
-    const availability = await this.availability({ siteId: asStringId(site._id), serviceId: asStringId(offering._id), fromDate: startAt.toISOString().slice(0, 10) });
-    const selectedSlot = availability.slots.find((s) => s.startAt === startAt.toISOString());
-    if (!selectedSlot) throw new BadRequestException('Horario no disponible');
 
     const billingMode = normalizeBillingMode(input.billingMode);
     const installmentCount =
@@ -444,7 +436,7 @@ export class PublicSiteService {
       quoted_price: quotedPrice,
       appointment_start_at: startAt,
       appointment_end_at: endAt,
-      status: 'PENDING_PAYMENT',
+      status: 'REQUESTED',
       professional_id: null,
       patient_id: patient._id,
       appointment_id: appointmentId,

@@ -196,12 +196,12 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                 }
                 <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
                   <p class="mb-0 text-muted small">
-                    La pre-reserva bloquea el horario por {{ bookingQuote?.holdMinutes ?? 15 }} minutos y deja la cita en estado {{ bookingQuote?.nextStatus ?? 'PENDING_PAYMENT' }}.
+                    La solicitud registra tu horario y queda pendiente de confirmacion por el equipo clinico.
                   </p>
                   <button
                     class="btn btn-primary px-4"
                     data-testid="public-create-booking"
-                    [disabled]="bookingForm.invalid || submitting || loadingQuote || !selectedSlotStartAt || !bookingQuote">
+                    [disabled]="bookingForm.invalid || submitting || !selectedSlotStartAt">
                     {{ submitting ? 'Generando reserva...' : 'Crear reserva' }}
                   </button>
                 </div>
@@ -270,7 +270,7 @@ import { PublicSiteFacade } from '../data-access/public-site.facade';
                     </div>
                   } @else {
                     <div class="flow-banner">
-                      Tu horario está apartado temporalmente. Completa el medio de pago y abre el enlace de cobro para confirmar.
+                      Tu solicitud de cita quedo registrada. El equipo clinico puede confirmarla y asignar profesional desde el panel.
                     </div>
                   }
 
