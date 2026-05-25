@@ -176,10 +176,6 @@ export class PublicSiteService {
       .filter((p: any) => !p.default_site_id || asStringId(p.default_site_id) === asStringId(site._id))
       .slice(0, 10);
 
-    if (professionals.length === 0) {
-      return { siteId: input.siteId, serviceId: input.serviceId, slots: [] };
-    }
-
     const baseDate = input.fromDate ? new Date(`${input.fromDate}T00:00:00.000Z`) : new Date();
     if (Number.isNaN(baseDate.getTime())) throw new BadRequestException('fromDate must be YYYY-MM-DD');
 
@@ -234,17 +230,19 @@ export class PublicSiteService {
         );
         if (siteBlocked) continue;
 
-        let anyProfFree = false;
-        for (const p of professionals) {
-          const pid = asStringId(p._id);
-          const ranges = busyByProf.get(pid) ?? [];
-          const overlapsProf = ranges.some((r) => rangesOverlap(startAt, endAt, r.start, r.end));
-          if (!overlapsProf) {
-            anyProfFree = true;
-            break;
+        if (professionals.length > 0) {
+          let anyProfFree = false;
+          for (const p of professionals) {
+            const pid = asStringId(p._id);
+            const ranges = busyByProf.get(pid) ?? [];
+            const overlapsProf = ranges.some((r) => rangesOverlap(startAt, endAt, r.start, r.end));
+            if (!overlapsProf) {
+              anyProfFree = true;
+              break;
+            }
           }
+          if (!anyProfFree) continue;
         }
-        if (!anyProfFree) continue;
 
         slots.push({
           startAt: startAt.toISOString(),

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { PublicBookingFlowComponent } from './components/public-booking-flow.component';
 import { PublicHeroSectionComponent } from './components/public-hero-section.component';
 import { PublicPricingGridComponent } from './components/public-pricing-grid.component';
+import { PublicScheduleSectionComponent } from './components/public-schedule-section.component';
 import { PublicServiceCatalogComponent } from './components/public-service-catalog.component';
 import { PublicSiteHeaderComponent } from './components/public-site-header.component';
 import { PublicAboutSectionComponent } from './components/public-about-section.component';
@@ -24,6 +25,7 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
     PublicTrustStripComponent,
     PublicSiteFooterComponent,
     PublicServiceCatalogComponent,
+    PublicScheduleSectionComponent,
     PublicPricingGridComponent,
     PublicBookingFlowComponent
   ],
@@ -42,6 +44,8 @@ import { PublicSiteFacade } from './data-access/public-site.facade';
       <app-public-trust-strip />
 
       <app-public-about-section />
+
+      <app-public-schedule-section />
 
       @if (facade.pageError()) {
         <section class="status-strip">

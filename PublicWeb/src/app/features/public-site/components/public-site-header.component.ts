@@ -25,6 +25,7 @@ const STAFF_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 
 
         <nav class="landing-nav d-none d-lg-flex flex-wrap align-items-center gap-2 gap-md-3" aria-label="Principal">
           <a href="#about">Nosotros</a>
+          <a href="#schedule">Horarios</a>
           <a href="#services">Servicios</a>
           <a href="#gallery">Galería</a>
           <a href="#reviews">Reseñas</a>
@@ -45,6 +46,7 @@ const STAFF_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'ORG_ADMIN', 'SITE_ADMIN', 
       </div>
       <nav class="landing-nav-mobile d-lg-none container pb-2" aria-label="Navegación móvil">
         <a href="#about">Nosotros</a>
+        <a href="#schedule">Horarios</a>
         <a href="#services">Servicios</a>
         <a href="#booking">Reservar</a>
         <a href="#reviews">Reseñas</a>
