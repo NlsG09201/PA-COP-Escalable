@@ -38,8 +38,13 @@ export const DEFAULT_ARFF_SCHEMA: ArffDatasetSchema = {
     { key: 'wellbeing', label: 'Bienestar', type: 'nominal', options: ['HIGH', 'MEDIUM', 'LOW'] },
     { key: 'anxiety', label: 'Ansiedad (0–1)', type: 'numeric', min: 0, max: 1 },
     { key: 'depression', label: 'Depresión (0–1)', type: 'numeric', min: 0, max: 1 },
+    { key: 'stress', label: 'Estres (0-1)', type: 'numeric', min: 0, max: 1 },
     { key: 'attendance', label: 'Asistencia', type: 'nominal', options: ['REGULAR', 'IRREGULAR'] },
     { key: 'days_since_last', label: 'Días sin última sesión', type: 'numeric', min: 0, max: 90 },
+    { key: 'adherence', label: 'Adherencia', type: 'nominal', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { key: 'symptoms', label: 'Sintomas', type: 'nominal', options: ['MILD', 'MODERATE', 'SEVERE'] },
+    { key: 'prior_relapse', label: 'Recaida previa', type: 'nominal', options: ['NO', 'YES'] },
+    { key: 'emotional_state', label: 'Estado emocional', type: 'nominal', options: ['STABLE', 'VOLATILE', 'CRISIS'] },
   ],
 };
 
@@ -72,8 +77,13 @@ export type ClinicalPredictPayload = {
   wellbeing?: string;
   anxiety?: number;
   depression?: number;
+  stress?: number;
   attendance?: string;
   days_since_last?: number;
+  adherence?: string;
+  symptoms?: string;
+  prior_relapse?: string;
+  emotional_state?: string;
 };
 
 export type ClinicalPrediction = {

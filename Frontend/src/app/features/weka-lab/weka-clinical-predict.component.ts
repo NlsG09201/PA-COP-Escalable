@@ -73,6 +73,38 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
                 <select class="form-select form-select-sm" formControlName="attendance">
                   <option value="REGULAR">Regular</option>
                   <option value="IRREGULAR">Irregular</option>
+                  <option value="ABSENT">Ausente</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Adherencia</label>
+                <select class="form-select form-select-sm" formControlName="adherence">
+                  <option value="HIGH">Alta</option>
+                  <option value="MEDIUM">Media</option>
+                  <option value="LOW">Baja</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Sintomas</label>
+                <select class="form-select form-select-sm" formControlName="symptoms">
+                  <option value="MILD">Leves</option>
+                  <option value="MODERATE">Moderados</option>
+                  <option value="SEVERE">Severos</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Recaida previa</label>
+                <select class="form-select form-select-sm" formControlName="prior_relapse">
+                  <option value="NO">No</option>
+                  <option value="YES">Si</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Estado emocional</label>
+                <select class="form-select form-select-sm" formControlName="emotional_state">
+                  <option value="STABLE">Estable</option>
+                  <option value="VOLATILE">Volatil</option>
+                  <option value="CRISIS">Crisis</option>
                 </select>
               </div>
               <div class="col-md-6">
@@ -86,6 +118,10 @@ import { extractHttpErrorMessage } from '../../core/http/extract-http-error-mess
               <div class="col-12">
                 <label class="form-label small">Depresión: {{ form.controls.depression.value | number: '1.2-2' }}</label>
                 <input type="range" class="form-range" min="0" max="1" step="0.05" formControlName="depression" />
+              </div>
+              <div class="col-12">
+                <label class="form-label small">Estres: {{ form.controls.stress.value | number: '1.2-2' }}</label>
+                <input type="range" class="form-range" min="0" max="1" step="0.05" formControlName="stress" />
               </div>
               <div class="col-12 pt-2">
                 <button type="submit" class="btn btn-primary w-100" [disabled]="predicting() || form.invalid">
@@ -179,8 +215,13 @@ export class WekaClinicalPredictComponent {
     wellbeing: ['MEDIUM', Validators.required],
     anxiety: [0.5, [Validators.required, Validators.min(0), Validators.max(1)]],
     depression: [0.4, [Validators.required, Validators.min(0), Validators.max(1)]],
+    stress: [0.45, [Validators.required, Validators.min(0), Validators.max(1)]],
     attendance: ['REGULAR', Validators.required],
     days_since_last: [14, [Validators.required, Validators.min(0), Validators.max(90)]],
+    adherence: ['MEDIUM', Validators.required],
+    symptoms: ['MODERATE', Validators.required],
+    prior_relapse: ['NO', Validators.required],
+    emotional_state: ['STABLE', Validators.required],
   });
 
   protected probEntries(r: ClinicalPrediction): Array<{ key: string; value: number }> {
@@ -203,8 +244,13 @@ export class WekaClinicalPredictComponent {
       wellbeing: raw.wellbeing,
       anxiety: Number(raw.anxiety),
       depression: Number(raw.depression),
+      stress: Number(raw.stress),
       attendance: raw.attendance,
       days_since_last: Number(raw.days_since_last),
+      adherence: raw.adherence,
+      symptoms: raw.symptoms,
+      prior_relapse: raw.prior_relapse,
+      emotional_state: raw.emotional_state,
     };
     this.api.predictClinical$(payload).subscribe({
       next: (res) => {
