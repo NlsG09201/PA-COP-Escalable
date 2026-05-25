@@ -101,7 +101,12 @@ export class AuthService {
     gender?: 'M' | 'F' | 'O';
     password?: string;
   }): Observable<MeResponse> {
-    return this.http.patch<MeResponse>(`${this.apiBase}/users/me`, payload).pipe(tap((me) => this.me$.next(me)));
+    return this.http.patch<MeResponse>(`${this.apiBase}/users/me`, payload).pipe(
+      tap((me) => {
+        if (me.accessToken) this.setToken(me.accessToken);
+        this.me$.next(me);
+      }),
+    );
   }
 
   private setToken(token: string): void {

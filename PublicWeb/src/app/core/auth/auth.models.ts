@@ -5,6 +5,7 @@ export interface AuthTokenResponse {
 }
 
 export interface MeResponse {
+  accessToken?: string;
   id: string;
   username: string;
   roles: string[];

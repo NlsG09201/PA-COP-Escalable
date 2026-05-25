@@ -388,12 +388,14 @@ export class IamService {
     await this.connection.collection<any>('patients').updateOne({ _id: patientUuid as any } as any, { $set: patch });
 
     // If email changed: update username too (we use email as username).
+    let refreshedAccessToken: string | undefined;
     if (dto.email) {
       const newUsername = String(dto.email).trim().toLowerCase();
       if (newUsername && newUsername !== account.username) {
         const exists = await this.userModel.findOne({ username: newUsername }).exec();
         if (exists) throw new BadRequestException('email already in use');
         account.username = newUsername;
+        refreshedAccessToken = this.signAccessToken(account, user?.site_id ? String(user.site_id) : undefined);
       }
     }
 
@@ -403,7 +405,10 @@ export class IamService {
 
     await account.save();
 
-    return this.getMyProfile({ ...user, username: account.username });
+    return {
+      ...(await this.getMyProfile({ ...user, username: account.username })),
+      ...(refreshedAccessToken ? { accessToken: refreshedAccessToken } : {}),
+    };
   }
 
   async refreshToken(token: string, ip?: string, userAgent?: string) {
@@ -447,16 +452,7 @@ export class IamService {
 
   private async generateTokenPair(user: LoginUser | UserAccount, siteId?: string, ip?: string, userAgent?: string) {
     const jti = crypto.randomUUID();
-    const payload = {
-      sub: user.username,
-      user_id: user._id,
-      organization_id: user.organization_id,
-      site_id: siteId,
-      roles: user.roles,
-      jti,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.signAccessToken(user, siteId, jti);
     const refreshToken = require('crypto').randomBytes(40).toString('hex');
     const refreshHash = this.hashToken(refreshToken);
 
@@ -476,6 +472,17 @@ export class IamService {
       refreshToken,
       user: { id: user._id, username: user.username, roles: user.roles },
     };
+  }
+
+  private signAccessToken(user: LoginUser | UserAccount, siteId?: string, jti = crypto.randomUUID()): string {
+    return this.jwtService.sign({
+      sub: user.username,
+      user_id: user._id,
+      organization_id: user.organization_id,
+      site_id: siteId,
+      roles: user.roles,
+      jti,
+    });
   }
 
   private hashToken(token: string): string {

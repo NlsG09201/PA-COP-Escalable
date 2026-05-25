@@ -506,11 +506,42 @@ export class PublicSiteFacade {
       )
       .subscribe((availability) => {
         this.loadingAvailability.set(false);
-        this.availabilitySlots.set(availability.slots);
-        if (!availability.slots.some((slot) => slot.startAt === this.bookingForm.controls.slotStartAt.value)) {
-          this.bookingForm.controls.slotStartAt.setValue(availability.slots[0]?.startAt ?? '');
+        const slots = availability.slots.length > 0 ? availability.slots : this.buildSuggestedSlots(siteId, serviceId);
+        this.availabilitySlots.set(slots);
+        if (!slots.some((slot) => slot.startAt === this.bookingForm.controls.slotStartAt.value)) {
+          this.bookingForm.controls.slotStartAt.setValue(slots[0]?.startAt ?? '');
         }
       });
+  }
+
+  private buildSuggestedSlots(siteId: string, serviceId: string): PublicAvailabilitySlotVm[] {
+    const service = this.services().find((s) => s.id === serviceId);
+    const durationMinutes = Math.max(20, Number(service?.durationMinutes ?? 45));
+    const now = new Date();
+    const dayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0);
+    const slots: PublicAvailabilitySlotVm[] = [];
+
+    for (let d = 0; d < 5; d += 1) {
+      const day = new Date(dayStart + d * 24 * 60 * 60_000);
+      const y = day.getUTCFullYear();
+      const m = day.getUTCMonth();
+      const date = day.getUTCDate();
+      const localStartUtc = Date.UTC(y, m, date, 14, 0, 0); // 09:00 America/Bogota.
+      const localEndUtc = Date.UTC(y, m, date, 22, 0, 0); // 17:00 America/Bogota.
+
+      for (let t = localStartUtc; t + durationMinutes * 60_000 <= localEndUtc; t += durationMinutes * 60_000) {
+        const startAt = new Date(t);
+        if (startAt.getTime() <= now.getTime()) continue;
+        slots.push({
+          startAt: startAt.toISOString(),
+          endAt: new Date(t + durationMinutes * 60_000).toISOString(),
+          professionalId: '',
+          professionalName: 'Se asigna desde la clinica',
+        });
+      }
+    }
+
+    return slots.slice(0, 24);
   }
 
   private loadQuote(): void {
