@@ -33,9 +33,14 @@ if ($IncludeUpstashRedis) {
   $keys = @('REDIS_URL') + $keys
 }
 
+$redisHeader = if ($IncludeUpstashRedis) {
+  '# REDIS: incluye REDIS_URL validada desde Upstash para cache/sesiones.'
+} else {
+  '# REDIS: no incluir REDIS_URL aqui si usas cop-redis del Blueprint (evita WRONGPASS con Upstash viejo)'
+}
 $lines = @(
   '# Importar en Render: servicio API (pa-cop-escalable o cop-nest-api) -> Environment',
-  '# REDIS: no incluir REDIS_URL aqui si usas cop-redis del Blueprint (evita WRONGPASS con Upstash viejo)',
+  $redisHeader,
   ''
 )
 
@@ -121,6 +126,10 @@ Write-Host "Siguiente paso en Render:"
 Write-Host "  1. cop-nest-api -> Environment"
 Write-Host "  2a. Secret Files -> Add -> filename: cop-production.env -> pegar contenido de render-upload.env"
 Write-Host "  2b. O Environment -> From .env -> render-upload.env"
-Write-Host "  3. En Render BORRA REDIS_URL manual si ves WRONGPASS en logs (usa cop-redis del Blueprint)"
+if ($IncludeUpstashRedis) {
+  Write-Host "  3. En Render reemplaza cualquier REDIS_URL vieja por la de este archivo (Upstash validado)"
+} else {
+  Write-Host "  3. En Render BORRA REDIS_URL manual si ves WRONGPASS en logs (usa cop-redis del Blueprint)"
+}
 Write-Host "  4. API publica: $defaultApiOrigin"
 Write-Host "  5. Save Changes -> Manual Deploy"

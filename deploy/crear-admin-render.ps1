@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $api = 'https://pa-cop-escalable.onrender.com'
 $secret = 'cop-atlas-setup-2026'
-$username = 'nelsonherazoi'
-$password = 'Nelson09092001'
+$username = 'GM140810'
+$password = 'GM148Odonto'
 $setupJson = Join-Path $PSScriptRoot 'setup-bootstrap-body.json'
 
 @(@{ password = $password } | ConvertTo-Json -Compress) | Set-Content -Path $setupJson -Encoding UTF8 -NoNewline
