@@ -47,8 +47,30 @@ foreach ($key in $keys) {
 # URI con placeholder + password aparte (Render resuelve al arrancar)
 $hasPass = $lines | Where-Object { $_ -match '^\s*MONGODB_PASSWORD=' -and $_ -notmatch '=\s*$' }
 if ($hasPass) {
+  $mongoLine = $lines | Where-Object { $_ -match '^\s*MONGODB_URL\s*=' } | Select-Object -First 1
+  $placeholderMongoUrl = 'mongodb+srv://nelsonherazoi:<db_password>@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0'
+  if ($mongoLine) {
+    $rawMongoUrl = (($mongoLine -split '=', 2)[1]).Trim().Trim('"').Trim("'")
+    try {
+      $mongoUri = [Uri]$rawMongoUrl
+      if ($mongoUri.Scheme -match '^mongodb(\+srv)?$' -and $mongoUri.Host) {
+        $userInfo = $mongoUri.UserInfo
+        $mongoUser = 'nelsonherazoi'
+        if ($userInfo) {
+          $mongoUser = (($userInfo -split ':', 2)[0]).Trim()
+        }
+        $mongoDbAndQuery = $mongoUri.PathAndQuery
+        if (-not $mongoDbAndQuery -or $mongoDbAndQuery -eq '/') {
+          $mongoDbAndQuery = '/cop?retryWrites=true&w=majority&appName=Cluster0'
+        }
+        $placeholderMongoUrl = "$($mongoUri.Scheme)://${mongoUser}:<db_password>@$($mongoUri.Host)$mongoDbAndQuery"
+      }
+    } catch {
+      Write-Warning "No se pudo interpretar MONGODB_URL; se usara el host Atlas por defecto del script."
+    }
+  }
   $lines = $lines | Where-Object { $_ -notmatch '^\s*MONGODB_URL=mongodb.*@[^<]+' }
-  $lines += 'MONGODB_URL=mongodb+srv://nelsonherazoi:<db_password>@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0'
+  $lines += "MONGODB_URL=$placeholderMongoUrl"
 }
 
 # CORS + Vercel (PublicWeb en pa-cop-escalable-2qx1.vercel.app)
