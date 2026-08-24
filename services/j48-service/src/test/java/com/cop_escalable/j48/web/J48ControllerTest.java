@@ -21,7 +21,10 @@ import org.springframework.test.web.servlet.MockMvc;
   "j48.adminToken=test-admin-token",
   "j48.requireAdminToken=true",
   "j48.aiExplanationEnabled=true",
-  "spring.ai.openai.chat.enabled=false"
+  "spring.ai.openai.api-key=test-key",
+  "spring.ai.openai.chat.enabled=false",
+  "spring.ai.model.audio.speech=none",
+  "spring.ai.model.audio.transcription=none"
 })
 @AutoConfigureMockMvc
 class J48ControllerTest {

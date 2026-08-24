@@ -36,6 +36,8 @@ docker compose --profile core up -d --build
 
 Documentación de arquitectura: **[docs/ARQUITECTURA_ENTERPRISE.md](docs/ARQUITECTURA_ENTERPRISE.md)**
 
+Servicio J48: **[services/j48-service/README.md](services/j48-service/README.md)**
+
 ## Producción
 
 1. **Todo en Render (recomendado Next + API + J48):** **[deploy/RENDER.md](deploy/RENDER.md)** — Blueprint `render.yaml` en la raíz.

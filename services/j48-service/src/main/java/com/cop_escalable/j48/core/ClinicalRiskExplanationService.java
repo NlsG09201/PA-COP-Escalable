@@ -8,7 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class ClinicalRiskExplanationService {
@@ -22,16 +24,28 @@ public class ClinicalRiskExplanationService {
 
   private final J48Properties props;
   private final ObjectProvider<ChatClient.Builder> chatClientBuilder;
+  private final Environment environment;
 
-  public ClinicalRiskExplanationService(J48Properties props, ObjectProvider<ChatClient.Builder> chatClientBuilder) {
+  public ClinicalRiskExplanationService(
+      J48Properties props,
+      ObjectProvider<ChatClient.Builder> chatClientBuilder,
+      Environment environment) {
     this.props = props;
     this.chatClientBuilder = chatClientBuilder;
+    this.environment = environment;
   }
 
   public AiExplanationResponse explain(Map<String, Object> features, PredictionResponse prediction) {
     Map<String, Object> safeInput = sanitize(features);
-    if (!props.aiExplanationEnabled()) {
+    boolean aiEnabled = props.aiExplanationEnabled();
+    boolean providerEnabled = environment.getProperty("spring.ai.openai.chat.enabled", Boolean.class, false);
+    String apiKey = environment.getProperty("spring.ai.openai.api-key", "");
+
+    if (!aiEnabled) {
       return fallback(prediction, safeInput, "Spring AI explanation is disabled by configuration.");
+    }
+    if (!providerEnabled || !StringUtils.hasText(apiKey) || "dummy-placeholder-key".equals(apiKey)) {
+      return fallback(prediction, safeInput, "Spring AI provider is not configured or disabled.");
     }
 
     ChatClient.Builder builder = chatClientBuilder.getIfAvailable();

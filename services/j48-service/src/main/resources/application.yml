@@ -14,8 +14,12 @@ spring:
   application:
     name: j48-service
   ai:
+    model:
+      audio:
+        speech: ${SPRING_AI_MODEL_AUDIO_SPEECH:none}
+        transcription: ${SPRING_AI_MODEL_AUDIO_TRANSCRIPTION:none}
     openai:
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY:dummy-placeholder-key}
       chat:
         enabled: ${SPRING_AI_OPENAI_ENABLED:false}
         options:
