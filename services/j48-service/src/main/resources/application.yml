@@ -2,13 +2,36 @@ server:
   port: ${SERVER_PORT:8080}
 
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
         include: health,info
 
+spring:
+  application:
+    name: j48-service
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        enabled: ${SPRING_AI_OPENAI_ENABLED:false}
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+
 j48:
   arffPath: ${J48_ARFF_PATH:/data/relapse_risk_j48.arff}
   modelPath: ${J48_MODEL_PATH:/models/j48.model}
   autoTrain: ${J48_AUTO_TRAIN:true}
+  adminToken: ${J48_ADMIN_TOKEN:}
+  requireAdminToken: ${J48_REQUIRE_ADMIN_TOKEN:false}
+  aiExplanationEnabled: ${J48_AI_EXPLANATION_ENABLED:true}
+  corsAllowedOrigins: ${J48_CORS_ALLOWED_ORIGINS:}
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

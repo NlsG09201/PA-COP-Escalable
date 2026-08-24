@@ -1,0 +1,2 @@
+j48:
+  requireAdminToken: ${J48_REQUIRE_ADMIN_TOKEN:true}

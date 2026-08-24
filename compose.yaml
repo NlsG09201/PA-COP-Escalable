@@ -304,6 +304,13 @@ services:
       J48_ARFF_PATH: /data/relapse_risk_j48.arff
       J48_MODEL_PATH: /models/j48.model
       J48_AUTO_TRAIN: ${J48_AUTO_TRAIN:-true}
+      J48_ADMIN_TOKEN: ${J48_ADMIN_TOKEN:-}
+      J48_REQUIRE_ADMIN_TOKEN: ${J48_REQUIRE_ADMIN_TOKEN:-false}
+      J48_CORS_ALLOWED_ORIGINS: ${J48_CORS_ALLOWED_ORIGINS:-}
+      J48_AI_EXPLANATION_ENABLED: ${J48_AI_EXPLANATION_ENABLED:-true}
+      SPRING_AI_OPENAI_ENABLED: ${SPRING_AI_OPENAI_ENABLED:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     volumes:
       - ./datasets/relapse_risk_j48.arff:/data/relapse_risk_j48.arff:ro
       - j48_models:/models
@@ -413,4 +420,3 @@ volumes:
   image_to_3d_depth_data:
   image_to_3d_depth_cache:
   j48_models:
-
