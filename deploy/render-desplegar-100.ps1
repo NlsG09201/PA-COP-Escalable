@@ -24,7 +24,6 @@ if (-not $ApiKey) {
   & (Join-Path $PSScriptRoot 'render-solo-redis.ps1')
   Write-Host ''
   Write-Host 'Manual: cop-nest-api -> Environment -> import deploy/render-upload.env -> Save -> Manual Deploy'
-  Write-Host 'Fronts: NEXT_PUBLIC_API_URL=https://cop-nest-api.onrender.com en cop-web-public y cop-web-dashboard'
   exit 0
 }
 

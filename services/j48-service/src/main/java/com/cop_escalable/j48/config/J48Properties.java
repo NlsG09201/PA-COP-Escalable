@@ -6,6 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record J48Properties(
   String arffPath,
   String modelPath,
-  boolean autoTrain
+  boolean autoTrain,
+  String adminToken,
+  boolean requireAdminToken,
+  boolean aiExplanationEnabled,
+  String corsAllowedOrigins
 ) {}
-

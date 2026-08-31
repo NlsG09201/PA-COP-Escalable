@@ -28,13 +28,10 @@ function Ensure-EnvLine([string]$Key, [string]$DefaultValue) {
 
 if (Test-Path $envFile) {
   Ensure-EnvLine 'AI_RELAPSE_URL' 'https://cop-recommendation-engine.onrender.com'
-  Ensure-EnvLine 'NEXT_PUBLIC_API_URL' 'https://cop-nest-api.onrender.com'
   Ensure-EnvLine 'PUBLIC_API_ORIGIN' 'https://cop-nest-api.onrender.com'
-  Ensure-EnvLine 'DASHBOARD_URL' 'https://cop-web-dashboard.onrender.com'
-  Ensure-EnvLine 'PUBLIC_SITE_URL' 'https://cop-web-public.onrender.com'
   Ensure-EnvLine 'VERCEL_PUBLIC_WEB_URL' 'https://pa-cop-escalable-2qx1.vercel.app'
   Ensure-EnvLine 'CORS_ALLOW_VERCEL' 'true'
-  Ensure-EnvLine 'CORS_ORIGINS' 'https://pa-cop-escalable-2qx1.vercel.app,https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com'
+  Ensure-EnvLine 'CORS_ORIGINS' 'https://pa-cop-escalable-2qx1.vercel.app'
   Ensure-EnvLine 'J48_URL' 'https://cop-j48-python.onrender.com'
 }
 
@@ -64,7 +61,6 @@ if (-not $ApiKey) {
   Write-Host '  - Pega variable COP_PRODUCTION_ENV_B64 (portapapeles)'
   Write-Host '  - O Secret File cop-production.env = deploy/render-upload.env'
   Write-Host '  - Borra REDIS_URL si dice your-instance.upstash.io'
-  Write-Host '  - Fronts: NEXT_PUBLIC_API_URL=https://cop-nest-api.onrender.com'
   Write-Host '  - Manual Deploy'
   Write-Host ''
   Write-Host 'Ver: deploy/RENDER-CHECKLIST.md'
@@ -75,23 +71,6 @@ Write-Host ''
 Write-Host '[3/4] Aplicando configuracion via Render API ...'
 $env:RENDER_API_KEY = $ApiKey
 & (Join-Path $PSScriptRoot 'render-configurar-todo.ps1')
-
-Write-Host ''
-Write-Host '[4/4] Dashboard local (opcional) ...'
-$dashEnv = Join-Path $root 'web-dashboard\.env.local'
-if (-not (Test-Path $dashEnv)) {
-  $api = 'https://cop-nest-api.onrender.com'
-  if (Test-Path $envFile) {
-    $m = Get-Content $envFile | Where-Object { $_ -match '^\s*NEXT_PUBLIC_API_URL\s*=' -and $_ -notmatch '^\s*#' } | Select-Object -First 1
-    if ($m) { $api = ($m -split '=', 2)[1].Trim() }
-  }
-  $lines = @(
-    '# Generado por configurar-plataforma-completa.ps1',
-    "NEXT_PUBLIC_API_URL=$api"
-  )
-  $lines | Set-Content -Path $dashEnv -Encoding UTF8
-  Write-Host '  Creado web-dashboard/.env.local'
-}
 
 Write-Host ''
 Write-Host '=== Fin ==='

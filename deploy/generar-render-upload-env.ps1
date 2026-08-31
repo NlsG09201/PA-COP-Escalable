@@ -95,7 +95,7 @@ $corsLine = $lines | Where-Object { $_ -match '^\s*CORS_ORIGINS\s*=' } | Select-
 if ($corsLine) {
   $origins = (($corsLine -split '=', 2)[1]).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 }
-foreach ($o in @($vercelPublic, 'https://cop-web-public.onrender.com', 'https://cop-web-dashboard.onrender.com')) {
+foreach ($o in @($vercelPublic)) {
   if ($o -and $origins -notcontains $o) { $origins += $o }
 }
 $lines = @($lines | Where-Object { $_ -notmatch '^\s*CORS_ORIGINS\s*=' })
