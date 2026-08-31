@@ -1,6 +1,6 @@
 # Despliegue completo en Render
 
-Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dashboard Next** con el [Blueprint](https://render.com/docs/blueprint-spec) `render.yaml` en la raíz del repo.
+Guía para levantar **API Nest**, **J48 Python** y servicios de IA con el [Blueprint](https://render.com/docs/blueprint-spec) `render.yaml` en la raíz del repo. Las interfaces Angular se despliegan por su flujo propio.
 
 ## Requisitos previos
 
@@ -18,8 +18,6 @@ Guía para levantar **API Nest**, **J48 Python**, **web pública Next** y **dash
    - `cop-recommendation-engine` (Docker, IA ensemble + relapse)
    - `cop-j48-python` (Docker, entrena al arrancar con el ARFF del repo)
    - `cop-nest-api` (Docker Nest)
-   - `cop-web-public` (Node, carpeta `web-public`)
-   - `cop-web-dashboard` (Node, carpeta `web-dashboard`)
 
 ### Despliegue al 100% (recomendado)
 
@@ -80,9 +78,7 @@ Rellénalas en el asistente del Blueprint o después en cada servicio → **Envi
 | `REDIS_URL` | Solo la URI: `rediss://...` desde Upstash (sin `redis-cli`). El API normaliza si pegas por error el comando CLI |
 | `PUBLIC_API_ORIGIN` | `https://cop-nest-api.onrender.com` (ajusta si cambiaste el nombre del servicio) |
 | `J48_URL` | **Solo la base**, sin `/predict`. Ej: `https://cop-j48-python.onrender.com` |
-| `CORS_ORIGINS` | Orígenes del navegador, coma sin espacios: `https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com` |
-| `DASHBOARD_URL` | `https://cop-web-dashboard.onrender.com` |
-| `PUBLIC_SITE_URL` | `https://cop-web-public.onrender.com` |
+| `CORS_ORIGINS` | Orígenes exactos de las interfaces Angular/Vercel, separados por coma y sin barra final. |
 | `APP_BOOTSTRAP_ADMIN_*` | Usuario admin inicial (ver `deploy/env.production.example`) |
 | `APP_BOOTSTRAP_ADMIN_ORG_ID` | UUID de organización si ya existe en Mongo; si no, deja vacío o usa el del seed |
 
@@ -90,21 +86,14 @@ Opcionales: `WOMPI_*`, `STRIPE_SECRET_KEY`, `PAYPAL_*`, `GOOGLE_CLIENT_ID`, `AI_
 
 Tras el **primer deploy** de `cop-j48-python`, copia su URL pública y pégala en `J48_URL` del API → **Manual Deploy** del API.
 
-### `cop-web-public` y `cop-web-dashboard`
-
 | Variable | Valor |
 |----------|--------|
-| `NEXT_PUBLIC_API_URL` | `https://cop-nest-api.onrender.com` (misma URL que `PUBLIC_API_ORIGIN`) |
-
-**Importante:** Next incrusta `NEXT_PUBLIC_*` en el build. Tras cambiar esta variable, haz **Clear build cache & deploy** o un redeploy para que el cliente apunte al API correcto.
 
 ## Paso 3 — Comprobaciones
 
 ```text
 GET https://cop-j48-python.onrender.com/health     → {"ok":true,...}
 GET https://cop-nest-api.onrender.com/health       → estado Mongo + Redis ok
-GET https://cop-web-public.onrender.com            → landing
-GET https://cop-web-dashboard.onrender.com/login   → panel
 ```
 
 Si el navegador muestra error **CORS**, revisa que `CORS_ORIGINS` incluya exactamente el `https://...` del front (sin barra final).
