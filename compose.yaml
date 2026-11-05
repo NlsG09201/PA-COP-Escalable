@@ -13,7 +13,7 @@ services:
     environment:
       # Dev default. Override by editing this value (or add an .env and replace it here).
       # Must be base64-like (avoid '_' and other unsupported chars).
-      MONGO_REPLICA_SET_KEY: cG9wZGV2cmVwbGljYXNldGtleQ==
+      MONGO_REPLICA_SET_KEY: ${MONGO_REPLICA_SET_KEY:?Set MONGO_REPLICA_SET_KEY in .env}
     volumes:
       - mongodb_keyfile:/keyfile
     command:
@@ -36,7 +36,7 @@ services:
     environment:
       MONGO_INITDB_DATABASE: cop
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-cop}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
     ports:
       - "27017:27017"
     volumes:
@@ -63,7 +63,7 @@ services:
       - -lc
       - >
         for i in {1..60}; do
-          mongosh "mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/admin?authSource=admin" --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]}); }" && exit 0;
+          mongosh "mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/admin?authSource=admin" --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]}); }" && exit 0;
           sleep 1;
         done;
         echo "Mongo replica set init failed" && exit 1;
@@ -182,15 +182,15 @@ services:
       - ortho_3d_data:/app/uploads/ortho-3d
     environment:
       PORT: 8080
-      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin&replicaSet=rs0&retryWrites=true
+      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin&replicaSet=rs0&retryWrites=true
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change_me}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       # Mayor TTL en dev reduce tormentas de refresh paralelas; producción puede acortarlo vía .env.
       JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-45m}
       # Único admin bootstrap (SUPER_ADMIN + ADMIN). Sobrescribe con .env si hace falta.
-      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-nelsonh09}
-      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-NelsonH09092001}
-      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-nelsondavid1954@gmail.com}
+      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:?Set APP_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-}
       APP_BOOTSTRAP_ADMIN_ORG_ID: ${APP_BOOTSTRAP_ADMIN_ORG_ID:-be7f4015-67ad-472b-9cf7-aadcd8b0d604}
       APP_BOOTSTRAP_ADMIN_RESET: ${APP_BOOTSTRAP_ADMIN_RESET:-true}
       APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN: ${APP_BOOTSTRAP_ENFORCE_SOLE_ADMIN:-true}
@@ -339,7 +339,7 @@ services:
       context: ./services/ai-diagnosis-service
     profiles: ["ai"]
     environment:
-      DIAG_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      DIAG_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
       DIAG_MONGODB_DB: cop
       DIAG_REDIS_HOST: redis
       DIAG_REDIS_PORT: 6379
@@ -357,7 +357,7 @@ services:
       context: ./services/emotion-analysis-service
     profiles: ["ai"]
     environment:
-      EMOTION_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      EMOTION_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
       EMOTION_MONGODB_DB: cop
       EMOTION_REDIS_HOST: redis
       EMOTION_REDIS_PORT: 6379
@@ -374,7 +374,7 @@ services:
       context: ./services/recommendation-engine
     profiles: ["ai"]
     environment:
-      RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:-cop_dev_password_change_me}@mongodb:27017/cop?authSource=admin
+      RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
       RECO_MONGODB_DB: cop
       RECO_REDIS_HOST: redis
       RECO_REDIS_PORT: 6379
