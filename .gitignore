@@ -1,4 +1,6 @@
 .env*
+!.env.local.example
+backups/
 deploy/render-env.local.txt
 deploy/render-upload.env
 deploy/cop-production-env.b64.txt

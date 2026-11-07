@@ -37,8 +37,9 @@ services:
       MONGO_INITDB_DATABASE: cop
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-cop}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
-    ports:
-      - "27017:27017"
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-cop_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}
+      MONGODB_APP_URI: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0&retryWrites=true
     volumes:
       - mongodb_data:/data/db
       - mongodb_keyfile:/etc/mongo-keyfile:ro
@@ -58,15 +59,23 @@ services:
     depends_on:
       mongodb:
         condition: service_started
-    entrypoint:
-      - bash
-      - -lc
-      - >
-        for i in {1..60}; do
-          mongosh "mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/admin?authSource=admin" --quiet --eval "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]}); }" && exit 0;
-          sleep 1;
-        done;
-        echo "Mongo replica set init failed" && exit 1;
+    environment:
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-cop}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env.local}
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-cop_app}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}
+    volumes:
+      - ./scripts/mongo:/scripts:ro
+    entrypoint: ["bash", "/scripts/init-replica-and-user.sh"]
+
+  mongodb-tools:
+    image: mongodb/mongodb-database-tools:100.20.1
+    profiles: ["tools"]
+    environment:
+      MONGODB_APP_URI: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["mongodump"]
 
   redis:
     image: redis:7-alpine
@@ -74,8 +83,8 @@ services:
     security_opt:
       - no-new-privileges:true
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -182,7 +191,7 @@ services:
       - ortho_3d_data:/app/uploads/ortho-3d
     environment:
       PORT: 8080
-      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin&replicaSet=rs0&retryWrites=true
+      MONGODB_URL: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0&retryWrites=true
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       # Mayor TTL en dev reduce tormentas de refresh paralelas; producción puede acortarlo vía .env.
@@ -339,7 +348,7 @@ services:
       context: ./services/ai-diagnosis-service
     profiles: ["ai"]
     environment:
-      DIAG_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
+      DIAG_MONGODB_URI: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0
       DIAG_MONGODB_DB: cop
       DIAG_REDIS_HOST: redis
       DIAG_REDIS_PORT: 6379
@@ -357,7 +366,7 @@ services:
       context: ./services/emotion-analysis-service
     profiles: ["ai"]
     environment:
-      EMOTION_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
+      EMOTION_MONGODB_URI: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0
       EMOTION_MONGODB_DB: cop
       EMOTION_REDIS_HOST: redis
       EMOTION_REDIS_PORT: 6379
@@ -374,7 +383,7 @@ services:
       context: ./services/recommendation-engine
     profiles: ["ai"]
     environment:
-      RECO_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-cop}:${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}@mongodb:27017/cop?authSource=admin
+      RECO_MONGODB_URI: mongodb://${MONGO_APP_USERNAME:-cop_app}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.local}@mongodb:27017/cop?authSource=cop&replicaSet=rs0
       RECO_MONGODB_DB: cop
       RECO_REDIS_HOST: redis
       RECO_REDIS_PORT: 6379
@@ -414,6 +423,7 @@ services:
 
 volumes:
   mongodb_data:
+  redis_data:
   models_data:
   mongodb_keyfile:
   ortho_3d_data:
