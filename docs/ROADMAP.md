@@ -32,17 +32,17 @@ El checkout está en la rama `appmod/java-upgrade-20260824162527`. `.gitignore` 
 
 ### P0 — Contener credenciales y datos sensibles versionados
 
-- Cuatro archivos `deploy/tmp-login*.json` tenían campos de login poblados. Además, aparecieron valores de setup/admin en `deploy/crear-admin-render.ps1`, `deploy/opcion-b-render.ps1`, scripts de carga, `scripts/upsert-super-admin.mjs`, `scripts/generate-mcp-atlas-payloads.mjs`, documentación operativa y fallbacks de Nest.
-- Se confirmó que 70 lotes de 500 pacientes se generan con datos sintéticos por `scripts/generate-mcp-bulk-35k.mjs`; esos lotes no son registros de pacientes reales. Se retiraron del árbol, se añadieron reglas de exclusión y se corrigió el manifiesto para que no guarde rutas locales absolutas.
+- Cuatro archivos `deploy/tmp-login*.json` tenían campos de login poblados. También aparecieron valores de setup/admin en `deploy/crear-admin-render.ps1`, `deploy/opcion-b-render.ps1`, scripts de carga, `scripts/upsert-super-admin.mjs`, `scripts/generate-mcp-atlas-payloads.mjs`, `scripts/seed-atlas-completo.mjs`, documentación operativa y fallbacks de Nest.
+- `deploy/mcp-payloads/users.json` contenía un hash de la contraseña bootstrap por defecto. Se retiró junto con los JSON temporales de login y el cuerpo de bootstrap generado; los generadores dejaron de incluir credenciales por defecto.
+- Se confirmó que 70 lotes de 500 pacientes son datos sintéticos creados por `scripts/generate-mcp-bulk-35k.mjs`, no registros reales. Se retiraron del árbol, se añadieron reglas de exclusión y se corrigió el manifiesto para no guardar rutas locales absolutas. Estos artefactos y valores de credenciales permanecen en commits históricos hasta una limpieza coordinada.
 - `git log --all` confirmó que valores estáticos de setup/admin y archivos de login aparecen en commits anteriores. Una búsqueda histórica de URI Mongo encontró coincidencias en revisiones antiguas de `docs/DEPLOY_RENDER_VERCEL.md`. Estado/validez de esos secretos no confirmado: rotar setup/admin y la contraseña Atlas asociada antes de un despliegue; considerar divulgados los valores históricos.
 - El árbol actual quedó limpio de esos valores; los objetos históricos siguen en Git. No se reescribió historia ni se hizo force-push porque eso afecta ramas compartidas. Se requiere una operación coordinada de limpieza histórica después de rotar y respaldar, y revisar clones/PRs.
-- `.env` y `.env.auth` están ignorados localmente, no aparecen como archivos rastreados en `git ls-files`. Esto no acredita ausencia de secretos en otros blobs históricos.
 - `.env` y `.env.auth` están ignorados localmente, no aparecen como archivos rastreados en `git ls-files`. Esto no acredita ausencia de secretos en el historial.
 - **Límite de esta fase:** se revisaron todas las referencias alcanzables por `git log --all` para los valores conocidos y patrones de alta confianza; no se usó un escáner especializado ni se puede afirmar que todas las credenciales hayan sido detectadas. No se identificaron responsables ni se validó si las credenciales siguen activas.
 
 ### P1 — Reducir exposición del acceso a MongoDB
 
-- Varias guías de despliegue recomendaban permitir conexiones desde cualquier IP (`0.0.0.0/0`). Se reemplazó esa recomendación en los documentos y scripts actuales por acceso limitado a IPs egress de confianza.
+- Varias guías de despliegue recomendaban abrir Atlas a cualquier dirección. Se corrigieron para limitar Network Access a IPs de salida confiables.
 - La URI con credenciales de una guía se quitó del texto actual. La búsqueda histórica encontró versiones anteriores de esa guía con URI de usuario/contraseña. Verificar con el administrador de Atlas si era real y rotar la contraseña si pudo corresponder a una cuenta activa.
 - No se modificaron listas de acceso ni credenciales en Render, Atlas o Vercel; son cambios de infraestructura externa.
 
@@ -110,10 +110,11 @@ Las fases se ejecutarán por cambios pequeños y revisables. Cada fase debe enum
 - **Archivos retirados del árbol:** cuatro JSON temporales de login, un JSON de bootstrap con contraseña y 70 lotes sintéticos de pacientes. El generador de lotes vuelve a crearlos bajo reglas ignoradas; el script MCP los regenera si faltan.
 - **Seguridad:** los endpoints de bootstrap/seeding ahora requieren `SETUP_ADMIN_SECRET` explícito y dejaron de aceptar una contraseña/admin estática como fallback. Los generadores administrativos fallan si faltan credenciales seguras. El script de recuperación pide secretos sin eco y ya no escribe un cuerpo de credenciales a disco. Guías actuales no recomiendan apertura global de Atlas.
 - **Datos:** no hubo migraciones ni cambios de base de datos.
-- **Validación ejecutada:** análisis sintáctico PowerShell de seis scripts; `node --input-type=module --check` de tres módulos JavaScript; búsqueda local de los valores expuestos; revisión del manifiesto por rutas absolutas. El árbol actual no contiene coincidencias de los valores conocidos.
-- **Resultado parcial:** `npm run build` de Nest y los `node --check archivo.mjs` fallaron al intentar resolver rutas bajo `C:\Users\nelso` (`EPERM`) por el sandbox. No se ejecutaron tests de aplicación ni Compose. La sintaxis de los scripts PowerShell y los módulos JS sí pudo validarse por stdin.
+- **Validación ejecutada:** build de Nest (`npm run build`) aprobado; sintaxis ES module de cuatro scripts Node aprobada; análisis sintáctico PowerShell de seis scripts aprobado; `git diff --check` aprobado; búsqueda local de valores conocidos sin coincidencias; manifiesto con 70 nombres relativos y sin rutas absolutas.
+- **Cobertura pendiente:** no se ejecutaron pruebas de integración contra Render/Atlas, flujos HTTP, base de datos, Compose ni tests unitarios de autenticación. El build verifica compilación, no comportamiento.
 - **Pendiente antes de despliegue:** rotar `SETUP_ADMIN_SECRET`, contraseña del admin bootstrap y credencial Atlas si corresponde; cargar valores nuevos en Render/Atlas mediante sus gestores; verificar login y conectividad; coordinar saneamiento histórico y remoto. No se desplegó ni se contactaron proveedores externos.
 - **Instrucción operativa:** al desplegar esta versión, define un `SETUP_ADMIN_SECRET` nuevo en Render. Las operaciones de bootstrap y carga ya no aceptan el valor anterior ni usan la contraseña del administrador como secreto alternativo.
+- **Estado Git:** el checkout recibió el commit local `fb29d16` durante esta fase. Incluye un cambio de versión en `backend-spring/pom.xml` que no formó parte de esta auditoría; se conservó sin modificar.
 
 ## Inicio local conocido y límites
 

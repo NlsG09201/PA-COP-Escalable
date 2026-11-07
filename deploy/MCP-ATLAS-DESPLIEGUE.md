@@ -102,4 +102,3 @@ Usa el MCP MongoDB en la base cop:
 ## Colecciones (ATLAS_COLLECTIONS)
 
 organizations, sites, users, refresh_tokens, professionals, patients, appointments, clinical_records, odontograms, psychology_sessions, psychological_evaluations, psychological_snapshots, j48_predictions, medical_ai_alerts, medical_ai_predictions, medical_ai_insights, medical_ai_assistant_threads, ortho_3d_jobs, public_reviews
-

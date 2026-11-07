@@ -53,7 +53,7 @@ export class BootstrapAdminService implements OnModuleInit {
       const msg = err instanceof Error ? err.message : String(err);
       if (/buffering timed out|ServerSelection|whitelist|ECONNREFUSED/i.test(msg)) {
         this.logger.error(
-          `Bootstrap admin omitido (Mongo no conectado): ${msg}. Atlas -> Network Access -> 0.0.0.0/0 Active. Ver deploy/ATLAS-RENDER.md`,
+          `Bootstrap admin omitido (Mongo no conectado): ${msg}. Atlas -> Network Access -> trusted egress IPs only; never allow global access Active. Ver deploy/ATLAS-RENDER.md`,
         );
       } else {
         this.logger.error(`Bootstrap admin omitido: ${msg}`);
@@ -72,7 +72,7 @@ export class BootstrapAdminService implements OnModuleInit {
           () =>
             reject(
               new Error(
-                `Mongo no conectó en ${MONGO_WAIT_MS / 1000}s. Atlas → Network Access → 0.0.0.0/0 Active`,
+                `Mongo no conectó en ${MONGO_WAIT_MS / 1000}s. Atlas → Network Access → trusted egress IPs only; never allow global access Active`,
               ),
             ),
           MONGO_WAIT_MS,

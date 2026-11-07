@@ -67,11 +67,11 @@ import {
               const msg = err.message ?? '';
               if (/whitelist|ServerSelection|ECONNREFUSED/i.test(msg)) {
                 console.error(
-                  '[cop-nest-api] MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0 (Active). Ver deploy/ATLAS-RENDER.md',
+                  '[cop-nest-api] MongoDB Atlas: Network Access -> Add IP -> trusted egress IPs only; never allow global access (Active). Ver deploy/ATLAS-RENDER.md',
                 );
               } else if (/SSL|TLS|alert/i.test(msg)) {
                 console.error(
-                  `[cop-nest-api] MongoDB TLS/SSL Error: ${msg}. Verifica que 0.0.0.0/0 esté Active en Atlas Network Access.`,
+                  `[cop-nest-api] MongoDB TLS/SSL Error: ${msg}. Verifica que trusted egress IPs only; never allow global access esté Active en Atlas Network Access.`,
                 );
               } else {
                 console.error(`[cop-nest-api] MongoDB: ${msg}`);

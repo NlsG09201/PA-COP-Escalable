@@ -80,7 +80,7 @@ function parseArgs(argv) {
       out.uri = argv[++i];
     } else if (argv[i] === '--admin-user' && argv[i + 1]) {
       out.adminUser = argv[++i];
-    } else if (argv[i] === '--admin-password' && argv[i + 1]) {
+    } else if (argv[i] === '--admin-password') {
       out.adminPass = argv[++i];
     }
   }
@@ -312,7 +312,7 @@ function orgIdString(env, orgId) {
 
 async function seedAdmin(db, orgId, env, cli = {}) {
   const username = (cli.adminUser || env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim().toLowerCase();
-  const password = cli.adminPass || env.APP_BOOTSTRAP_ADMIN_PASSWORD || '';
+  const password = (env.APP_BOOTSTRAP_ADMIN_PASSWORD || '').trim();
   const email = (env.APP_BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
   if (!username || !password) {
     console.warn('[seed] Sin APP_BOOTSTRAP_ADMIN_USERNAME/PASSWORD — omitiendo admin');
@@ -660,7 +660,7 @@ async function main() {
     console.error('\n[seed] No se pudo conectar a MongoDB Atlas.');
     if (/querySrv|ENOTFOUND|ECONNREFUSED|timed out/i.test(msg)) {
       console.error(`
-  1. Atlas -> Network Access -> 0.0.0.0/0 Active
+  1. Atlas -> Network Access -> trusted egress IPs only; never allow global access Active
   2. Atlas -> Database -> Connect -> copia la URI y actualiza .env MONGODB_URL
   3. Comprueba internet/DNS (nslookup cluster0.6oyhyja.mongodb.net)
   4. Vuelve a ejecutar: .\\deploy\\cargar-atlas-completo.ps1

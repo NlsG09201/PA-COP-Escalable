@@ -13,7 +13,7 @@ Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen e
 3. **Network Access** → `solo IPs de salida confiables; nunca permitir acceso global` (Render) o IPs fijas si las tienes.
 4. **Connect** → driver Node → copia URI, ejemplo:
 
-   Configure MONGODB_URL in the provider secret manager; never put the URI in docs or Git.
+   Configura MONGODB_URL en el gestor de secretos del proveedor; no guardes la URI en documentos ni en Git.
 
 5. Guárdala como `MONGODB_URL` (no la subas a Git).
 
