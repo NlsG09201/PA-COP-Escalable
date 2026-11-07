@@ -8,7 +8,10 @@ param([switch]$Forzar)
 
 $ErrorActionPreference = 'Stop'
 $api = 'https://pa-cop-escalable.onrender.com'
-$secret = 'cop-atlas-setup-2026'
+$secret = $env:SETUP_ADMIN_SECRET
+if ([string]::IsNullOrWhiteSpace($secret)) {
+  throw 'Define SETUP_ADMIN_SECRET desde un gestor seguro antes de continuar.'
+}
 $body = @{ forzar = [bool]$Forzar } | ConvertTo-Json -Compress
 
 Write-Host "POST $api/api/auth/seed-bulk-15k (puede tardar 2-5 min)..." -ForegroundColor Cyan

@@ -1,9 +1,15 @@
 .env*
+!.env.local.example
+backups/
 deploy/render-env.local.txt
 deploy/render-upload.env
 deploy/cop-production-env.b64.txt
 deploy/mongo-dump/
 deploy/mcp-payloads/bulk/*-batch-*.json
+deploy/mcp-payloads/bulk-35k/patients-batch-*.json
+deploy/tmp-login*.json
+deploy/setup-bootstrap-body.json
+deploy/mcp-payloads/users.json
 .env.local
 .env.*.local
 *.log
@@ -39,3 +45,6 @@ deploy/mcp-payloads/bulk/*-batch-*.json
 .cursor/
 .DS_Store
 Thumbs.db
+
+# Documento local con comandos y credenciales de acceso
+docs/ACCESOS_DESPLIEGUE_LOCAL.md

@@ -1,8 +1,7 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotImplementedException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../iam/guards/jwt-auth.guard';
-import { ApiCompatService } from './api-compat.service';
 
 /**
  * Compatibilidad Angular: datos desde Mongo cuando los microservicios AI no están en Render.
@@ -12,26 +11,19 @@ import { ApiCompatService } from './api-compat.service';
 @Controller('api/diagnosis')
 @UseGuards(JwtAuthGuard)
 export class DiagnosisCompatController {
-  constructor(private readonly compat: ApiCompatService) {}
-
   @Get('patients/:patientId/results')
-  results(@Param('patientId') patientId: string) {
-    return this.compat.diagnosisResultsForPatient(patientId);
+  results() {
+    throw new NotImplementedException('El servicio de diagnóstico clínico no está configurado.');
   }
 
   @Post('patients/:patientId/analyze')
-  analyze(@Param('patientId') patientId: string) {
-    return this.compat.stubDiagnosisAnalyze(patientId);
+  analyze() {
+    throw new NotImplementedException('El servicio de diagnóstico clínico no está configurado.');
   }
 
   @Get('results/:resultId')
-  resultById(@Param('resultId') resultId: string) {
-    return {
-      id: resultId,
-      status: 'COMPLETED',
-      findings: [],
-      createdAt: new Date().toISOString(),
-    };
+  resultById() {
+    throw new NotImplementedException('El servicio de diagnóstico clínico no está configurado.');
   }
 }
 
@@ -122,21 +114,19 @@ export class PsychologyCompatController {
 @Controller('api/emotion')
 @UseGuards(JwtAuthGuard)
 export class EmotionCompatController {
-  constructor(private readonly compat: ApiCompatService) {}
-
   @Get('patients/:patientId/results')
-  results(@Param('patientId') patientId: string) {
-    return this.compat.emotionResultsForPatient(patientId);
+  results() {
+    throw new NotImplementedException('El servicio de análisis emocional no está configurado.');
   }
 
   @Post('patients/:patientId/analyze')
-  analyze(@Param('patientId') patientId: string) {
-    return this.compat.stubEmotionAnalyze(patientId);
+  analyze() {
+    throw new NotImplementedException('El servicio de análisis emocional no está configurado.');
   }
 
   @Get('results/:jobId')
-  resultByJob(@Param('jobId') jobId: string) {
-    return { jobId, status: 'COMPLETED', primaryEmotion: 'NEUTRAL' };
+  resultByJob() {
+    throw new NotImplementedException('El servicio de análisis emocional no está configurado.');
   }
 }
 

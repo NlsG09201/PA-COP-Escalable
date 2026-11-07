@@ -21,7 +21,7 @@ if (-not (Test-Path '.env')) {
 }
 
 Write-Host '=== Atlas: colecciones + datos ===' -ForegroundColor Cyan
-Write-Host 'Requisito: Atlas -> Network Access -> 0.0.0.0/0 Active' -ForegroundColor DarkGray
+Write-Host 'Requisito: Atlas -> Network Access -> solo IPs de salida confiables; nunca permitir acceso global Active' -ForegroundColor DarkGray
 Write-Host ''
 
 if (-not (Test-Path 'node_modules/mongodb')) {

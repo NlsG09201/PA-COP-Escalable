@@ -86,24 +86,3 @@ services:
       - key: AI_RELAPSE_URL
         sync: false
 
-  - type: web
-    name: cop-web-public
-    runtime: node
-    rootDir: web-public
-    plan: starter
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-
-  - type: web
-    name: cop-web-dashboard
-    runtime: node
-    rootDir: web-dashboard
-    plan: starter
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false

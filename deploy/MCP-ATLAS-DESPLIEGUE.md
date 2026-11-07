@@ -2,20 +2,20 @@
 
 ## 1. Conectar el MCP en Cursor
 
-Ejecuta en PowerShell (desde la raíz del repo):
+Ejecuta en PowerShell (desde la raÃ­z del repo):
 
 ```powershell
 .\deploy\configurar-mcp-atlas.ps1
 ```
 
 Eso:
-- Corrige el host Atlas si tu `.env` tenía `cluster0.6oyhyja` (no existe en DNS) → `cluster0.5dduzba`
+- Corrige el host Atlas si tu `.env` tenÃ­a `cluster0.6oyhyja` (no existe en DNS) â†’ `cluster0.5dduzba`
 - Define `MDB_MCP_CONNECTION_STRING` en Windows
 - Actualiza `%USERPROFILE%\.cursor\mcp.json` con el servidor **mongodb**
 
 Luego:
-1. **Cursor Settings** → **MCP** → **Reiniciar** el servidor `mongodb` (o reinicia Cursor)
-2. Atlas → **Network Access** → `0.0.0.0/0` **Active**
+1. **Cursor Settings** â†’ **MCP** â†’ **Reiniciar** el servidor `mongodb` (o reinicia Cursor)
+2. Atlas â†’ **Network Access** â†’ `IPs egress de confianza (no abrir acceso global)` **Active**
 3. En el chat: `list-databases` debe mostrar la base `cop`
 
 ## 2. Generar payloads JSON (en tu PC)
@@ -30,29 +30,29 @@ Crea `deploy/mcp-payloads/*.json` listos para `insert-many`.
 
 Base de datos: **`cop`**
 
-### Paso A — Crear colecciones vacías
+### Paso A â€” Crear colecciones vacÃ­as
 
 Para cada nombre en `ATLAS_COLLECTIONS` (ver `scripts/seed-atlas-completo.mjs`), usar herramienta **`create-collection`**:
 
 - database: `cop`
-- collection: `organizations`, `sites`, `users`, … (19 en total)
+- collection: `organizations`, `sites`, `users`, â€¦ (19 en total)
 
-### Paso B — Insertar datos
+### Paso B â€” Insertar datos
 
 Herramienta **`insert-many`** con los JSON de `deploy/mcp-payloads/`:
 
-| Archivo | Colección | Documentos |
+| Archivo | ColecciÃ³n | Documentos |
 |---------|-----------|------------|
 | `organizations.json` | organizations | 1 |
 | `sites.json` | sites | 36 |
 | `users.json` | users | 1 (admin) |
 | `professionals.json` | professionals | 2 |
 | `public_reviews.json` | public_reviews | 1 |
-| Resto `*.json` | cada colección | muestra mínima |
+| Resto `*.json` | cada colecciÃ³n | muestra mÃ­nima |
 
-Colecciones vacías (`refresh_tokens`, `patients`, `appointments`, `clinical_records`) se crean en el paso A; los pacientes masivos van en el paso C.
+Colecciones vacÃ­as (`refresh_tokens`, `patients`, `appointments`, `clinical_records`) se crean en el paso A; los pacientes masivos van en el paso C.
 
-### Paso C — 15.000 pacientes (script Node)
+### Paso C â€” 15.000 pacientes (script Node)
 
 El MCP no es ideal para 15k docs en un solo lote. Ejecuta:
 
@@ -68,8 +68,8 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000
 
 ## 4. Verificar con MCP
 
-- **`list-collections`** → database `cop`
-- **`count`** por colección
+- **`list-collections`** â†’ database `cop`
+- **`count`** por colecciÃ³n
 - **`find`** en `users` con `{ "username": "nelsonherazoi" }`
 
 ## 5. Carga masiva 15.000 pacientes + 15.000 J48
@@ -78,18 +78,18 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000
 .\deploy\insertar-bulk-15k-mcp.ps1
 ```
 
-Genera `deploy/mcp-payloads/bulk/` (30 lotes × 500 `patients` + 30 lotes × 500 `j48_predictions`).
+Genera `deploy/mcp-payloads/bulk/` (30 lotes Ã— 500 `patients` + 30 lotes Ã— 500 `j48_predictions`).
 
-- **Pacientes:** sintéticos (o CSV si `pacientes_colombia_15k.csv` tiene 15k filas).
+- **Pacientes:** sintÃ©ticos (o CSV si `pacientes_colombia_15k.csv` tiene 15k filas).
 - **J48:** `datasets/relapse_risk_j48.arff` (15.000 filas), enlazadas 1:1 con cada paciente.
 
 Con MCP conectado, el agente puede usar `insert-many` por cada `patients-batch-NNN.json` y `j48_predictions-batch-NNN.json`.
 
-Si falla `querySrv` / SSL desde tu PC: Atlas → **Network Access** → `0.0.0.0/0` Active, reinicia MCP (`.\deploy\configurar-mcp-atlas.ps1`).
+Si falla `querySrv` / SSL desde tu PC: Atlas â†’ **Network Access** â†’ `IPs egress de confianza (no abrir acceso global)` Active, reinicia MCP (`.\deploy\configurar-mcp-atlas.ps1`).
 
 ## 6. Prompt para el agente en Cursor
 
-Copia esto cuando el MCP ya esté conectado:
+Copia esto cuando el MCP ya estÃ© conectado:
 
 ```text
 Usa el MCP MongoDB en la base cop:

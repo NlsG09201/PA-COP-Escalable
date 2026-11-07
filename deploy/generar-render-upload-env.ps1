@@ -95,7 +95,7 @@ $corsLine = $lines | Where-Object { $_ -match '^\s*CORS_ORIGINS\s*=' } | Select-
 if ($corsLine) {
   $origins = (($corsLine -split '=', 2)[1]).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 }
-foreach ($o in @($vercelPublic, 'https://cop-web-public.onrender.com', 'https://cop-web-dashboard.onrender.com')) {
+foreach ($o in @($vercelPublic)) {
   if ($o -and $origins -notcontains $o) { $origins += $o }
 }
 $lines = @($lines | Where-Object { $_ -notmatch '^\s*CORS_ORIGINS\s*=' })
@@ -105,8 +105,9 @@ if (-not ($lines | Where-Object { $_ -match '^\s*PUBLIC_API_ORIGIN\s*=' })) {
   $lines += "PUBLIC_API_ORIGIN=$defaultApiOrigin"
 }
 
-if (-not ($lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=' })) {
-  $lines += 'SETUP_ADMIN_SECRET=cop-atlas-setup-2026'
+$setupSecretLine = $lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=\s*\S+' } | Select-Object -First 1
+if (-not $setupSecretLine) {
+  throw 'Define SETUP_ADMIN_SECRET en .env local (ignorado por Git) y mantenlo en un gestor seguro.'
 }
 
 if (-not ($lines | Where-Object { $_ -match '^\s*APP_BOOTSTRAP_ADMIN_RESET\s*=' })) {

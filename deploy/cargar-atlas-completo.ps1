@@ -3,7 +3,7 @@
 #   .\deploy\cargar-atlas-completo.ps1
 #
 # Requiere en .env: MONGODB_PASSWORD (o MONGODB_URL Atlas) y APP_BOOTSTRAP_ADMIN_* .
-# Atlas -> Network Access -> 0.0.0.0/0 Active antes de ejecutar.
+# Atlas -> Network Access -> solo IPs de salida confiables; nunca permitir acceso global Active antes de ejecutar.
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot

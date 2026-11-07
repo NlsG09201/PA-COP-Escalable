@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: cop-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URL:}
+server:
+  port: ${PORT:8081}
+  error:
+    include-message: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+cop:
+  security:
+    jwt-secret: ${JWT_SECRET:}
+    access-expires: ${JWT_ACCESS_EXPIRES:45m}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:}
+springdoc:
+  swagger-ui:
+    path: /api/docs

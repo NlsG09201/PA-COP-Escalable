@@ -10,10 +10,10 @@ Guía paso a paso para **Centro COP** cuando el panel y la web pública siguen e
 
 1. [cloud.mongodb.com](https://cloud.mongodb.com) → **Create cluster** (M0 gratis o M10 producción).
 2. **Database Access** → usuario con contraseña fuerte → rol `readWrite` en la DB.
-3. **Network Access** → `0.0.0.0/0` (Render) o IPs fijas si las tienes.
+3. **Network Access** → `solo IPs de salida confiables; nunca permitir acceso global` (Render) o IPs fijas si las tienes.
 4. **Connect** → driver Node → copia URI, ejemplo:
 
-   `mongodb+srv://USER:PASS@cluster0.xxxxx.mongodb.net/cop_escalable?retryWrites=true&w=majority`
+   Configura MONGODB_URL en el gestor de secretos del proveedor; no guardes la URI en documentos ni en Git.
 
 5. Guárdala como `MONGODB_URL` (no la subas a Git).
 

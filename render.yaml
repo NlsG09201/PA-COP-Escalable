@@ -80,13 +80,7 @@ services:
       - key: CORS_ALLOW_VERCEL
         value: "true"
       - key: CORS_ORIGINS
-        value: https://pa-cop-escalable-2qx1.vercel.app,https://cop-web-public.onrender.com,https://cop-web-dashboard.onrender.com
-      - key: DASHBOARD_URL
-        value: https://cop-web-dashboard.onrender.com
-      - key: PUBLIC_SITE_URL
-        value: https://cop-web-public.onrender.com
-      - key: PUBLIC_WEB_ORIGIN
-        value: https://cop-web-public.onrender.com
+        value: https://pa-cop-escalable-2qx1.vercel.app
       - key: APP_BOOTSTRAP_ADMIN_USERNAME
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_PASSWORD
@@ -118,26 +112,3 @@ services:
       - key: AI_RELAPSE_URL
         sync: false
 
-  # --- Web pública Next.js ---
-  - type: web
-    name: cop-web-public
-    runtime: node
-    rootDir: web-public
-    plan: starter
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://cop-nest-api.onrender.com
-
-  # --- Dashboard clínico Next.js ---
-  - type: web
-    name: cop-web-dashboard
-    runtime: node
-    rootDir: web-dashboard
-    plan: starter
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://cop-nest-api.onrender.com

@@ -3,7 +3,7 @@
  * Crea o resetea un usuario SUPER_ADMIN + ADMIN en MongoDB Atlas.
  *
  *   node scripts/upsert-super-admin.mjs
- *   node scripts/upsert-super-admin.mjs --user GM140810 --email Odontologuito@gmail.com --password GM148Odonto
+ *   Define APP_BOOTSTRAP_ADMIN_USERNAME, APP_BOOTSTRAP_ADMIN_EMAIL y APP_BOOTSTRAP_ADMIN_PASSWORD en .env ignorado o el entorno seguro.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import crypto from 'node:crypto';
@@ -32,13 +32,13 @@ function loadDotEnv() {
 }
 
 function parseArgs(argv) {
-  const out = { user: '', email: '', password: '', uri: '', orgId: '' };
+  const out = { user: '', email: '', uri: '', orgId: '' };
   for (let i = 2; i < argv.length; i += 1) {
     const key = argv[i];
     const next = argv[i + 1];
     if (key === '--user' && next) out.user = argv[++i].trim();
     else if (key === '--email' && next) out.email = argv[++i].trim();
-    else if (key === '--password' && next) out.password = argv[++i];
+    else if (key === '--password') throw new Error('No pases contraseñas por argumentos; usa APP_BOOTSTRAP_ADMIN_PASSWORD en .env ignorado o un gestor seguro');
     else if (key === '--uri' && next) out.uri = argv[++i];
     else if (key === '--org-id' && next) out.orgId = argv[++i].trim();
   }
@@ -74,14 +74,14 @@ function usernameRegex(username) {
 
 async function main() {
   const opts = parseArgs(process.argv);
-  const env = loadDotEnv();
-  const username = (opts.user || env.APP_BOOTSTRAP_ADMIN_USERNAME || 'GM140810').trim();
-  const email = (opts.email || env.APP_BOOTSTRAP_ADMIN_EMAIL || 'Odontologuito@gmail.com').trim().toLowerCase();
-  const password = opts.password || env.APP_BOOTSTRAP_ADMIN_PASSWORD;
+  const env = { ...loadDotEnv(), ...process.env };
+  const username = (opts.user || env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim();
+  const email = (opts.email || env.APP_BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
+  const password = (env.APP_BOOTSTRAP_ADMIN_PASSWORD || '').trim();
   const orgId = (opts.orgId || env.APP_BOOTSTRAP_ADMIN_ORG_ID || 'be7f4015-67ad-472b-9cf7-aadcd8b0d604').trim();
 
   if (!username) throw new Error('Falta --user o APP_BOOTSTRAP_ADMIN_USERNAME');
-  if (!password || password.length < 8) throw new Error('Falta password de al menos 8 caracteres');
+  if (!password || password.length < 12) throw new Error('Falta APP_BOOTSTRAP_ADMIN_PASSWORD de al menos 12 caracteres');
   if (!orgId) throw new Error('Falta --org-id o APP_BOOTSTRAP_ADMIN_ORG_ID');
 
   const uri = resolveUri(env, opts.uri);

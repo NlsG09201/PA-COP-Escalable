@@ -94,7 +94,6 @@ function Invoke-RenderDeploy([string]$ServiceId, [string]$Name) {
 }
 
 $apiUrl = Get-DotEnvValue 'PUBLIC_API_ORIGIN'
-if (-not $apiUrl) { $apiUrl = Get-DotEnvValue 'NEXT_PUBLIC_API_URL' }
 if (-not $apiUrl) { $apiUrl = 'https://pa-cop-escalable.onrender.com' }
 
 $redisUrl = Get-DotEnvValue 'REDIS_URL'
@@ -165,19 +164,6 @@ if ($NestOnly) {
   exit 0
 }
 
-# --- Frontends ---
-foreach ($pair in @(
-  @{ Name = 'cop-web-public'; Keys = @{ 'NEXT_PUBLIC_API_URL' = $apiUrl } },
-  @{ Name = 'cop-web-dashboard'; Keys = @{ 'NEXT_PUBLIC_API_URL' = $apiUrl } }
-)) {
-  Write-Host "`n=== $($pair.Name) ==="
-  $sid = Get-RenderServiceId $pair.Name
-  if (-not $sid) { Write-Warning "  no encontrado"; continue }
-  foreach ($entry in $pair.Keys.GetEnumerator()) {
-    Set-RenderEnvVar $sid $entry.Key $entry.Value
-  }
-  Invoke-RenderDeploy $sid $pair.Name
-}
 
 # --- cop-recommendation-engine ---
 Write-Host "`n=== cop-recommendation-engine ==="

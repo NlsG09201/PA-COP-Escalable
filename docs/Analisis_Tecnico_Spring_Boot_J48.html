@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análisis técnico — Microservicio Spring Boot J48</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 17mm; }
+    :root { --navy:#102a43; --blue:#1f6feb; --cyan:#e7f5ff; --ink:#202b38; --muted:#52606d; --line:#d9e2ec; --pale:#f7fafc; --green:#0f766e; --amber:#a16207; --red:#b42318; }
+    * { box-sizing:border-box; } body { color:var(--ink); font:10.1pt/1.48 Arial, Helvetica, sans-serif; margin:0; }
+    h1,h2,h3 { color:var(--navy); line-height:1.16; margin:0 0 8px; } h1 { font-size:30pt; letter-spacing:-.7px; } h2 { font-size:17pt; margin-top:22px; border-bottom:2px solid #b9d7f5; padding-bottom:5px; } h3 { font-size:11.5pt; margin-top:15px; }
+    p { margin:6px 0 10px; } ul { margin:5px 0 11px; padding-left:20px; } li { margin:3px 0; }
+    .cover { min-height:255mm; display:flex; flex-direction:column; padding:22mm 12mm 10mm; background:linear-gradient(140deg,#f7fbff 0%,#eef7ff 58%,#fff 58%); border-top:9px solid var(--blue); }
+    .eyebrow { color:var(--blue); font-size:11pt; font-weight:bold; letter-spacing:1.6px; text-transform:uppercase; margin-bottom:17px; } .subtitle { color:var(--muted); font-size:15pt; max-width:470px; }
+    .cover .spacer { flex:1; } .meta { border-left:4px solid var(--blue); padding:8px 0 8px 13px; color:var(--muted); } .meta strong { color:var(--navy); } .notice { background:#fff8e6; border-left:4px solid #d97706; padding:10px 12px; margin:18px 0 0; font-size:9.3pt; }
+    .page-break { break-before:page; } .avoid-break { break-inside:avoid; }
+    .summary { background:var(--pale); border:1px solid var(--line); border-left:5px solid var(--blue); padding:12px 14px; }
+    table { border-collapse:collapse; width:100%; margin:9px 0 14px; font-size:9pt; } th { background:var(--navy); color:#fff; text-align:left; font-weight:bold; } td,th { border:1px solid var(--line); padding:6px 7px; vertical-align:top; } tr:nth-child(even) td { background:#fbfdff; }
+    code { font:8.4pt Consolas, monospace; color:#0b4c8c; word-break:break-word; } .code { background:#172b4d; color:#ecf4ff; border-radius:4px; padding:11px 13px; font:8.4pt/1.42 Consolas,monospace; white-space:pre-wrap; margin:9px 0 13px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; } .card { border:1px solid var(--line); border-radius:5px; padding:10px 11px; break-inside:avoid; } .card h3 { margin-top:0; } .badge { display:inline-block; border-radius:12px; padding:2px 7px; font-size:8.1pt; font-weight:bold; } .good { background:#d1fae5; color:#065f46; } .mid { background:#fef3c7; color:#92400e; } .high { background:#fee2e2; color:#991b1b; }
+    .flow { display:flex; gap:5px; align-items:stretch; margin:12px 0 15px; font-size:8.4pt; text-align:center; } .flow div { flex:1; border:1px solid #a8c9e9; border-radius:5px; padding:10px 5px; background:#f4faff; color:var(--navy); font-weight:bold; } .flow span { align-self:center; color:var(--blue); font-size:16pt; }
+    .small { font-size:8.7pt; color:var(--muted); } .toc li { margin:5px 0; } .footnote { font-size:8pt; color:var(--muted); } .kpi { font-size:18pt; color:var(--blue); font-weight:bold; display:block; }
+    footer { position:fixed; bottom:7mm; left:15mm; right:15mm; font-size:7.7pt; color:#73808c; border-top:1px solid var(--line); padding-top:3px; display:flex; justify-content:space-between; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Centro COP · Plataforma clínica escalable</div>
+    <h1>Análisis técnico<br>del microservicio<br>Spring Boot J48</h1>
+    <p class="subtitle">Evaluación de arquitectura, operación, seguridad y calidad del componente de predicción de riesgo de recaída psicológica.</p>
+    <div class="spacer"></div>
+    <div class="meta"><strong>Alcance:</strong> <code>services/j48-service</code><br><strong>Base técnica:</strong> Spring Boot 3.4.5 · Java 25 · Weka 3.8.6 · Spring AI 1.0.0<br><strong>Fecha de elaboración:</strong> 31 de agosto de 2026</div>
+    <div class="notice"><strong>Nota de uso clínico.</strong> Este componente es apoyo a la decisión, no un sistema de diagnóstico ni de prescripción. Sus resultados requieren revisión profesional y no deben tratarse como una conclusión clínica autónoma.</div>
+  </section>
+
+  <section class="page-break">
+    <h2>Resumen ejecutivo</h2>
+    <div class="summary"><strong>Resultado del análisis.</strong> El repositorio implementa un microservicio Java independiente que entrena, persiste y expone un árbol de decisión J48 para estimar riesgo de recaída psicológica. Su diseño es consistente con una arquitectura por capas: API HTTP, servicios de dominio, repositorio de artefacto del modelo, DTO, configuración, seguridad y manejo centralizado de errores. El componente no usa base de datos; persiste un modelo Weka serializado en el sistema de archivos.</div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><span class="kpi">5</span><strong>Endpoints funcionales</strong><br><span class="small">salud, metadatos, predicción, explicación y reentrenamiento.</span></div>
+      <div class="card"><span class="kpi">3</span><strong>Niveles de calidad</strong><br><span class="small">validación de entrada, respuesta de errores uniforme y pruebas focalizadas.</span></div>
+      <div class="card"><span class="kpi">1</span><strong>Artefacto persistido</strong><br><span class="small">modelo J48 y cabecera de atributos, serializados localmente.</span></div>
+      <div class="card"><span class="kpi">0</span><strong>Datos clínicos enviados por defecto</strong><br><span class="small">la explicación generativa está deshabilitada hasta configurar proveedor y clave.</span></div>
+    </div>
+    <h3>Conclusiones principales</h3>
+    <ul>
+      <li>La separación de responsabilidades es adecuada para un microservicio de inferencia sin persistencia relacional.</li>
+      <li>La ruta administrativa <code>POST /train</code> admite protección con <code>X-J48-Admin-Token</code>; el perfil de producción exige activarla.</li>
+      <li>El modelo puede autocrearse desde el ARFF al iniciar. Esto simplifica el despliegue, pero requiere control de versión y validación del conjunto de entrenamiento.</li>
+      <li>La integración con Spring AI aplica minimización de datos y dispone de explicación local de respaldo si el proveedor no está habilitado.</li>
+      <li>La mayor brecha es operativa: falta evidencia de ejecución de pruebas en CI para este servicio y de autenticación fuerte entre servicios.</li>
+    </ul>
+    <h3>Contenido</h3>
+    <ol class="toc">
+      <li>Alcance y contexto</li><li>Arquitectura y flujo de datos</li><li>Diseño por capas</li><li>Contratos de API</li><li>Modelo J48 y ciclo de vida</li><li>Configuración y despliegue</li><li>Seguridad, privacidad y cumplimiento</li><li>Calidad, pruebas y observabilidad</li><li>Riesgos y recomendaciones priorizadas</li><li>Conclusión y evidencia revisada</li>
+    </ol>
+  </section>
+
+  <section class="page-break">
+    <h2>1. Alcance y contexto</h2>
+    <p>El proyecto <strong>Centro COP — Plataforma clínica escalable</strong> es un monorepositorio que integra aplicaciones web públicas y de gestión clínica, una API principal NestJS, servicios de inteligencia artificial y componentes de infraestructura. El elemento revisado en este informe es <code>services/j48-service</code>, el microservicio Spring Boot dedicado al cálculo de riesgo de recaída.</p>
+    <p>La fuente de entrenamiento esperada es <code>datasets/relapse_risk_j48.arff</code>. El servicio lee los atributos definidos en ese archivo y usa el último atributo —configurado como clase cuando el ARFF no lo declara— para entrenar el clasificador <code>weka.classifiers.trees.J48</code>.</p>
+    <table><thead><tr><th>Elemento</th><th>Decisión observada</th><th>Implicación</th></tr></thead><tbody>
+      <tr><td>Tipo de servicio</td><td>API REST sin estado de sesión</td><td>Escalable horizontalmente si el modelo se distribuye de forma controlada.</td></tr>
+      <tr><td>Persistencia</td><td>Archivo serializado de Weka</td><td>No necesita JPA ni entidad; requiere volumen persistente y estrategia de versionado.</td></tr>
+      <tr><td>IA generativa</td><td>Opcional, vía Spring AI/OpenAI</td><td>La predicción funciona sin proveedor externo; la explicación tiene fallback.</td></tr>
+      <tr><td>Integración</td><td>Docker Compose con perfil <code>j48-java</code></td><td>El servicio puede activarse independientemente del stack principal.</td></tr>
+    </tbody></table>
+    <h3>Dependencias relevantes</h3>
+    <table><thead><tr><th>Dependencia</th><th>Propósito</th></tr></thead><tbody>
+      <tr><td>Spring Boot Web / Validation</td><td>API REST, deserialización JSON y validación declarativa de solicitudes.</td></tr>
+      <tr><td>Spring Security</td><td>Cadena de filtros y control del token administrativo para reentrenamiento.</td></tr>
+      <tr><td>Spring Boot Actuator</td><td>Endpoint de salud para operación y orquestación.</td></tr>
+      <tr><td>springdoc OpenAPI</td><td>Contrato navegable mediante Swagger UI y especificación OpenAPI.</td></tr>
+      <tr><td>Weka 3.8.6</td><td>Carga de ARFF, entrenamiento, clasificación y distribución de probabilidades J48.</td></tr>
+      <tr><td>Spring AI</td><td>Explicación clínica opcional, desacoplada de la inferencia del modelo.</td></tr>
+    </tbody></table>
+  </section>
+
+  <section class="page-break">
+    <h2>2. Arquitectura y flujo de datos</h2>
+    <p>La arquitectura mantiene el controlador ligero: recibe y valida la solicitud, delega el comportamiento a servicios de dominio y devuelve DTO. El acceso al artefacto del modelo está aislado en un repositorio, evitando que la lógica de serialización se mezcle con la inferencia.</p>
+    <div class="flow"><div>Consumidor<br>API / Gateway</div><span>→</span><div>J48Controller<br>HTTP + DTO</div><span>→</span><div>J48ModelService<br>entrenar / predecir</div><span>→</span><div>J48ModelRepository<br>ARFF + modelo</div></div>
+    <div class="flow"><div>Solicitud de explicación</div><span>→</span><div>Predicción J48</div><span>→</span><div>Sanitización de variables</div><span>→</span><div>Spring AI o fallback local</div></div>
+    <h3>Flujo de inicio</h3>
+    <ol>
+      <li>Al iniciar, <code>J48ModelService.init()</code> busca el modelo configurado.</li>
+      <li>Si existe, carga el clasificador y su cabecera de atributos desde el archivo serializado.</li>
+      <li>Si no existe y <code>J48_AUTO_TRAIN=true</code>, entrena desde el ARFF y persiste el resultado.</li>
+      <li>Si no existe y el autoentrenamiento está deshabilitado, detiene el arranque con un error explícito.</li>
+    </ol>
+    <h3>Flujo de predicción</h3>
+    <ol>
+      <li>Se rechaza una solicitud sin características.</li>
+      <li>Para cada atributo del modelo se busca un valor por nombre en <code>features</code>.</li>
+      <li>Valores ausentes, no numéricos o nominales no reconocidos se marcan como faltantes; Weka procesa el caso según el árbol entrenado.</li>
+      <li>Se responde la clase predicha, su índice y la distribución de probabilidades por etiqueta.</li>
+    </ol>
+    <p class="footnote">Implicación: la API es tolerante a campos extra y a atributos omitidos. Es conveniente que el consumidor valide el esquema clínico antes de invocar el servicio para no degradar la calidad de la inferencia con valores faltantes.</p>
+  </section>
+
+  <section class="page-break">
+    <h2>3. Diseño por capas</h2>
+    <table><thead><tr><th>Capa</th><th>Componentes</th><th>Responsabilidad</th><th>Valor del diseño</th></tr></thead><tbody>
+      <tr><td>Presentación</td><td><code>web/J48Controller</code></td><td>Rutas HTTP, validación de cuerpo y anotaciones OpenAPI.</td><td>Expone contratos claros sin lógica de modelo.</td></tr>
+      <tr><td>Dominio</td><td><code>core/J48ModelService</code></td><td>Entrena, carga y ejecuta el clasificador.</td><td>Centraliza reglas del ciclo de vida del modelo.</td></tr>
+      <tr><td>Explicación</td><td><code>ClinicalRiskExplanationService</code></td><td>Sanitiza variables y coordina IA/fallback.</td><td>Evita mezclar inferencia determinista con generación de texto.</td></tr>
+      <tr><td>Persistencia</td><td><code>repository/J48ModelRepository</code></td><td>Ubicaciones y serialización del modelo.</td><td>Representa la persistencia real sin introducir una base de datos innecesaria.</td></tr>
+      <tr><td>Contratos</td><td><code>dto/*</code></td><td>Solicitudes, respuestas de predicción, entrenamiento y error.</td><td>Reduce acoplamiento y documenta la API.</td></tr>
+      <tr><td>Configuración</td><td><code>config/*</code>, YAML</td><td>Propiedades tipadas, CORS y OpenAPI.</td><td>Externaliza aspectos de entorno y secretos.</td></tr>
+      <tr><td>Seguridad</td><td><code>security/*</code></td><td>Filtro del token administrativo y cadena de seguridad.</td><td>Restringe la operación de mayor impacto.</td></tr>
+      <tr><td>Errores</td><td><code>exception/*</code></td><td>Mapeo centralizado a HTTP.</td><td>Entrega errores consistentes y observables.</td></tr>
+    </tbody></table>
+    <h3>Evaluación del diseño</h3>
+    <div class="grid"><div class="card"><span class="badge good">FORTALEZA</span><h3>Persistencia proporcional</h3><p>Un repositorio de archivos es apropiado porque el servicio no administra historiales clínicos; conserva un artefacto de modelo y su estructura.</p></div><div class="card"><span class="badge good">FORTALEZA</span><h3>Fallos expresivos</h3><p>Las excepciones de validación, modelo no disponible y proveedor de IA se traducen a códigos HTTP específicos.</p></div><div class="card"><span class="badge mid">ATENCIÓN</span><h3>Contrato guiado por ARFF</h3><p>Los nombres y dominios de atributos provienen del conjunto de entrenamiento. Deben publicarse ejemplos y validarse aguas arriba.</p></div><div class="card"><span class="badge mid">ATENCIÓN</span><h3>Concurrencia de modelo</h3><p>Los campos son <code>volatile</code> y el entrenamiento es sincronizado, una decisión correcta en una instancia; el reentrenamiento multiinstancia requiere coordinación externa.</p></div></div>
+  </section>
+
+  <section class="page-break">
+    <h2>4. Contratos de API</h2>
+    <p>La documentación interactiva está prevista en <code>/swagger-ui.html</code> y la especificación se publica en <code>/v3/api-docs</code>. Los endpoints HTTP observados son los siguientes:</p>
+    <table><thead><tr><th>Método y ruta</th><th>Propósito</th><th>Protección</th><th>Respuestas relevantes</th></tr></thead><tbody>
+      <tr><td><code>GET /health</code></td><td>Sonda de disponibilidad del proceso.</td><td>Pública</td><td>200</td></tr>
+      <tr><td><code>GET /info</code></td><td>Estado, atributos y clases del modelo cargado.</td><td>Pública</td><td>200</td></tr>
+      <tr><td><code>POST /predict</code></td><td>Clasifica el riesgo a partir de características.</td><td>Pública / red interna</td><td>200, 400, 503</td></tr>
+      <tr><td><code>POST /predict/explanation</code></td><td>Predicción más explicación generada o de respaldo.</td><td>Pública / red interna</td><td>200, 400, 502, 503</td></tr>
+      <tr><td><code>POST /train</code></td><td>Reentrena y guarda el modelo.</td><td>Token si se configura; obligatorio en producción</td><td>200, 401, 403, 500</td></tr>
+    </tbody></table>
+    <h3>Ejemplo de predicción</h3>
+    <div class="code">POST /predict
+Content-Type: application/json
+
+{
+  "features": {
+    "gender": "F",
+    "age_group": "adult",
+    "sentiment": "neutral",
+    "wellbeing": 6.8,
+    "anxiety": 3.0,
+    "depression": 2.0,
+    "attendance": 0.92,
+    "days_since_last": 14
+  }
+}
+
+200 OK
+{ "classLabel": "…", "classIndex": 0, "probabilities": { "…": 0.0 } }</div>
+    <p class="small">Los valores y etiquetas exactas deben corresponder con el ARFF desplegado. El ejemplo ilustra la forma del contrato, no una taxonomía clínica prescriptiva.</p>
+    <h3>Errores normalizados</h3>
+    <table><thead><tr><th>Situación</th><th>HTTP</th><th>Tratamiento</th></tr></thead><tbody><tr><td>Cuerpo inválido o vacío</td><td>400</td><td>DTO de error con detalles de validación cuando aplican.</td></tr><tr><td>Modelo aún no cargado</td><td>503</td><td>Señala indisponibilidad temporal; el consumidor puede reintentar de forma controlada.</td></tr><tr><td>Fallo del proveedor IA</td><td>502</td><td>Se distingue del fallo de predicción para facilitar diagnóstico.</td></tr><tr><td>ARFF/modelo no disponible o error Weka</td><td>500</td><td>Requiere revisión operativa y del artefacto.</td></tr></tbody></table>
+  </section>
+
+  <section class="page-break">
+    <h2>5. Modelo J48 y ciclo de vida</h2>
+    <p>J48 es la implementación de Weka de C4.5: construye un árbol de decisión a partir de atributos y una clase objetivo. Es una elección explicable para clasificación tabular: el árbol permite auditar reglas, aunque la API actual devuelve clase y probabilidades, no el recorrido de la regla.</p>
+    <h3>Entrenamiento y persistencia</h3>
+    <ul><li>Lee el ARFF mediante <code>DataSource.read</code>.</li><li>Define la clase como el último atributo cuando la fuente no la tiene definida.</li><li>Entrena una instancia de <code>J48</code>.</li><li>Conserva una cabecera sin filas para construir instancias futuras con el mismo esquema.</li><li>Serializa clasificador y cabecera juntos con <code>SerializationHelper</code>.</li></ul>
+    <h3>Controles recomendados sobre el modelo</h3>
+    <table><thead><tr><th>Control</th><th>Estado actual</th><th>Mejora propuesta</th></tr></thead><tbody>
+      <tr><td>Versionado de dataset/modelo</td><td><span class="badge mid">PARCIAL</span></td><td>Guardar versión, hash del ARFF, fecha, métricas y responsable en metadatos inmutables.</td></tr>
+      <tr><td>Validación previa a entrenamiento</td><td><span class="badge mid">BÁSICA</span></td><td>Verificar columnas, tipos, distribución de clase, nulos y tamaño mínimo antes de sustituir el modelo vigente.</td></tr>
+      <tr><td>Evaluación reproducible</td><td><span class="badge high">PENDIENTE</span></td><td>Incorporar validación cruzada, matriz de confusión, sensibilidad/especificidad y umbrales de aceptación.</td></tr>
+      <tr><td>Rollback</td><td><span class="badge high">PENDIENTE</span></td><td>Conservar versiones anteriores y promover un nuevo modelo de forma atómica tras superar evaluación.</td></tr>
+      <tr><td>Explicabilidad</td><td><span class="badge good">BUENA BASE</span></td><td>Publicar árbol/regla por predicción sin revelar datos y con aviso de uso clínico.</td></tr>
+    </tbody></table>
+    <p><strong>Precaución clínica:</strong> las probabilidades del árbol no sustituyen una calibración validada. Antes de usar resultados en un flujo asistencial, debe realizarse validación con población representativa, evaluación de sesgos y gobernanza por profesionales responsables.</p>
+  </section>
+
+  <section class="page-break">
+    <h2>6. Configuración y despliegue</h2>
+    <p>La configuración se externaliza por variables de entorno. <code>application.yml</code> contiene valores por defecto seguros para la integración IA; <code>application-prod.yml</code> eleva el requisito del token administrativo.</p>
+    <table><thead><tr><th>Variable</th><th>Función</th><th>Recomendación de producción</th></tr></thead><tbody>
+      <tr><td><code>SERVER_PORT</code></td><td>Puerto del servicio.</td><td>Exponer solo mediante gateway o red privada cuando sea posible.</td></tr>
+      <tr><td><code>J48_ARFF_PATH</code></td><td>Fuente de entrenamiento.</td><td>Montaje de solo lectura, versionado y control de integridad.</td></tr>
+      <tr><td><code>J48_MODEL_PATH</code></td><td>Destino del modelo serializado.</td><td>Volumen persistente con permisos mínimos y backup.</td></tr>
+      <tr><td><code>J48_AUTO_TRAIN</code></td><td>Entrena al no encontrar modelo.</td><td>Desactivarlo en producción salvo procedimiento controlado de bootstrap.</td></tr>
+      <tr><td><code>J48_ADMIN_TOKEN</code></td><td>Secreto para <code>/train</code>.</td><td>Gestionarlo en un vault/secret manager; rotarlo y no registrarlo.</td></tr>
+      <tr><td><code>J48_REQUIRE_ADMIN_TOKEN</code></td><td>Exige token aun vacío.</td><td>Mantener <code>true</code>.</td></tr>
+      <tr><td><code>J48_CORS_ALLOWED_ORIGINS</code></td><td>Orígenes CORS directos.</td><td>Lista explícita; preferir tráfico a través del gateway.</td></tr>
+      <tr><td><code>SPRING_AI_OPENAI_ENABLED</code> / <code>OPENAI_API_KEY</code></td><td>Activa proveedor de explicación.</td><td>Habilitar solo tras evaluación de privacidad y contrato de tratamiento de datos.</td></tr>
+    </tbody></table>
+    <h3>Contenedor</h3>
+    <p>El <code>Dockerfile</code> usa construcción multi-stage con Maven y runtime Java 25 JRE. Crea y ejecuta con un usuario no privilegiado, expone el puerto 8080 y define una comprobación de salud contra <code>/actuator/health</code>. En Compose, el perfil <code>j48-java</code> monta el ARFF como solo lectura y un volumen para <code>/models</code>.</p>
+    <h3>Operación mínima</h3>
+    <ol><li>Montar dataset validado y volumen persistente para modelos.</li><li>Configurar token, CORS y secretos en el entorno de despliegue, nunca en el repositorio.</li><li>Verificar <code>/actuator/health</code> y <code>/info</code> tras iniciar.</li><li>Registrar toda acción de entrenamiento fuera del servicio (identidad, versión y aprobación).</li></ol>
+  </section>
+
+  <section class="page-break">
+    <h2>7. Seguridad, privacidad y cumplimiento</h2>
+    <table><thead><tr><th>Área</th><th>Control existente</th><th>Evaluación</th></tr></thead><tbody>
+      <tr><td>Reentrenamiento</td><td>Filtro <code>J48AdminTokenFilter</code> para <code>POST /train</code>.</td><td><span class="badge mid">Adecuado como control básico</span> Debe respaldarse con secreto robusto, TLS y registro de auditoría.</td></tr>
+      <tr><td>Superficie HTTP</td><td>Spring Security permite rutas y añade filtro específico; Actuator expone solo salud e información.</td><td><span class="badge mid">Adecuado para red interna</span> Falta autenticación de servicio a servicio para rutas de inferencia.</td></tr>
+      <tr><td>CORS</td><td>Configuración de orígenes opcional.</td><td><span class="badge mid">Configurable</span> En producción debe ser restrictiva o inexistente tras gateway.</td></tr>
+      <tr><td>Datos a IA</td><td>Lista permitida de ocho variables desidentificadas; no se reenvían identificadores ni notas libres.</td><td><span class="badge good">Buen principio de minimización</span> Verificar semántica de cada variable y acuerdo con proveedor.</td></tr>
+      <tr><td>Secretos</td><td>Clave IA y token se leen del entorno.</td><td><span class="badge good">Correcto</span> Falta, como mejora operativa, integrar gestor de secretos y rotación.</td></tr>
+      <tr><td>Uso clínico</td><td>Prompt limita diagnóstico/prescripción y solicita lenguaje profesional conciso.</td><td><span class="badge mid">Control de producto</span> No sustituye validación humana ni evaluación de impacto clínico.</td></tr>
+    </tbody></table>
+    <h3>Recomendaciones de privacidad</h3>
+    <ul><li>Enviar al proveedor externo únicamente los campos estrictamente necesarios y documentar su finalidad.</li><li>No incluir identificadores, texto clínico libre, fechas exactas ni combinaciones que permitan reidentificación.</li><li>Definir retención, trazabilidad y tratamiento de datos con el proveedor de IA antes de habilitarlo.</li><li>Mostrar que el resultado es apoyo a la decisión y registrar el profesional que lo revisa en el sistema clínico principal.</li></ul>
+  </section>
+
+  <section class="page-break">
+    <h2>8. Calidad, pruebas y observabilidad</h2>
+    <h3>Pruebas existentes</h3>
+    <p>El módulo contiene pruebas de la explicación clínica, filtro de token administrativo y controlador HTTP. También dispone de un ARFF de prueba. La cobertura declarada incluye predicción con el contrato actual, cuerpo vacío, fallback de IA sin filtración de campos no permitidos, restricciones de <code>/train</code> y metadatos del modelo.</p>
+    <table><thead><tr><th>Dimensión</th><th>Estado</th><th>Próximo paso concreto</th></tr></thead><tbody>
+      <tr><td>Pruebas unitarias/web</td><td><span class="badge good">PRESENTES</span></td><td>Ejecutarlas y publicarlas en CI con reporte de cobertura.</td></tr>
+      <tr><td>Pruebas de integración</td><td><span class="badge mid">PARCIALES</span></td><td>Probar volumen de modelos, arranque sin ARFF, reentrenamiento y recuperación.</td></tr>
+      <tr><td>Pruebas de carga</td><td><span class="badge high">PENDIENTES</span></td><td>Medir latencia P95, consumo de memoria y comportamiento durante reentrenamiento.</td></tr>
+      <tr><td>Observabilidad</td><td><span class="badge mid">BÁSICA</span></td><td>Añadir métricas de predicciones, errores, versión de modelo y duración de entrenamiento.</td></tr>
+      <tr><td>Calidad de datos/modelo</td><td><span class="badge high">PENDIENTE</span></td><td>Automatizar evaluación y revisión de sesgos antes de promoción.</td></tr>
+    </tbody></table>
+    <h3>Indicadores sugeridos</h3>
+    <div class="grid"><div class="card"><strong>Servicio</strong><br>Disponibilidad, tasa 4xx/5xx, P50/P95 de <code>/predict</code>, memoria JVM y estado del modelo.</div><div class="card"><strong>Modelo</strong><br>Versión, hash del ARFF, fecha de entrenamiento, distribución de clases y porcentaje de entradas con atributos faltantes.</div><div class="card"><strong>Seguridad</strong><br>Intentos fallidos de <code>/train</code>, rotación de token, llamadas a la explicación externa y origen de red.</div><div class="card"><strong>Gobernanza</strong><br>Métricas de desempeño por subgrupo, tasa de revisión humana y eventos de rollback.</div></div>
+    <p class="footnote">La revisión fue estática: en este entorno no se verificó la ejecución de <code>mvn test</code>, una llamada a proveedor IA ni un despliegue Docker. El documento no afirma resultados de ejecución que no fueron observados.</p>
+  </section>
+
+  <section class="page-break">
+    <h2>9. Riesgos y recomendaciones priorizadas</h2>
+    <table><thead><tr><th>Prioridad</th><th>Riesgo / oportunidad</th><th>Acción recomendada</th><th>Resultado esperado</th></tr></thead><tbody>
+      <tr><td><span class="badge high">ALTA</span></td><td>Reentrenamiento o autoentrenamiento no gobernado.</td><td>Exigir token, desactivar autoentrenamiento en producción y promover modelos tras evaluación versionada.</td><td>Evita cambios silenciosos de comportamiento clínico.</td></tr>
+      <tr><td><span class="badge high">ALTA</span></td><td>Ausencia de evidencia automatizada de pruebas del módulo.</td><td>Incorporar <code>mvn test</code> en CI y bloquear promoción ante fallo.</td><td>Reduce regresiones de contrato y seguridad.</td></tr>
+      <tr><td><span class="badge high">ALTA</span></td><td>Uso clínico sin validación de desempeño y sesgo.</td><td>Definir protocolo de evaluación, métricas por subgrupo y aprobación clínica antes de uso asistencial.</td><td>Uso más seguro y trazable de la predicción.</td></tr>
+      <tr><td><span class="badge mid">MEDIA</span></td><td>Rutas de predicción abiertas dentro de la cadena de seguridad.</td><td>Aplicar autenticación de servicio a servicio en gateway/red privada; limitar exposición pública.</td><td>Menor superficie de abuso y acceso indebido.</td></tr>
+      <tr><td><span class="badge mid">MEDIA</span></td><td>Modelo de archivos sin gestión de versiones ni rollback.</td><td>Usar almacenamiento versionado, publicación atómica y manifiesto de metadatos.</td><td>Reproducibilidad y recuperación rápida.</td></tr>
+      <tr><td><span class="badge mid">MEDIA</span></td><td>Campos omitidos degradan inferencia de forma silenciosa.</td><td>Publicar esquema del ARFF y añadir validación de dominio/alertas de campos faltantes.</td><td>Mejor calidad de entrada y explicabilidad operativa.</td></tr>
+      <tr><td><span class="badge mid">MEDIA</span></td><td>Explicación externa puede requerir evaluación de privacidad.</td><td>Completar DPIA/validación legal aplicable, minimizar datos y mantener fallback local.</td><td>Menor exposición de información sensible.</td></tr>
+      <tr><td><span class="badge good">BAJA</span></td><td>El árbol no se expone para auditoría de decisión.</td><td>Agregar endpoint/control interno de reglas y versión del árbol para personal autorizado.</td><td>Mayor transparencia para auditoría técnica.</td></tr>
+    </tbody></table>
+    <h3>Hoja de ruta sugerida</h3>
+    <div class="flow"><div>0–30 días<br>CI, secretos, token, red privada</div><span>→</span><div>31–60 días<br>versionado y métricas de modelo</div><span>→</span><div>61–90 días<br>validación clínica, sesgos y rollback</div></div>
+  </section>
+
+  <section class="page-break">
+    <h2>10. Conclusión</h2>
+    <p>El microservicio <code>j48-service</code> constituye una implementación técnicamente coherente de Spring Boot para servir un clasificador J48. La aplicación está organizada en capas, mantiene contratos API documentables, persiste el modelo de forma explícita y separa la explicación generativa de la predicción determinista. El endurecimiento del endpoint de entrenamiento y la configuración externa son avances importantes para un entorno productivo.</p>
+    <p>Para alcanzar una madurez apta para un flujo clínico, el foco debe desplazarse del código del árbol hacia su gobierno: autenticación entre servicios, control de cambios del modelo, evaluación reproducible, monitoreo, privacidad y revisión humana. Ninguna de estas medidas exige modificar la esencia del diseño actual; son extensiones naturales de la estructura ya existente.</p>
+    <h3>Dictamen técnico</h3>
+    <div class="summary"><strong>Estado actual: apto como microservicio de apoyo técnico, con mejoras requeridas antes de una operación clínica de alto impacto.</strong><br>La plataforma cuenta con una base de ingeniería sólida. Debe complementar esa base con evidencia automatizada de calidad, gobernanza de modelos y controles operativos de producción.</div>
+    <h3>Evidencia de código revisada</h3>
+    <ul class="small"><li><code>services/j48-service/pom.xml</code> y <code>Dockerfile</code>.</li><li><code>src/main/resources/application.yml</code> y <code>application-prod.yml</code>.</li><li><code>web/J48Controller.java</code>, <code>core/J48ModelService.java</code> y <code>core/ClinicalRiskExplanationService.java</code>.</li><li><code>repository/J48ModelRepository.java</code>, <code>security/*</code>, <code>exception/GlobalExceptionHandler.java</code>.</li><li>Pruebas bajo <code>src/test</code>, configuración de <code>compose.yaml</code> y documentación de migración del repositorio.</li></ul>
+    <p class="footnote">Documento elaborado a partir de una revisión estática del repositorio disponible. No reemplaza auditoría de seguridad, validación clínica, evaluación regulatoria ni certificación de software médico.</p>
+  </section>
+  <footer><span>Centro COP · Análisis técnico del microservicio Spring Boot J48</span><span>Documento de revisión técnica · 31/08/2026</span></footer>
+</body>
+</html>

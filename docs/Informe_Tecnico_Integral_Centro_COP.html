@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informe técnico integral — Centro COP</title>
+  <style>
+    @page { size: A4; margin: 15mm 14mm 17mm; }
+    :root { --navy:#102a43; --blue:#1769aa; --pale:#f4f8fb; --line:#ccd9e5; --ink:#1f2933; --muted:#52606d; --green:#087f5b; --amber:#9c6500; --red:#b42318; }
+    * { box-sizing:border-box } body { margin:0; color:var(--ink); font:10pt/1.42 Arial,Helvetica,sans-serif } h1,h2,h3 { color:var(--navy); line-height:1.15 } h1 { font-size:29pt; margin:0 0 12px } h2 { font-size:16pt; border-bottom:2px solid #bdd7ee; padding-bottom:5px; margin:22px 0 10px } h3 { font-size:11.4pt; margin:14px 0 5px } p { margin:6px 0 10px } ul,ol { margin:6px 0 11px; padding-left:21px } li { margin:3px 0 } code { color:#075b9e; font:8.2pt Consolas,monospace; overflow-wrap:anywhere } .cover { min-height:260mm; padding:25mm 14mm 15mm; display:flex; flex-direction:column; background:linear-gradient(135deg,#f4f9ff 0%,#e9f3fd 60%,#fff 60%); border-top:9px solid var(--blue) } .eyebrow { color:var(--blue); font-weight:bold; letter-spacing:1.4px; text-transform:uppercase; margin-bottom:16px } .subtitle { font-size:15pt; color:var(--muted); max-width:560px } .spacer { flex:1 } .meta { border-left:4px solid var(--blue); padding:9px 13px; color:var(--muted) } .notice,.summary { border:1px solid var(--line); background:var(--pale); padding:11px 13px; margin:10px 0 } .notice { border-left:5px solid var(--amber); background:#fff9e8 } .summary { border-left:5px solid var(--blue) } .page { break-before:page } table { border-collapse:collapse; width:100%; margin:8px 0 14px; font-size:8.65pt } th { background:var(--navy); color:#fff; text-align:left } td,th { padding:6px 7px; border:1px solid var(--line); vertical-align:top } tr:nth-child(even) td { background:#fbfdff } .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px } .card { border:1px solid var(--line); border-radius:5px; padding:9px 10px; break-inside:avoid } .kpi { display:block; font-size:19pt; font-weight:bold; color:var(--blue) } .tag { display:inline-block; border-radius:12px; padding:2px 7px; font-size:8pt; font-weight:bold; white-space:nowrap } .ok { color:#05603f; background:#d8f3e5 } .warn { color:#875800; background:#fff0c2 } .risk { color:#9f1d16; background:#fee0df } .flow { display:flex; align-items:stretch; gap:4px; margin:10px 0 14px; text-align:center; font-size:8.2pt; font-weight:bold; color:var(--navy) } .flow div { flex:1; border:1px solid #a9cbe8; background:#f1f8fe; border-radius:4px; padding:9px 4px } .flow span { align-self:center; color:var(--blue); font-size:15pt } .small { font-size:8.3pt; color:var(--muted) } .avoid { break-inside:avoid } footer { position:fixed; bottom:7mm; left:14mm; right:14mm; padding-top:3px; border-top:1px solid var(--line); color:#667; font-size:7.5pt; display:flex; justify-content:space-between }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Centro COP · Plataforma clínica escalable</div>
+    <h1>Informe técnico integral<br>del aplicativo web y sus servicios</h1>
+    <p class="subtitle">Evaluación estática de arquitectura, capacidades, integraciones, seguridad, operación y decisión de migración a Spring Boot.</p>
+    <div class="spacer"></div>
+    <div class="meta"><strong>Repositorio revisado:</strong> PA COP Escalable<br><strong>Fecha:</strong> 31 de agosto de 2026<br><strong>Alcance:</strong> frontends, API central, gateway, datos, IA, J48, despliegue y CI.</div>
+    <div class="notice"><strong>Alcance de la evidencia.</strong> Se revisó el código, los manifiestos, la orquestación y la documentación disponibles en el repositorio. No se afirma que un servicio esté operando en producción: el daemon Docker no estuvo disponible, Maven no está instalado en la consola y la ejecución de npm fue bloqueada por permisos del entorno.</div>
+  </section>
+
+  <section class="page">
+    <h2>1. Resumen ejecutivo</h2>
+    <div class="summary"><strong>Dictamen.</strong> Centro COP es una plataforma clínica modular, con una API NestJS como núcleo transaccional, MongoDB y Redis, sitios Next.js para la experiencia actual y frontends Angular conservados como legado. La plataforma ya incorpora un microservicio Spring Boot para J48; mantener una arquitectura políglota es técnicamente justificado para los componentes de IA. No se recomienda migrar todo el backend a Spring Boot ahora: no hay un bloqueo técnico que lo exija y el cambio introducirá alto riesgo clínico y operativo. La prioridad es consolidar las rutas activas, retirar o aislar los stubs y cerrar brechas de producción.</div>
+    <div class="grid">
+      <div class="card"><span class="kpi">2</span><strong>frontends actuales</strong><br><span class="small">Next.js: web pública y dashboard clínico.</span></div>
+      <div class="card"><span class="kpi">2</span><strong>frontends legado</strong><br><span class="small">Angular: panel y web pública; aún compilados en CI.</span></div>
+      <div class="card"><span class="kpi">216</span><strong>decoradores HTTP Nest</strong><br><span class="small">Indicador estático de superficie de API; no equivale a rutas únicas.</span></div>
+      <div class="card"><span class="kpi">43</span><strong>rutas FastAPI detectadas</strong><br><span class="small">Servicios de IA y procesamiento complementario.</span></div>
+    </div>
+    <h3>Conclusiones prioritarias</h3>
+    <ol>
+      <li>La API NestJS cubre IAM, pacientes, historia clínica, citas, odontología, psicología, pagos, tenancy, analítica, IA y compatibilidad.</li>
+      <li>El gateway enruta API, sitio público, J48 y servicios IA; los servicios IA del perfil <code>ai</code> no forman parte del arranque <code>core</code>.</li>
+      <li>Existen funciones explícitamente stub o de compatibilidad (diagnóstico/emoción y Fotos→3D en desarrollo); no deben anunciarse como capacidad clínica productiva hasta su integración y validación.</li>
+      <li>La configuración de producción valida secretos, CORS y webhooks, pero el compose mantiene credenciales de desarrollo que deben quedar fuera de cualquier despliegue real.</li>
+    </ol>
+  </section>
+
+  <section class="page">
+    <h2>2. Arquitectura y flujo de información</h2>
+    <div class="flow"><div>Paciente / personal clínico</div><span>→</span><div>Next.js actual<br>Angular legado</div><span>→</span><div>Nginx gateway<br>:8080</div><span>→</span><div>NestJS<br>dominio y seguridad</div><span>→</span><div>MongoDB · Redis<br>IA especializada</div></div>
+    <table><thead><tr><th>Componente</th><th>Responsabilidad observada</th><th>Estado técnico</th></tr></thead><tbody>
+      <tr><td><code>web-public</code></td><td>Landing, registro/inicio de sesión, cuenta, catálogo, reservas y pagos.</td><td><span class="tag ok">ACTUAL</span> Next.js 15 / React 19.</td></tr>
+      <tr><td><code>web-dashboard</code></td><td>Panel con roles, agenda, pacientes, psicología, J48, IA y administración.</td><td><span class="tag ok">ACTUAL</span> Next.js 15 / React Query / Socket.IO.</td></tr>
+      <tr><td><code>Frontend</code> y <code>PublicWeb</code></td><td>Equivalentes Angular para panel y web pública; cuentan con E2E Playwright.</td><td><span class="tag warn">LEGADO ACTIVO</span> Duplican superficie funcional.</td></tr>
+      <tr><td><code>nest-migration</code></td><td>API de negocio, RBAC, tenancy, persistencia Mongo, colas/Redis, pagos y orquestación IA.</td><td><span class="tag ok">NÚCLEO</span> NestJS 10.</td></tr>
+      <tr><td><code>services/gateway</code></td><td>Proxy inverso, health, límite multipart de 500 MB y timeouts para trabajos 3D.</td><td><span class="tag ok">NÚCLEO</span> Nginx.</td></tr>
+      <tr><td><code>services/j48-python</code></td><td>Inferencia J48 con scikit-learn, árbol y métricas; es el destino por defecto de <code>J48_URL</code>.</td><td><span class="tag ok">ACTIVO</span> perfil core.</td></tr>
+      <tr><td><code>services/j48-service</code></td><td>J48 Weka con Spring Boot, DTO, OpenAPI, token administrativo y explicación opcional.</td><td><span class="tag warn">OPCIONAL</span> perfil <code>j48-java</code>.</td></tr>
+      <tr><td>Servicios IA/3D</td><td>Diagnóstico, emoción, recomendación, DICOM→GLB, profundidad→3D y ortodoncia.</td><td><span class="tag warn">MIXTO</span> algunos requieren perfil <code>ai</code> o proveedor real.</td></tr>
+    </tbody></table>
+    <h3>Datos y límites de confianza</h3>
+    <p>MongoDB conserva entidades clínicas y administrativas; Redis soporta revocación de JWT y procesamiento. El <code>TenancyInterceptor</code> y los módulos de IAM indican segregación por organización. Debe comprobarse con pruebas de autorización por recurso, porque una estructura de módulos no demuestra por sí sola el aislamiento efectivo en todas las consultas.</p>
+  </section>
+
+  <section class="page">
+    <h2>3. Servicios y capacidades funcionales</h2>
+    <table><thead><tr><th>Dominio</th><th>Servicios/evidencia</th><th>Evaluación</th></tr></thead><tbody>
+      <tr><td>Identidad y acceso</td><td>IAM, JWT, refresh tokens, roles, guards, usuarios administrativos, bootstrap.</td><td><span class="tag ok">IMPLEMENTADO</span> Requiere rotación de secretos y revisión de bootstrap antes de producción.</td></tr>
+      <tr><td>Atención clínica</td><td>Pacientes, citas, historia clínica, odontograma, tratamientos, radiografías y archivos 3D.</td><td><span class="tag ok">IMPLEMENTADO</span> Validar flujos E2E y permisos por rol/sede.</td></tr>
+      <tr><td>Psicología</td><td>Sesiones, evaluaciones, escalas, evolución, snapshots y scoring J48.</td><td><span class="tag ok">IMPLEMENTADO</span> Los resultados son apoyo profesional, no diagnóstico autónomo.</td></tr>
+      <tr><td>Web pública</td><td>Sedes, catálogo, agenda, reservas, reseñas, cuenta, Wompi; pagos Stripe/PayPal internacionales.</td><td><span class="tag ok">IMPLEMENTADO</span> Webhook Wompi debe verificarse en sandbox y producción.</td></tr>
+      <tr><td>IA clínica</td><td>Proxy de diagnóstico/emoción/relapse, Medical AI, alertas, timeline, assistant y WebSocket.</td><td><span class="tag warn">PARCIAL</span> <code>api-compat</code> contiene respuestas stub para algunas rutas.</td></tr>
+      <tr><td>Imágenes 3D</td><td>DICOM→GLB y proveedor imagen→3D asíncrono.</td><td><span class="tag warn">PARCIAL</span> El proveedor Docker por defecto puede devolver un pato GLB de demostración; el código lo bloquea salvo habilitación explícita.</td></tr>
+    </tbody></table>
+    <h3>J48: coexistencia Python y Spring Boot</h3>
+    <p>La implementación Python es la ruta operativa actual. La Java implementa una alternativa Weka más estructurada: <code>/health</code>, <code>/info</code>, <code>/predict</code>, <code>/predict/explanation</code> y <code>/train</code>. Antes de reemplazar Python por Java hay que igualar explícitamente los contratos de árbol, métricas, entrenamiento, autenticación entre servicios y rendimiento. La coexistencia actual es válida, pero debe decidirse un único servicio propietario antes de escalar.</p>
+  </section>
+
+  <section class="page">
+    <h2>4. Seguridad, privacidad y operación</h2>
+    <div class="grid">
+      <div class="card"><h3>Controles presentes</h3><ul><li>Helmet, CORS, validación con whitelist y rechazo de campos no permitidos.</li><li>Guard global de throttling, JWT y RBAC.</li><li>Swagger solo fuera de producción.</li><li>Health profundo para Mongo/Redis y liveness separado.</li><li>Validación de producción para JWT, CORS, Mongo y webhook Wompi.</li></ul></div>
+      <div class="card"><h3>Riesgos observados</h3><ul><li>Valores de desarrollo en <code>compose.yaml</code>, incluidos password Mongo y <code>JWT_SECRET=change_me</code>.</li><li>Mongo y Redis se publican en puertos locales: no exponerlos en un host compartido.</li><li>CORS permite previews Vercel por defecto; conviene deshabilitarlo si no es necesario.</li><li>Autenticación servicio-a-servicio no queda demostrada para todos los microservicios IA.</li></ul></div>
+    </div>
+    <h3>Privacidad y uso clínico</h3>
+    <p>El servicio J48 Java declara minimización de datos para la explicación generativa: solo envía variables desidentificadas y puede usar fallback local si el proveedor está deshabilitado. Para toda la plataforma se recomienda formalizar un inventario de datos, finalidad, retención, responsables, consentimiento, trazabilidad de accesos y procedimiento de incidentes conforme a la normativa aplicable de datos de salud en Colombia. Esta revisión no constituye certificación legal ni auditoría de cumplimiento.</p>
+    <h3>Observabilidad y continuidad</h3>
+    <p>Hay health checks y logs de arranque, pero no se observó integración de APM/Sentry ni una estrategia comprobada de logs estructurados, backups/restore de Mongo, RPO/RTO o alertas de producción. Son requisitos de salida antes de operar datos clínicos reales.</p>
+  </section>
+
+  <section class="page">
+    <h2>5. Calidad y verificación</h2>
+    <table><thead><tr><th>Área</th><th>Evidencia</th><th>Resultado de esta revisión</th></tr></thead><tbody>
+      <tr><td>CI</td><td><code>.github/workflows/ci.yml</code> compila Nest, Angular, ambos Next y ejecuta smoke de entrenamiento J48 Python.</td><td><span class="tag ok">CONFIGURADO</span> No se vio job de tests J48 Java ni E2E Docker.</td></tr>
+      <tr><td>J48 Spring Boot</td><td>Pruebas MockMvc y de seguridad bajo <code>services/j48-service/src/test</code>.</td><td><span class="tag warn">NO EJECUTADO</span> Maven no está instalado en la consola actual.</td></tr>
+      <tr><td>Construcción Node</td><td>Scripts <code>build</code> para Nest, Angular y Next; lockfiles presentes.</td><td><span class="tag warn">NO EJECUTADO</span> npm falla al resolver una ruta fuera del área permitida del entorno.</td></tr>
+      <tr><td>Contenedores</td><td><code>compose.yaml</code> define perfiles <code>core</code>, <code>ai</code>, <code>j48-java</code>.</td><td><span class="tag warn">NO EJECUTADO</span> daemon Docker no disponible.</td></tr>
+    </tbody></table>
+    <p class="notice"><strong>Interpretación correcta.</strong> La compilación y los tests definidos son una buena base, pero una definición de CI no es evidencia de que el último commit esté verde. Deben ejecutarse en un runner con dependencias y secretos de prueba controlados.</p>
+    <h3>Casos mínimos que faltan por automatizar</h3>
+    <ul><li>Reserva pública completa y webhook Wompi firmado en sandbox.</li><li>Aislamiento de datos de una organización frente a otra en todos los endpoints de pacientes, citas e historia.</li><li>Autorización por rol y por sede para acciones sensibles.</li><li>Fallos de Redis/Mongo, recuperación y revocación de token.</li><li>Contrato de Nest con J48 Python/Java y regresión del modelo sobre dataset versionado.</li><li>Flujo de imagen/DICOM contra un proveedor real, nunca contra el stub.</li></ul>
+  </section>
+
+  <section class="page">
+    <h2>6. Decisión: ¿migrar todo a Spring Boot?</h2>
+    <div class="summary"><strong>Decisión recomendada: no realizar una migración big-bang.</strong> La API NestJS ya concentra el dominio y los frontends consumen sus contratos. Migrarla completa a Java duplicaría 216 puntos HTTP potenciales, entidades Mongo, reglas RBAC, pagos, WebSocket, colas e integraciones. En una plataforma clínica, el riesgo de regresión supera el beneficio si no existe un requisito explícito de organización, soporte o rendimiento que NestJS no pueda cumplir.</div>
+    <table><thead><tr><th>Opción</th><th>Beneficio</th><th>Riesgo / coste</th><th>Recomendación</th></tr></thead><tbody>
+      <tr><td>Conservar NestJS + Spring Boot J48</td><td>Entrega continua y tecnologías adecuadas para cada componente.</td><td>Dos stacks para operar y observar.</td><td><span class="tag ok">AHORA</span></td></tr>
+      <tr><td>Migrar solo J48 Python a Spring Boot</td><td>Unifica la inferencia J48 en Weka/Java.</td><td>Debe alcanzarse paridad de contratos y validación de predicciones.</td><td><span class="tag warn">EVALUAR</span></td></tr>
+      <tr><td>Extraer un nuevo módulo de Nest a Spring Boot</td><td>Prueba una transición controlada si hay motivo real.</td><td>Gateway, observabilidad y contratos versionados obligatorios.</td><td><span class="tag warn">PILOTO</span></td></tr>
+      <tr><td>Migrar toda la API</td><td>Homogeneidad Java.</td><td>Alto riesgo, largo plazo, escaso valor inmediato.</td><td><span class="tag risk">NO AHORA</span></td></tr>
+    </tbody></table>
+    <h3>Ruta segura si se decide migrar J48</h3>
+    <ol><li>Definir contrato OpenAPI único y tests de consumidor para <code>/predict</code>, árbol, métricas y entrenamiento.</li><li>Ejecutar ambos servicios en paralelo, con entradas desidentificadas y comparación de resultados.</li><li>Versionar dataset, modelo, métricas, umbrales, fecha de entrenamiento y aprobación clínica.</li><li>Canary interno con rollback mediante <code>J48_URL</code>; no cambiar el comportamiento de pacientes sin aprobación.</li><li>Retirar Python solo cuando la paridad, seguridad y monitoreo estén demostrados.</li></ol>
+  </section>
+
+  <section class="page">
+    <h2>7. Plan de remediación priorizado</h2>
+    <table><thead><tr><th>Prioridad</th><th>Acción verificable</th><th>Propietario sugerido</th><th>Criterio de cierre</th></tr></thead><tbody>
+      <tr><td><span class="tag risk">ALTA</span></td><td>Eliminar secretos y credenciales de desarrollo de cualquier entorno productivo; rotar los existentes.</td><td>DevOps / seguridad</td><td>Secret manager, escaneo de secretos y despliegue con valores únicos.</td></tr>
+      <tr><td><span class="tag risk">ALTA</span></td><td>Resolver u ocultar flujos IA que devuelven stubs y bloquear demostraciones 3D en producción.</td><td>Producto / backend</td><td>UX no promete capacidades no conectadas; proveedor real probado.</td></tr>
+      <tr><td><span class="tag risk">ALTA</span></td><td>Probar E2E reserva-pago y autorización multi-organización.</td><td>QA / backend</td><td>Suite CI verde con datos sintéticos y reporte de cobertura funcional.</td></tr>
+      <tr><td><span class="tag warn">MEDIA</span></td><td>Elegir el único propietario de J48 y documentar contrato/versionado de modelo.</td><td>Arquitectura / clínica</td><td>ADR aprobada y rollback ensayado.</td></tr>
+      <tr><td><span class="tag warn">MEDIA</span></td><td>Implementar logs JSON, alertas, tracing, backups y prueba de restauración.</td><td>DevOps</td><td>Runbook con RPO/RTO y simulacro satisfactorio.</td></tr>
+      <tr><td><span class="tag warn">MEDIA</span></td><td>Planificar retiro de Angular o declarar su soporte formal.</td><td>Producto / frontend</td><td>Mapa de rutas, fecha y reducción de duplicidad.</td></tr>
+      <tr><td><span class="tag ok">BAJA</span></td><td>Añadir job CI de Maven para J48 Java y E2E contra compose aislado.</td><td>DevOps</td><td>CI ejecuta pruebas sin secretos reales.</td></tr>
+    </tbody></table>
+    <h2>8. Evidencia revisada</h2>
+    <p><code>README.md</code>, <code>compose.yaml</code>, <code>services/gateway/nginx.conf</code>, <code>nest-migration/src/main.ts</code>, <code>nest-migration/src/app.module.ts</code>, <code>nest-migration/src/config/env.validation.ts</code>, los módulos Nest, frontends, servicios IA, <code>services/j48-service</code>, <code>.github/workflows/ci.yml</code> y documentación de arquitectura/despliegue. El informe refleja el estado del árbol de trabajo revisado el 31 de agosto de 2026.</p>
+  </section>
+  <footer><span>Centro COP — Informe técnico integral</span><span>Revisión estática · 31/08/2026</span></footer>
+</body>
+</html>

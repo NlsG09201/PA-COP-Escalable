@@ -68,7 +68,7 @@ export class IamController {
   ) {
     const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
     const allowed = new Set(
-      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+      [configured].filter(Boolean),
     );
     if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
@@ -105,7 +105,7 @@ export class IamController {
     const result = await this.bootstrapAdmin.forceBootstrapAdmin();
     if (!result.verified) {
       throw new ForbiddenException({
-        message: 'Bootstrap ejecutado pero login no verificado. Usa POST setup-bootstrap con body { "password": "Nelson09092001" }.',
+        message: 'Bootstrap ejecutado, pero el login no se pudo verificar. Configura credenciales desde un gestor seguro.',
         ...result,
       });
     }
@@ -156,7 +156,7 @@ export class IamController {
   ) {
     const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
     const allowed = new Set(
-      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+      [configured].filter(Boolean),
     );
     if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
@@ -175,7 +175,7 @@ export class IamController {
   ) {
     const configured = (process.env.SETUP_ADMIN_SECRET ?? '').trim();
     const allowed = new Set(
-      [configured || 'cop-atlas-setup-2026', (process.env.APP_BOOTSTRAP_ADMIN_PASSWORD ?? '').trim()].filter(Boolean),
+      [configured].filter(Boolean),
     );
     if (!secret || !allowed.has(secret)) {
       throw new ForbiddenException('Invalid setup secret');
