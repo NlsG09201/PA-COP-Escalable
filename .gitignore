@@ -39,3 +39,6 @@ deploy/mcp-payloads/bulk/*-batch-*.json
 .cursor/
 .DS_Store
 Thumbs.db
+
+# Documento local con comandos y credenciales de acceso
+docs/ACCESOS_DESPLIEGUE_LOCAL.md
