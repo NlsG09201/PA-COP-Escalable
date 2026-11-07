@@ -105,7 +105,7 @@ function main() {
     const n = String(Math.floor(i / BATCH) + 1).padStart(3, '0');
     const path = resolve(outDir, `patients-batch-${n}.json`);
     writeFileSync(path, JSON.stringify(chunk));
-    files.push({ path, count: chunk.length });
+    files.push({ path: path.split(/[\\/]/).pop(), count: chunk.length });
   }
 
   const manifest = {

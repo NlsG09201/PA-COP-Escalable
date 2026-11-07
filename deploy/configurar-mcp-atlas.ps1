@@ -60,4 +60,4 @@ Write-Host "  Host: $fixedHost"
 Write-Host "  Archivo: $cursorMcp"
 Write-Host ''
 Write-Host 'Reinicia el MCP mongodb en Cursor (Settings -> MCP).' -ForegroundColor Yellow
-Write-Host 'Atlas -> Network Access -> 0.0.0.0/0 Active'
+Write-Host 'Atlas -> Network Access -> solo IPs de salida confiables; nunca permitir acceso global Active'

@@ -1,62 +1,65 @@
-# Crea/resetea el admin en Render y verifica login (arregla 401 en Vercel).
-#
-#   .\deploy\crear-admin-render.ps1
+# Restablece el admin bootstrap y verifica el acceso al API.
+# Solicita los secretos de forma interactiva; no los escribe a archivos ni a la consola.
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
 $api = 'https://pa-cop-escalable.onrender.com'
-$secret = 'cop-atlas-setup-2026'
-$username = 'GM140810'
-$password = 'GM148Odonto'
-$setupJson = Join-Path $PSScriptRoot 'setup-bootstrap-body.json'
 
-@(@{ password = $password } | ConvertTo-Json -Compress) | Set-Content -Path $setupJson -Encoding UTF8 -NoNewline
+$setupSecretSecure = Read-Host 'SETUP_ADMIN_SECRET configurado en Render' -AsSecureString
+$adminPasswordSecure = Read-Host 'APP_BOOTSTRAP_ADMIN_PASSWORD configurado en Render' -AsSecureString
+$username = (Read-Host 'APP_BOOTSTRAP_ADMIN_USERNAME configurado en Render').Trim()
+$siteId = (Read-Host 'ID de una sede activa para verificar el login').Trim()
 
-Write-Host "POST $api/api/auth/setup-bootstrap" -ForegroundColor Cyan
-$setup = curl.exe -s -w "`nHTTP:%{http_code}" -X POST "$api/api/auth/setup-bootstrap" `
-  -H "Content-Type: application/json" `
-  -H "X-COP-Setup-Secret: $secret" `
-  --data-binary "@$setupJson"
-Write-Host $setup
-
-if (-not ($setup -match 'HTTP:200' -and $setup -match 'verified')) {
-  Write-Host ''
-  Write-Host 'Si falla: importa deploy\render-upload.env en Render -> Manual Deploy -> vuelve a ejecutar.' -ForegroundColor Yellow
-  exit 1
+if (-not $username -or -not $siteId) {
+  throw 'Se requiere el usuario bootstrap y un ID de sede para la verificación.'
 }
 
-Write-Host ''
-Write-Host 'Comprobando login...' -ForegroundColor Cyan
-$loginBody = (@{
-  username = $username
-  password = $password
-  siteId   = '9b912e9a-b30a-4a0f-87bc-6f99d5de1f7e'
-} | ConvertTo-Json -Compress)
-
-$loginOk = $false
-foreach ($attempt in 1..5) {
-  Start-Sleep -Seconds 2
-  try {
-    $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST -ContentType 'application/json' -Body $loginBody
-    Write-Host "Login OK (Render): $($login.user.username)" -ForegroundColor Green
-    $loginOk = $true
-    break
-  } catch {
-    Write-Host "Intento $attempt/5 login Render: $($_.ErrorDetails.Message)" -ForegroundColor Yellow
-  }
-}
-if (-not $loginOk) {
-  Write-Host 'Login fallo en Render tras setup-bootstrap.' -ForegroundColor Red
-  exit 1
-}
+$setupBstr = [IntPtr]::Zero
+$passwordBstr = [IntPtr]::Zero
 
 try {
-  $vercel = Invoke-RestMethod -Uri 'https://pa-cop-escalable-2qx1.vercel.app/render-api/api/auth/login' -Method POST -ContentType 'application/json' -Body $loginBody
-  Write-Host "Login OK (Vercel): $($vercel.user.username)" -ForegroundColor Green
-} catch {
-  Write-Host "Vercel proxy: $($_.ErrorDetails.Message) (redeploy Frontend si persiste)" -ForegroundColor Yellow
-}
+  $setupBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($setupSecretSecure)
+  $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($adminPasswordSecure)
+  $setupSecret = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($setupBstr)
+  $adminPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordBstr)
+  if (-not $setupSecret -or -not $adminPassword) {
+    throw 'Los secretos requeridos no pueden estar vacíos.'
+  }
 
-Write-Host ''
-Write-Host "Panel: usuario $username | contraseña $password | sede obligatoria" -ForegroundColor Green
-Write-Host 'En Render -> Environment: APP_BOOTSTRAP_ADMIN_PASSWORD debe ser exactamente esa misma clave.' -ForegroundColor Yellow
+  $setup = Invoke-RestMethod -Uri "$api/api/auth/setup-bootstrap" -Method POST `
+    -ContentType 'application/json' `
+    -Headers @{ 'X-COP-Setup-Secret' = $setupSecret } `
+    -Body '{}' -TimeoutSec 60
+  if (-not $setup.verified) {
+    throw 'El bootstrap no confirmó la verificación de credenciales.'
+  }
+
+  $loginBody = @{
+    username = $username
+    password = $adminPassword
+    siteId   = $siteId
+  } | ConvertTo-Json -Compress
+
+  $login = Invoke-RestMethod -Uri "$api/api/auth/login" -Method POST `
+    -ContentType 'application/json' -Body $loginBody -TimeoutSec 30
+  if (-not $login.user) {
+    throw 'El API no confirmó el inicio de sesión.'
+  }
+  Write-Host 'Bootstrap y login verificados correctamente.' -ForegroundColor Green
+
+  try {
+    $null = Invoke-RestMethod -Uri 'https://pa-cop-escalable-2qx1.vercel.app/render-api/api/auth/login' `
+      -Method POST -ContentType 'application/json' -Body $loginBody -TimeoutSec 30
+    Write-Host 'El proxy Vercel también respondió correctamente.' -ForegroundColor Green
+  } catch {
+    Write-Warning 'El login directo funciona; revisa el proxy o vuelve a desplegar el frontend.'
+  }
+} catch {
+  Write-Error 'Falló la verificación. Confirma las variables de Render, la sede y el estado del servicio.'
+  exit 1
+} finally {
+  if ($setupBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($setupBstr) }
+  if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+  $setupSecret = $null
+  $adminPassword = $null
+  $loginBody = $null
+}

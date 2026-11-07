@@ -40,9 +40,9 @@ const require = createRequire(import.meta.url);
 const bcrypt = require(resolve(root, 'nest-migration/node_modules/bcrypt'));
 
 const ORG_ID = process.env.APP_BOOTSTRAP_ADMIN_ORG_ID || 'be7f4015-67ad-472b-9cf7-aadcd8b0d604';
-const ADMIN_USER = process.env.APP_BOOTSTRAP_ADMIN_USERNAME || 'nelsonherazoi';
-const ADMIN_PASS = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD || 'Nelson09092001';
-const ADMIN_EMAIL = process.env.APP_BOOTSTRAP_ADMIN_EMAIL || 'nelsondavid1954@gmail.com';
+const ADMIN_USER = (process.env.APP_BOOTSTRAP_ADMIN_USERNAME || '').trim();
+const ADMIN_PASS = process.env.APP_BOOTSTRAP_ADMIN_PASSWORD || '';
+const ADMIN_EMAIL = (process.env.APP_BOOTSTRAP_ADMIN_EMAIL || '').trim();
 const DB = process.env.MONGODB_DB || 'cop';
 
 mkdirSync(outDir, { recursive: true });
@@ -51,6 +51,9 @@ const now = new Date().toISOString();
 const marker = 'mcp-atlas-deploy';
 
 async function main() {
+  if (!ADMIN_USER || !ADMIN_EMAIL || ADMIN_PASS.length < 12) {
+    throw new Error('Define APP_BOOTSTRAP_ADMIN_USERNAME, APP_BOOTSTRAP_ADMIN_EMAIL y APP_BOOTSTRAP_ADMIN_PASSWORD (mínimo 12 caracteres) en el entorno seguro.');
+  }
   const password_hash = await bcrypt.hash(ADMIN_PASS, 10);
   const siteIds = COLOMBIA_SITES_CATALOG.map(() => randomUUID());
 

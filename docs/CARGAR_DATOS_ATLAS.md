@@ -28,7 +28,7 @@ node scripts/seed-atlas-completo.mjs --pacientes 15000 --sin-muestras
 
 **Requisitos:**
 
-1. Atlas → **Network Access** → `0.0.0.0/0` **Active**
+1. Atlas → **Network Access** → `solo IPs de salida confiables; nunca permitir acceso global` **Active**
 2. `.env` con `MONGODB_PASSWORD` (o `MONGODB_URL` completa) y `APP_BOOTSTRAP_ADMIN_*`
 3. `npm install mongodb` en la raíz (el script `cargar-atlas-completo.ps1` lo instala si falta)
 
@@ -116,7 +116,7 @@ Otros orígenes de datos:
 
 ### 1. Atlas listo para recibir datos
 
-1. [cloud.mongodb.com](https://cloud.mongodb.com) → **Network Access** → `0.0.0.0/0` **Active**.
+1. [cloud.mongodb.com](https://cloud.mongodb.com) → **Network Access** → `solo IPs de salida confiables; nunca permitir acceso global` **Active**.
 2. **Database Access** → usuario con contraseña conocida (la misma que `MONGODB_PASSWORD` en `.env`).
 
 ### 2. Mongo local con datos
@@ -223,7 +223,7 @@ Ver lista completa en `docs/MONGODB_ATLAS_COLECCIONES.md` (`users`, `patients`, 
 | Error | Solución |
 |-------|----------|
 | `mongodump` no reconocido | Instala Database Tools o `-UsarDocker` |
-| Conexión Atlas rechazada | `0.0.0.0/0` Active en Network Access |
+| Conexión Atlas rechazada | `solo IPs de salida confiables; nunca permitir acceso global` Active en Network Access |
 | `authentication failed` | Revisa `MONGODB_PASSWORD` en `.env` |
 | Dump vacío | El volumen Docker no tenía datos; trabajaste solo en Atlas |
 | Duplicados tras restore | Usa `-ReemplazarColecciones` solo si quieres reemplazar todo |

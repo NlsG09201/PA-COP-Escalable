@@ -4,7 +4,7 @@ Guía para levantar **API Nest**, **J48 Python** y servicios de IA con el [Bluep
 
 ## Requisitos previos
 
-1. **MongoDB Atlas** — cluster, usuario `readWrite`, red `0.0.0.0/0` (o IP de Render), URI `mongodb+srv://.../NOMBRE_DB?...` (ver `docs/MONGODB_ATLAS_COLECCIONES.md`)
+1. **MongoDB Atlas** — cluster, usuario `readWrite`, red `solo IPs de salida confiables; nunca permitir acceso global` (o IP de Render), URI `mongodb+srv://.../NOMBRE_DB?...` (ver `docs/MONGODB_ATLAS_COLECCIONES.md`)
 2. **Redis** — [Upstash](https://upstash.com) `rediss://...` o **Render Redis** (URL interna o TLS según el producto)
 3. Cuenta [Render](https://render.com) y el repositorio conectado a GitHub/GitLab
 
@@ -33,7 +33,7 @@ La API arranca aunque falte `REDIS_URL` (modo degradado).
 
 **Upstash:** `.\deploy\upstash-redis-a-render.ps1` → guia `deploy/UPSTASH-RENDER.md` (evita WRONGPASS).
 
-**Atlas (Mongo):** si ves `MongooseServerSelectionError` / whitelist → `deploy/ATLAS-RENDER.md` → Network Access `0.0.0.0/0`.
+**Atlas (Mongo):** si ves `MongooseServerSelectionError` / whitelist → `deploy/ATLAS-RENDER.md` → Network Access `solo IPs de salida confiables; nunca permitir acceso global`.
 
 ### Configuracion automatica
 
@@ -103,7 +103,7 @@ Si el navegador muestra error **CORS**, revisa que `CORS_ORIGINS` incluya exacta
 - **`ENOTFOUND your-instance.upstash.io`**: pegaste el **ejemplo** del repo, no tu URL de Upstash. En [Upstash Console](https://console.upstash.com) → tu base → copia **Redis URL** (TLS) y pégala entera en `REDIS_URL`. El host debe ser algo como `prepared-ram-78507.upstash.io`, no `your-instance`.
 - **`[ioredis] connect ENOENT %20--tls%20-u`**: `REDIS_URL` incluye el comando `redis-cli --tls -u` delante de la URI. En Render deja solo `rediss://default:...@....upstash.io:6379`.
 - **`MONGODB_URL still contains a placeholder password`**: en **cop-nest-api** → **Environment** añade `MONGODB_PASSWORD` = contraseña Atlas (sin `<>`), guarda y **Manual Deploy**. O pega la URI completa en `MONGODB_URL` sin `<db_password>`.
-- **`MongooseServerSelectionError` / IP whitelist**: en MongoDB Atlas → **Network Access** → **Add IP Address** → **Allow access from anywhere** (`0.0.0.0/0`). Sin esto Render no entra al cluster.
+- **`MongooseServerSelectionError` / IP whitelist**: en MongoDB Atlas → **Network Access** → **Add IP Address** → **Allow access from anywhere** (`solo IPs de salida confiables; nunca permitir acceso global`). Sin esto Render no entra al cluster.
 - **`public/sites` 502 en Vercel** (`X-Vercel-Error: DNS_HOSTNAME_NOT_FOUND`): el proxy apuntaba al placeholder `YOUR_RENDER_API_HOST`. En el proyecto Vercel (PublicWeb/Frontend) define `RENDER_API_HOST` = host real del API en Render y redeploy. Ver `docs/DEPLOY_RENDER_VERCEL.md`.
 - **`public/sites` 502 en el navegador** (otros casos): el front llama al API y **no hay respuesta**. En DevTools → **Network** → abre la petición y mira la URL completa:
   - Si es `https://TU-FRONT/public/sites` (mismo dominio que la web): estás en **PublicWeb/Frontend con proxy** (`API_BASE_URL` vacío). El **gateway/Nest** detrás está caído → levanta `docker compose --profile core up -d nest-backend gateway publicweb` o revisa logs de `nest-backend`.

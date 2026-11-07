@@ -4,10 +4,10 @@ Si ves alguno de estos mensajes en logs de **cop-nest-api**:
 
 - `Bootstrap admin omitido (Mongo no conectado): Operation users.findOne() buffering timed out`
 - `MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster`
-- `MongoDB Atlas: Network Access -> Add IP -> 0.0.0.0/0`
+- `MongoDB Atlas: Network Access -> Add IP -> solo IPs de salida confiables; nunca permitir acceso global`
 - `MongoDB TLS/SSL Error` / `tlsv1 alert internal error` / `SSL alert number 80`
 
-casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `0.0.0.0/0` aún en **Pending**. La API puede arrancar (`Application is running`) pero Mongo y el bootstrap admin fallan hasta que Atlas permita Render.
+casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `solo IPs de salida confiables; nunca permitir acceso global` aún en **Pending**. La API puede arrancar (`Application is running`) pero Mongo y el bootstrap admin fallan hasta que Atlas permita Render.
 
 **URL del API en Render:** si los logs dicen `Available at https://pa-cop-escalable.onrender.com`, usa **ese** host en Vercel (`RENDER_API_HOST=pa-cop-escalable.onrender.com`). `cop-nest-api.onrender.com` puede no existir (`no-server`).
 
@@ -16,16 +16,16 @@ casi siempre es **Network Access** en Atlas (IP no permitida) o la regla `0.0.0.
 1. [cloud.mongodb.com](https://cloud.mongodb.com) → tu proyecto → **Cluster0** (o el tuyo).
 2. Menú izquierdo → **Network Access** (Acceso a la red).
 3. **Add IP Address** (+ Agregar dirección IP).
-4. Elige **Allow Access from Anywhere**:
-   - IP: `0.0.0.0/0`
+4. Limita la regla a las IPs de salida confiables; no uses Allow Access from Anywhere.
+   - IP: una dirección IP concreta autorizada.
    - Comentario: `Render y desarrollo`
 5. **Confirm**.
 6. Espera hasta que la entrada muestre estado **Active** (verde) — puede tardar **2–5 minutos**.
 7. Comprueba que no tengas una regla **Pending** duplicada que bloquee (borra entradas viejas en conflicto).
 
-No hace falta listar IPs de Render una por una; `0.0.0.0/0` es lo habitual para PaaS (Render, Vercel, etc.).
+Las reglas de Atlas deben permitir solo orígenes de red necesarios. Si no hay IP de salida estable, usa conectividad privada u otra opción de red administrada con acceso restringido.
 
-**Importante:** si añadiste `0.0.0.0/0` hace un momento y el deploy sigue fallando, espera 3 minutos y vuelve a **Manual Deploy**. Atlas tarda en propagar la regla.
+**Importante:** si la regla de IP autorizada aparece Pending, espera a que quede Active antes de probar de nuevo.
 
 ## Después
 
@@ -38,7 +38,7 @@ No hace falta listar IPs de Render una por una; `0.0.0.0/0` es lo habitual para 
 
 | Revisar | Dónde |
 |---------|--------|
-| `0.0.0.0/0` en estado **Active** (no Pending) | Atlas → Network Access |
+| IPs de salida autorizadas en estado Active (no Pending) | Atlas → Network Access |
 | Usuario/contraseña Atlas | Render → `MONGODB_PASSWORD` o URI en `COP_PRODUCTION_ENV_B64` |
 | Misma contraseña que en Atlas → Database Access | Usuario `nelsonherazoi` → Edit → reset password → actualizar Render |
 | Nombre de base `cop` en la URI | `...mongodb.net/cop?...` |

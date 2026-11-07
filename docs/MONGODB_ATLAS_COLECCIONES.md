@@ -12,7 +12,7 @@ Ejemplo (sustituye usuario, contraseña y nombre de base):
 mongodb+srv://nelsonherazoi:TU_PASSWORD@cluster0.6oyhyja.mongodb.net/cop?retryWrites=true&w=majority&appName=Cluster0
 ```
 
-4. **Network Access** en Atlas: añade `0.0.0.0/0` (o las IPs de Render) o la API no podrá conectar.
+4. **Network Access** en Atlas: añade `solo IPs de salida confiables; nunca permitir acceso global` (o las IPs de Render) o la API no podrá conectar.
 
 Pon esa URI solo en **variables de entorno** (Render, `.env` local que no subas a git). No commitees contraseñas.
 

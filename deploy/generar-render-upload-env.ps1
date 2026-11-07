@@ -105,8 +105,9 @@ if (-not ($lines | Where-Object { $_ -match '^\s*PUBLIC_API_ORIGIN\s*=' })) {
   $lines += "PUBLIC_API_ORIGIN=$defaultApiOrigin"
 }
 
-if (-not ($lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=' })) {
-  $lines += 'SETUP_ADMIN_SECRET=cop-atlas-setup-2026'
+$setupSecretLine = $lines | Where-Object { $_ -match '^\s*SETUP_ADMIN_SECRET\s*=\s*\S+' } | Select-Object -First 1
+if (-not $setupSecretLine) {
+  throw 'Define SETUP_ADMIN_SECRET en .env local (ignorado por Git) y mantenlo en un gestor seguro.'
 }
 
 if (-not ($lines | Where-Object { $_ -match '^\s*APP_BOOTSTRAP_ADMIN_RESET\s*=' })) {

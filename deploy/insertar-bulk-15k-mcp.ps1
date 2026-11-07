@@ -31,7 +31,7 @@ node @args
 if ($LASTEXITCODE -ne 0) {
   Write-Host ''
   Write-Host 'Si falla querySrv ENOTFOUND / ECONNREFUSED:' -ForegroundColor Yellow
-  Write-Host '  1. Atlas -> Network Access -> 0.0.0.0/0 Active'
+  Write-Host '  1. Atlas -> Network Access -> solo IPs de salida confiables; nunca permitir acceso global Active'
   Write-Host '  2. .\deploy\configurar-mcp-atlas.ps1 y reinicia MCP en Cursor'
   Write-Host '  3. En Cursor pide al agente: insertar deploy/mcp-payloads/bulk con insert-many'
   Write-Host '  4. O ejecuta desde otra red / VPN sin bloqueo DNS SRV'

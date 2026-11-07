@@ -12,7 +12,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $api = 'https://pa-cop-escalable.onrender.com'
-$secret = 'cop-atlas-setup-2026'
+$secret = $env:SETUP_ADMIN_SECRET
+if ([string]::IsNullOrWhiteSpace($secret)) {
+  throw 'Define SETUP_ADMIN_SECRET desde un gestor seguro antes de continuar.'
+}
 $body = @{
   forzar        = [bool]$Forzar
   soloCatalogo  = [bool]$SoloCatalogo

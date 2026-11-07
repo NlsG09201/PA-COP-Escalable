@@ -4,6 +4,10 @@ deploy/render-upload.env
 deploy/cop-production-env.b64.txt
 deploy/mongo-dump/
 deploy/mcp-payloads/bulk/*-batch-*.json
+deploy/mcp-payloads/bulk-35k/patients-batch-*.json
+deploy/tmp-login*.json
+deploy/setup-bootstrap-body.json
+deploy/mcp-payloads/users.json
 .env.local
 .env.*.local
 *.log
